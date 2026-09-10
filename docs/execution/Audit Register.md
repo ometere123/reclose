@@ -65,11 +65,25 @@ passed, does not authorize weakening security requirements or governance, and do
 audit history. A0 remains recorded as **not externally passed** until the repository owner (or an independent
 reviewer they designate) supplies an actual external A0 decision on attempt 5.
 
+## A1 - External Core Architecture / Security Audit (Kernel + Policy + Reference Target)
+
+| Attempt | Audit target commit (full SHA) | Decision | Notes |
+|---|---|---|---|
+| 1 | `82421aab595acfda4351c54f6542a071633152ad` (branch `claude/r1-core`) | AWAITING EXTERNAL REVIEW | C1 implemented under the owner execution-schedule override above; see `docs/execution/audit-packets/A1/` |
+
+C1 (AssuranceKernel, ReferenceAgentProtocol, ProviderStubA/B) implemented, 31/31 Direct Mode tests
+passing (confirmed on real GitHub Actions Linux CI), and live-deployed to Studio-dev (chain 61997) -
+the Master Plan's stated minimum ("at least one real target registration and active-policy flow on
+61997") is proven on-chain with transaction hashes and view-call verification (see
+`docs/execution/audit-packets/A1/deployment-evidence.md`). C2 (IncidentJudge, IncentiveVault,
+Sentinel, frontend) has NOT begun. This packet awaits external review, alongside the still-pending
+A0 decision above - proceeding into C1 does not retroactively supply the A0 decision, and does not
+constitute an A1 PASS either.
+
 ## Later gates
 
 | Gate | Status | Decision date | Decision source | Commit reviewed | Notes |
 |---|---|---|---|---|---|
-| A1 | not yet reached | - | - | - | - |
 | A2 | not yet reached | - | - | - | - |
 | A3 | not yet reached | - | - | - | - |
 | A4 | not yet reached | - | - | - | - |
