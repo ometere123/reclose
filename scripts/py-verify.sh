@@ -28,8 +28,22 @@ elif [ "${CANDIDATE_COUNT:-0}" = "0" ]; then
 else
   echo "Found $CANDIDATE_COUNT deployable-contract candidate(s) - running genvm-lint (failure now fails the build)."
   if command -v genvm-lint >/dev/null 2>&1; then
-    genvm-lint check contracts
-    LINT_EXIT=$?
+    # `genvm-lint lint`/`check` take exactly one contract FILE, not a directory (passing a
+    # directory raised IsADirectoryError on real GitHub Actions CI - see git history for the
+    # failing run) - lint each discovered candidate individually. Uses `lint` (fast, AST-based
+    # safety checks, no network dependency) rather than `check` (lint+validate): `validate` needs
+    # to download and match the exact pinned py-genlayer runner tarball, which this session found
+    # genvm-lint's own artifact-registry resolution does not reliably do even when the correct
+    # runner is already cached locally under a different scheme (see known-limitations.md). The
+    # real semantic proof for these contracts is the genlayer-test Direct Mode suite below, which
+    # loads and executes the actual pinned SDK - a stronger check than genvm-lint's static validate.
+    LINT_EXIT=0
+    CANDIDATE_PATHS=$(echo "$DISCOVERY_OUTPUT" | sed -n 's/^  //p')
+    while IFS= read -r candidate; do
+      [ -z "$candidate" ] && continue
+      echo "--- genvm-lint lint $candidate ---"
+      genvm-lint lint "$candidate" || LINT_EXIT=1
+    done <<< "$CANDIDATE_PATHS"
   else
     echo "FAIL: deployable contracts exist but genvm-lint is not installed/on PATH."
     LINT_EXIT=1
