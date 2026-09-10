@@ -13,6 +13,7 @@ docs/execution/Architecture Deviations.md
 docs/execution/Audit Register.md
 docs/execution/Current Phase.md
 docs/execution/Frontend Contract v1.md
+docs/execution/Gate Verification Status.csv
 docs/execution/Interface Change Log.md
 docs/execution/Open Blockers.md
 docs/execution/Phase Log.md
@@ -20,9 +21,11 @@ docs/execution/Requirements Status.csv
 docs/execution/Studio-dev Toolchain & Network Compatibility Record.md
 docs/execution/audit-packets/A0/COMMIT.txt
 docs/execution/audit-packets/A0/README.md
+docs/execution/audit-packets/A0/content-hashes.txt
 docs/execution/audit-packets/A0/file-manifest.txt
 docs/execution/audit-packets/A0/requirements-status-snapshot.csv
 docs/execution/audit-packets/A0/threat-status-snapshot.csv
+docs/execution/audit-packets/A0/verification-results.txt
 docs/governance/Implementation Specification.md
 docs/governance/Master Design Package.md
 docs/governance/Naming & Brand Decision Record.md
@@ -69,6 +72,7 @@ schemas/evidence/EvidenceSource.schema.json
 schemas/incident/DecisionOutcome.schema.json
 schemas/incident/DecisionRecord.schema.json
 schemas/incident/DecisionStage.schema.json
+schemas/incident/DecisionView.schema.json
 schemas/incident/Incident.schema.json
 schemas/policy/PolicyDetail.schema.json
 schemas/policy/PolicySecurityDiff.schema.json
@@ -81,6 +85,8 @@ schemas/transaction/ExecutionResult.schema.json
 schemas/transaction/FeeTransactionPreview.schema.json
 schemas/transaction/GenLayerTransactionLifecycle.schema.json
 scripts/list-deployable-contracts.js
+scripts/py-verify.sh
+scripts/test-list-deployable-contracts.js
 scripts/validate-fixtures.js
 sentinel/README.md
 tests/README.md
@@ -93,9 +99,13 @@ tests/frontend-fixtures/decision-final-confirmed.json
 tests/frontend-fixtures/decision-final-rejected.json
 tests/frontend-fixtures/decision-final-undetermined.json
 tests/frontend-fixtures/decision-provisional-confirmed.json
+tests/frontend-fixtures/decision-view-accepted-not-final.json
+tests/frontend-fixtures/decision-view-final-confirmed.json
+tests/frontend-fixtures/decision-view-outcome-undetermined-vs-raw-finalized.json
 tests/frontend-fixtures/error-fees-distribution-missing.json
 tests/frontend-fixtures/error-wrong-network.json
 tests/frontend-fixtures/evidence-source-available.json
+tests/frontend-fixtures/evidence-source-independent-public.json
 tests/frontend-fixtures/evidence-source-unavailable.json
 tests/frontend-fixtures/execution-receipt-child-failure.json
 tests/frontend-fixtures/execution-receipt-success.json
@@ -120,7 +130,7 @@ tests/frontend-fixtures/target-restricted.json
 tests/frontend-fixtures/target-safe-mode.json
 tests/frontend-fixtures/tx-lifecycle-accepted.json
 tests/frontend-fixtures/tx-lifecycle-finalized-success.json
-tests/frontend-fixtures/tx-lifecycle-wrong-network.json
+tests/frontend-fixtures/tx-lifecycle-raw-undetermined.json
 toolchain/network.lock.json
 toolchain/runner.lock
 toolchain/versions.lock

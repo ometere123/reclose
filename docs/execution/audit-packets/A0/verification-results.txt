@@ -1,14 +1,15 @@
-=== Verification results for audit target commit 69204d5bb3db0f9b6381f1ebeb7fc304f20a7433 ===
-=== Captured in an isolated git worktree (not the primary working directory) ===
+Captured in an isolated `git worktree add /c/a0-verify-wt HEAD` checked out at audit target commit
+82b0d7ce50ad3db62aaa34b677bd6d8927dd7b25 (branch claude/r1-foundation), never from the ambient working
+directory, so this output reflects exactly that commit's tree. The worktree was removed after capture.
 
---- npm install ---
+=== npm install ===
 
-added 6 packages in 3s
+up to date in 1s
 
---- npm run verify ---
+=== npm run verify ===
 
 > reclose@0.1.0 verify
-> npm run lint && npm run typecheck && npm run test && npm run schema:validate && npm run contracts:lint
+> npm run lint && npm run typecheck && npm run test && npm run schema:validate && npm run contracts:lint && npm run contracts:lint:selftest
 
 
 > reclose@0.1.0 lint
@@ -50,11 +51,15 @@ PASS  decision-provisional-confirmed.json  (incident/DecisionRecord.schema.json)
 PASS  decision-final-confirmed.json  (incident/DecisionRecord.schema.json)
 PASS  decision-final-rejected.json  (incident/DecisionRecord.schema.json)
 PASS  decision-final-undetermined.json  (incident/DecisionRecord.schema.json)
+PASS  decision-view-final-confirmed.json  (incident/DecisionView.schema.json)
+PASS  decision-view-accepted-not-final.json  (incident/DecisionView.schema.json)
+PASS  decision-view-outcome-undetermined-vs-raw-finalized.json  (incident/DecisionView.schema.json)
 PASS  evidence-source-available.json  (evidence/EvidenceSource.schema.json)
 PASS  evidence-source-unavailable.json  (evidence/EvidenceSource.schema.json)
+PASS  evidence-source-independent-public.json  (evidence/EvidenceSource.schema.json)
 PASS  tx-lifecycle-accepted.json  (transaction/GenLayerTransactionLifecycle.schema.json)
 PASS  tx-lifecycle-finalized-success.json  (transaction/GenLayerTransactionLifecycle.schema.json)
-PASS  tx-lifecycle-wrong-network.json  (transaction/GenLayerTransactionLifecycle.schema.json)
+PASS  tx-lifecycle-raw-undetermined.json  (transaction/GenLayerTransactionLifecycle.schema.json)
 PASS  child-transaction-failed.json  (transaction/ChildTransactionState.schema.json)
 PASS  child-transaction-succeeded.json  (transaction/ChildTransactionState.schema.json)
 PASS  action-envelope-restrict.json  (transaction/ActionEnvelope.schema.json)
@@ -66,7 +71,7 @@ PASS  error-wrong-network.json  (core/ErrorEnvelope.schema.json)
 PASS  error-fees-distribution-missing.json  (core/ErrorEnvelope.schema.json)
 PASS  fee-preview-deploy.json  (transaction/FeeTransactionPreview.schema.json)
 
-36/36 fixtures valid.
+40/40 fixtures valid.
 
 > reclose@0.1.0 contracts:lint
 > node scripts/list-deployable-contracts.js
@@ -74,13 +79,40 @@ PASS  fee-preview-deploy.json  (transaction/FeeTransactionPreview.schema.json)
 contracts/ contains 0 deployable-contract candidate file(s):
 No test/helper files found under contracts/. Boundary OK.
 
---- npm audit ---
+> reclose@0.1.0 contracts:lint:selftest
+> node scripts/test-list-deployable-contracts.js
+
+PASS  a valid contract with the exact pinned header is accepted
+PASS  a generic helper.py with no runner header is rejected
+PASS  a .py file with the WRONG runner hash is rejected, not silently accepted
+PASS  conftest.py under contracts/ is rejected regardless of header
+PASS  test_*.py and *_test.py under contracts/ are rejected
+PASS  __init__.py under contracts/ is rejected
+PASS  a first-level subdirectory contract group is still discovered and validated
+PASS  an empty/nonexistent contracts/ directory produces zero candidates and zero violations
+
+All contract-discovery boundary tests passed.
+
+=== bash scripts/py-verify.sh ===
+=== genvm-lint gate ===
+contracts/ contains 0 deployable-contract candidate file(s):
+No test/helper files found under contracts/. Boundary OK.
+SKIPPED: no deployable-contract candidates exist yet under contracts/ (F0/pre-C1 state). Nothing to lint.
+
+=== pytest gate ===
+SKIPPED: no Python test files exist yet under tests/ (F0/pre-C1 state). Nothing to run.
+
+py-verify: PASS (see SKIPPED notes above for anything not yet applicable).
+
+=== npm audit ===
 found 0 vulnerabilities
 
---- secret scan (private key / password patterns) ---
-(grep+xargs exit code above; no lines above this means: no matches found)
+=== secret scan ===
+./docs/execution/audit-packets/A0/README.md
+(scan complete - any lines above are hits)
 
---- governance/toolchain byte-identity check vs G0-accepted main branch ---
-git diff main 69204d5 -- docs/governance/ CLAUDE.md "Repository Build Master Plan.md" toolchain/
+=== git-tracked secret-shaped files ===
+(empty above = clean)
+
+=== governance/toolchain diff vs G0-accepted main ===
 0
-(0 = byte-identical, confirmed)

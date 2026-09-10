@@ -1,10 +1,51 @@
-Content hashes computed independently of any commit hash (git blob SHA-1 and content SHA-256),
-as of audit target commit 69204d5bb3db0f9b6381f1ebeb7fc304f20a7433.
+Content hashes computed independently of any commit's own hash (git blob SHA and SHA-256),
+generated from already-existing audit target commit 82b0d7ce50ad3db62aaa34b677bd6d8927dd7b25 after that commit existed.
 
-docs/execution/Frontend Contract v1.md                  git-blob=cd12e4e3fcd432bbdb17296a7ed4d6b07fb44925  sha256=09badb5b1cba4ba7f0d4ee7c9439999d6093ad9b355ed7fa5420b2e3230ef92d
-docs/execution/Interface Change Log.md                  git-blob=8cd6ae80366e302093684df60563b2ce03bf7c08  sha256=58ca5fce1dbe84936f037b1e04fa7b232eee7d998eb864838757c594d23c3905
-docs/security/Threat Status.csv                         git-blob=afb9196fb6a23cb62c08231c541e80742e2502ee  sha256=7496128b7fda25496cd2230933b1776f687637c680f8987b261cf775c41da824
-docs/execution/Requirements Status.csv                  git-blob=36d18dc0165c38a5c653568c8c6891ac8c44039f  sha256=8cf2fee182b3825b6589bec6b872e74a08b0620f19fc8565395fb9075c5eaca0
-toolchain/network.lock.json                             git-blob=8c83c655e8fa7ae670a9f34224b82108d80a6113  sha256=502002854e8d1ff2865a97821cfba66f25f9e21e61caf20de1900a024e5f4ebc
-toolchain/runner.lock                                   git-blob=f4b9788bce44df0e4a8704f35cc0d53d132f0574  sha256=769d3c1057ae479cb870c5f710973935d7e9b625f2f216d15af3871710e48da3
-toolchain/versions.lock                                 git-blob=bd36547001e0e998cd0733fdb56b9426138f17ec  sha256=bb262ade300f5e12c8ef6ea8a07164ed0491ec6308b3525689e861707e0cbc88
+docs/execution/Frontend Contract v1.md
+  git_blob_sha1: f5f9ad0784579c93ed41402f357b4a68eaf06d5e
+  sha256:        681c6f737bdd0d7fbf4141b4f9ba7ae721ab685ae72cbb29fc2ff8efa3b76f59
+
+docs/execution/Interface Change Log.md
+  git_blob_sha1: f82be743ebc856102692f9fbdbe78bd8b291fea6
+  sha256:        5884d870ed60e4cdc6de7d119d1d49fbd5c688bc875105ad90901940a0f95785
+
+docs/security/Threat Status.csv
+  git_blob_sha1: f16df2b55e38249bff1497b1e466922fc77437fb
+  sha256:        5bf94d3e5f76e133d0131880533a0e11cd5021d343de03366a7bf78959b6ad6a
+
+docs/execution/Requirements Status.csv
+  git_blob_sha1: a84365fdbf4c5fc27fd08dff2011984232534c0c
+  sha256:        8750053409afa063f523b21ac812a1304d453ecac5ce1e1f692f8621c314f5fe
+
+docs/execution/Gate Verification Status.csv
+  git_blob_sha1: ea9dc9e7bc13ca48f9c08e03de13cdccddcd1cb2
+  sha256:        b97297147f385a9351b269fdb2bd6e8aa9a228b723ea7c3d4869b0b07156ad78
+
+toolchain/versions.lock
+  git_blob_sha1: bd36547001e0e998cd0733fdb56b9426138f17ec
+  sha256:        bb262ade300f5e12c8ef6ea8a07164ed0491ec6308b3525689e861707e0cbc88
+
+toolchain/runner.lock
+  git_blob_sha1: f4b9788bce44df0e4a8704f35cc0d53d132f0574
+  sha256:        769d3c1057ae479cb870c5f710973935d7e9b625f2f216d15af3871710e48da3
+
+toolchain/network.lock.json
+  git_blob_sha1: 8c83c655e8fa7ae670a9f34224b82108d80a6113
+  sha256:        502002854e8d1ff2865a97821cfba66f25f9e21e61caf20de1900a024e5f4ebc
+
+schemas/incident/DecisionRecord.schema.json
+  git_blob_sha1: 62087997c0269210a4b23de94bb98f2c441d396d
+  sha256:        e109ad8a071a385d166a6ad1d8c76d3a5d5eeef94b12e83ddfea55c0c4ae7ed9
+
+schemas/incident/DecisionView.schema.json
+  git_blob_sha1: efd8aad13cad49fa275cbed7be5d2c18a3535dd6
+  sha256:        c9d197123311e16952b586449d62febc53c90dbb8bf029819cfac738686b0372
+
+schemas/evidence/EvidenceSource.schema.json
+  git_blob_sha1: 722dba0825a99b0513cab9f08d311ef259435d25
+  sha256:        e0630057bdfd5ae754d9037f57213d5c08890058f93758694b4e659921aba9ae
+
+schemas/transaction/GenLayerTransactionLifecycle.schema.json
+  git_blob_sha1: e7b5c4f8a4d8aa33aa6e8557590baeab2eeb1157
+  sha256:        11524afd1c8ada9f65b62ce44fd954d1806bf4260a3ab06d136a7bae69f4a7ed
+

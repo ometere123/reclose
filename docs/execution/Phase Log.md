@@ -317,3 +317,56 @@ Blockers: none. Architecture deviations: none. No F0/F1/S0 implementation conten
 packet look cleaner - the only implementation change was the genuine circular-reference fix in `69204d5`.
 Status: still A0, AWAITING EXTERNAL REVIEW. C1 not started.
 
+## 2026-09-10 - A0 resubmission after external FAIL decision (findings A0-001 through A0-009)
+
+The external reviewer returned **FAIL** on the `69204d5` A0 submission, citing nine findings. Per the repository
+owner's explicit remediation instructions, findings A0-001 through A0-007 (plus part of A0-008) were fixed as
+genuine implementation content in commit `82b0d7ce50ad3db62aaa34b677bd6d8927dd7b25`, and the A0 packet was rebuilt
+to the Master Plan's required minimum format (finding A0-009). No F0/F1/S0 content was altered merely to make the
+packet look cleaner - every change below is a real fix for a defect the reviewer identified.
+
+- **A0-001 (RTM execution ledger):** `docs/execution/Requirements Status.csv` rebuilt from the 156 exact locked
+  RTM IDs (verified: 0 missing, 0 extra, 0 duplicate against `docs/governance/Requirements Traceability Matrix.md`).
+  The prior G0/F0/F1 operational check IDs were preserved unchanged in a new
+  `docs/execution/Gate Verification Status.csv` rather than deleted.
+- **A0-002 (S0 threat traceability):** `docs/security/Threat Status.csv` rebuilt with the Master Plan's required
+  columns and only the seven allowed status values; every CRITICAL/HIGH threat now has a `requirement_refs`
+  mapping; `docs/security/Security Findings.md` corrected (CRITICAL=25/HIGH=47/MEDIUM=10, not 33 CRITICAL; 3
+  concrete `MITIGATED / VERIFIED` findings, not 4; `TM-INF-001` corrected to note its control is only half-satisfied).
+- **A0-003 (DecisionRecord):** rebuilt around the governed semantic identity; transaction lifecycle moved out into
+  a new `DecisionView` composition.
+- **A0-004 (EvidenceSource.sourceClass):** replaced the invented taxonomy with the exact ADR-011 governed classes;
+  descriptive categories moved to a new `sourceType` field.
+- **A0-005 (transaction truth model):** `GenLayerTransactionLifecycle` rebuilt against the pinned
+  `genlayer-js@2.0.0-rc.1` package's actual enums (independently re-extracted from its published npm tarball),
+  replacing invented values.
+- **A0-006 (CI/root verification):** removed `|| true` failure-swallowing from `.github/workflows/ci.yml` and
+  `Makefile`; new `scripts/py-verify.sh` reports explicit SKIPPED while nothing exists to check and fails the
+  build once something does; `F0-CI-01` corrected from VERIFIED to IMPLEMENTED / UNVERIFIED.
+- **A0-007 (contract-discovery boundary):** `scripts/list-deployable-contracts.js` now requires the exact pinned
+  runner header on every candidate `.py` file; new `scripts/test-list-deployable-contracts.js` proves this with 8
+  automated cases.
+- **A0-008 (partial):** deployment manifest title typo fixed; fixtures reusing real G0 hashes/fee values replaced
+  with synthetic ones; the conceptually invalid `tx-lifecycle-wrong-network.json` fixture removed; Frontend
+  Contract v1.md (now F1-v2) re-identified with a stable version label + freeze date instead of a commit-hash
+  claim; schema-file count corrected to 19.
+- **A0-009 (packet rebuild):** new audit target commit chosen (`82b0d7c`), full verification suite re-run in an
+  isolated worktree (`docs/execution/audit-packets/A0/verification-results.txt`), and the packet rebuilt to
+  contain the Master Plan's required minimum file set (`README.md`, `commit.txt`/`COMMIT.txt`, `scope.md`,
+  `files-changed.txt`, `requirements.csv`, `commands-and-results.md`, `compatibility-findings.md`,
+  `frontend-contract-review.md`, `threat-model-review.md`, `threat-status.csv`, `known-limitations.md`,
+  `evidence-index.md`), retaining the prior packet's useful extras.
+
+Verified at the new audit target commit (`82b0d7c`), in an isolated `git worktree`, never the ambient working
+directory: `npm run verify` passes (40/40 fixtures valid across 19 schema files; 0 contract-discovery violations;
+8/8 discovery-boundary self-tests pass); `npm audit` 0 vulnerabilities; secret scan clean; `docs/governance/`,
+`CLAUDE.md`, `Repository Build Master Plan.md` and `toolchain/` remain byte-identical to the G0-accepted baseline.
+
+Requirements addressed: none newly VERIFIED (this is foundation/ledger/schema remediation, not C1+ feature work).
+`F0-CI-01` moved from VERIFIED to the more accurate IMPLEMENTED / UNVERIFIED.
+Threat IDs touched: TM-INF-001 (finding corrected, not weakened), TM-INF-004, TM-INF-011 (status enum corrected),
+TM-AUTH-003, TM-AUTH-009, TM-EVID-003, TM-EVID-013, TM-LIFE-001/002/003, TM-REL-003, TM-REL-004 (all newly mapped
+via `requirement_refs`, still `OPEN`).
+Blockers: none. Architecture deviations: none.
+Status: A0, AWAITING EXTERNAL REVIEW (resubmission). C1 not started.
+
