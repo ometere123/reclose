@@ -11,14 +11,21 @@ the already-externally-accepted G0 (Toolchain Conformance) baseline.
 
 ## Exact commit submitted for review
 
+**Audit target commit (repository state under review):**
+
 ```text
-cea1aa2
+69204d5bb3db0f9b6381f1ebeb7fc304f20a7433
 ```
 
-on branch `claude/r1-foundation` (see `COMMIT.txt` in this directory). Subsequent commits in this same directory
-add the S0/A0 artifacts themselves - if S0/A0 work landed in a later commit, that commit is also in scope; check
-`git log claude/r1-foundation -- docs/security/Threat Status.csv docs/execution/audit-packets/A0/` for the exact
-history.
+on branch `claude/r1-foundation`. This is the exact, already-existing commit that contains the complete F0 + F1 +
+S0 implementation state and passes all required verification (see `COMMIT.txt` for the verification summary).
+
+**Audit packet commit** (this README, `COMMIT.txt`, and the snapshot files below) is a **separate, later** commit
+that adds only files under `docs/execution/audit-packets/A0/` on top of the audit target commit. It is not
+self-referenced anywhere in this packet - see `COMMIT.txt` for why, and for how to find its hash with
+`git log`. **The audit packet commit changes nothing under review**; diff it against the audit target commit to
+confirm this (`git diff 69204d5 -- ':!docs/execution/audit-packets/A0'` should be empty once the packet commit
+is the only thing added on top).
 
 ## How to verify each required item
 
@@ -89,7 +96,8 @@ Diff `toolchain/` against the state at G0 acceptance - should be byte-identical 
 
 ### 9. No governance document was silently modified
 
-Run `git diff <G0-acceptance-commit>..cea1aa2 -- docs/governance/` (or diff
+Run `git diff main 69204d5 -- docs/governance/ CLAUDE.md "Repository Build Master Plan.md"` (already independently
+verified empty as of this packet's preparation) (or diff
 against your own retained copy of the six governance files) - should show **no changes** to any file under
 `docs/governance/`.
 
@@ -106,13 +114,36 @@ See item 2 above. Additionally: `docs/execution/Open Blockers.md` OB-001 explain
 generated and shared with the repository owner out-of-band during G0 (not written to any repository file) - this
 was confirmed via an explicit secret scan at that time and again at F0.
 
+## 12. Frontend Contract v1 freeze is non-circular
+
+`docs/execution/Frontend Contract v1.md` and `docs/execution/Interface Change Log.md` were found, during this
+packet's preparation, to contain an inaccurate self-referential freeze claim (they claimed to be "frozen at" the
+commit that only introduced them with placeholder text - the real content was added in a later commit). This was
+treated as an actual issue, not a cosmetic one: fixed in implementation commit
+`69204d5bb3db0f9b6381f1ebeb7fc304f20a7433` itself (i.e. the audit target commit already contains the fix - it is
+not a separate later patch). Both files now state, non-circularly:
+
+- which commit *introduced* them (with placeholder text);
+- which commit their *actual frozen content* first appears in;
+- that the content is verified unchanged through the audit target commit via `git diff` between two
+  already-existing commits (never a claim about the file's own containing commit's hash).
+
+Independently verify: `git diff 23fb711 69204d5 -- "docs/execution/Frontend Contract v1.md"` should be empty
+(content unchanged since the fix), and the content hash below matches.
+
 ## Packet contents
 
 ```text
 docs/execution/audit-packets/A0/
-├── README.md              (this file)
-├── COMMIT.txt             (exact commit hash + branch)
-├── requirements-status-snapshot.csv   (copy of Requirements Status.csv at packet time)
-├── threat-status-snapshot.csv         (copy of Threat Status.csv at packet time)
-└── file-manifest.txt      (full tracked-file listing at packet time, for tamper-evidence)
+├── README.md                          (this file)
+├── COMMIT.txt                         (audit target commit hash; audit packet commit deliberately NOT self-recorded)
+├── content-hashes.txt                 (SHA-256 + git blob hash of key frozen files, computed independently of any commit hash)
+├── requirements-status-snapshot.csv   (copy of Requirements Status.csv AT THE AUDIT TARGET COMMIT)
+├── threat-status-snapshot.csv         (copy of Threat Status.csv AT THE AUDIT TARGET COMMIT)
+├── verification-results.txt           (npm run verify + secret scan + governance/toolchain diff output, captured against the audit target commit)
+└── file-manifest.txt                  (full tracked-file listing AT THE AUDIT TARGET COMMIT, for tamper-evidence)
 ```
+
+All snapshot files above were generated via `git show 69204d5:<path>` (or an isolated worktree checked out at that
+commit) - never from the working directory at packet-authoring time - so they are guaranteed to reflect the audit
+target commit exactly, not whatever the repository looked like a moment later.

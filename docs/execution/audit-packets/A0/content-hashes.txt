@@ -1,0 +1,10 @@
+Content hashes computed independently of any commit hash (git blob SHA-1 and content SHA-256),
+as of audit target commit 69204d5bb3db0f9b6381f1ebeb7fc304f20a7433.
+
+docs/execution/Frontend Contract v1.md                  git-blob=cd12e4e3fcd432bbdb17296a7ed4d6b07fb44925  sha256=09badb5b1cba4ba7f0d4ee7c9439999d6093ad9b355ed7fa5420b2e3230ef92d
+docs/execution/Interface Change Log.md                  git-blob=8cd6ae80366e302093684df60563b2ce03bf7c08  sha256=58ca5fce1dbe84936f037b1e04fa7b232eee7d998eb864838757c594d23c3905
+docs/security/Threat Status.csv                         git-blob=afb9196fb6a23cb62c08231c541e80742e2502ee  sha256=7496128b7fda25496cd2230933b1776f687637c680f8987b261cf775c41da824
+docs/execution/Requirements Status.csv                  git-blob=36d18dc0165c38a5c653568c8c6891ac8c44039f  sha256=8cf2fee182b3825b6589bec6b872e74a08b0620f19fc8565395fb9075c5eaca0
+toolchain/network.lock.json                             git-blob=8c83c655e8fa7ae670a9f34224b82108d80a6113  sha256=502002854e8d1ff2865a97821cfba66f25f9e21e61caf20de1900a024e5f4ebc
+toolchain/runner.lock                                   git-blob=f4b9788bce44df0e4a8704f35cc0d53d132f0574  sha256=769d3c1057ae479cb870c5f710973935d7e9b625f2f216d15af3871710e48da3
+toolchain/versions.lock                                 git-blob=bd36547001e0e998cd0733fdb56b9426138f17ec  sha256=bb262ade300f5e12c8ef6ea8a07164ed0491ec6308b3525689e861707e0cbc88

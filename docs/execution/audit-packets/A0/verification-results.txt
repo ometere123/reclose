@@ -1,0 +1,86 @@
+=== Verification results for audit target commit 69204d5bb3db0f9b6381f1ebeb7fc304f20a7433 ===
+=== Captured in an isolated git worktree (not the primary working directory) ===
+
+--- npm install ---
+
+added 6 packages in 3s
+
+--- npm run verify ---
+
+> reclose@0.1.0 verify
+> npm run lint && npm run typecheck && npm run test && npm run schema:validate && npm run contracts:lint
+
+
+> reclose@0.1.0 lint
+> echo 'no JS/TS packages implemented yet (F0) - nothing to lint'
+
+'no JS/TS packages implemented yet (F0) - nothing to lint'
+
+> reclose@0.1.0 typecheck
+> echo 'no JS/TS packages implemented yet (F0) - nothing to typecheck'
+
+'no JS/TS packages implemented yet (F0) - nothing to typecheck'
+
+> reclose@0.1.0 test
+> echo 'no JS/TS packages implemented yet (F0) - nothing to test'
+
+'no JS/TS packages implemented yet (F0) - nothing to test'
+
+> reclose@0.1.0 schema:validate
+> node scripts/validate-fixtures.js
+
+PASS  target-normal.json  (core/Target.schema.json)
+PASS  target-monitored.json  (core/Target.schema.json)
+PASS  target-restricted.json  (core/Target.schema.json)
+PASS  target-safe-mode.json  (core/Target.schema.json)
+PASS  target-paused.json  (core/Target.schema.json)
+PASS  target-recovery.json  (core/Target.schema.json)
+PASS  assurance-state-restricted.json  (core/AssuranceState.schema.json)
+PASS  assurance-state-multi-incident.json  (core/AssuranceState.schema.json)
+PASS  policy-summary-active.json  (policy/PolicySummary.schema.json)
+PASS  policy-detail-active.json  (policy/PolicyDetail.schema.json)
+PASS  policy-security-diff-expansion.json  (policy/PolicySecurityDiff.schema.json)
+PASS  policy-security-diff-reduction.json  (policy/PolicySecurityDiff.schema.json)
+PASS  incident-open.json  (incident/Incident.schema.json)
+PASS  incident-final-confirmed.json  (incident/Incident.schema.json)
+PASS  incident-final-rejected.json  (incident/Incident.schema.json)
+PASS  incident-final-undetermined.json  (incident/Incident.schema.json)
+PASS  incident-recovery.json  (incident/Incident.schema.json)
+PASS  decision-provisional-confirmed.json  (incident/DecisionRecord.schema.json)
+PASS  decision-final-confirmed.json  (incident/DecisionRecord.schema.json)
+PASS  decision-final-rejected.json  (incident/DecisionRecord.schema.json)
+PASS  decision-final-undetermined.json  (incident/DecisionRecord.schema.json)
+PASS  evidence-source-available.json  (evidence/EvidenceSource.schema.json)
+PASS  evidence-source-unavailable.json  (evidence/EvidenceSource.schema.json)
+PASS  tx-lifecycle-accepted.json  (transaction/GenLayerTransactionLifecycle.schema.json)
+PASS  tx-lifecycle-finalized-success.json  (transaction/GenLayerTransactionLifecycle.schema.json)
+PASS  tx-lifecycle-wrong-network.json  (transaction/GenLayerTransactionLifecycle.schema.json)
+PASS  child-transaction-failed.json  (transaction/ChildTransactionState.schema.json)
+PASS  child-transaction-succeeded.json  (transaction/ChildTransactionState.schema.json)
+PASS  action-envelope-restrict.json  (transaction/ActionEnvelope.schema.json)
+PASS  execution-receipt-success.json  (transaction/ExecutionReceipt.schema.json)
+PASS  execution-receipt-child-failure.json  (transaction/ExecutionReceipt.schema.json)
+PASS  recovery-state-pending-remediation.json  (recovery/RecoveryState.schema.json)
+PASS  recovery-state-validated.json  (recovery/RecoveryState.schema.json)
+PASS  error-wrong-network.json  (core/ErrorEnvelope.schema.json)
+PASS  error-fees-distribution-missing.json  (core/ErrorEnvelope.schema.json)
+PASS  fee-preview-deploy.json  (transaction/FeeTransactionPreview.schema.json)
+
+36/36 fixtures valid.
+
+> reclose@0.1.0 contracts:lint
+> node scripts/list-deployable-contracts.js
+
+contracts/ contains 0 deployable-contract candidate file(s):
+No test/helper files found under contracts/. Boundary OK.
+
+--- npm audit ---
+found 0 vulnerabilities
+
+--- secret scan (private key / password patterns) ---
+(grep+xargs exit code above; no lines above this means: no matches found)
+
+--- governance/toolchain byte-identity check vs G0-accepted main branch ---
+git diff main 69204d5 -- docs/governance/ CLAUDE.md "Repository Build Master Plan.md" toolchain/
+0
+(0 = byte-identical, confirmed)
