@@ -11,10 +11,10 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run schema:validate",
+    "lint": "echo 'no JS/TS packages implemented yet (F0) - nothing to lint'",
+    "typecheck": "echo 'no JS/TS packages implemented yet (F0) - nothing to typecheck'",
+    "test": "echo 'no JS/TS packages implemented yet (F0) - nothing to test'",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run schema:validate && npm run contracts:lint",
     "schema:validate": "node scripts/validate-fixtures.js",
     "contracts:lint": "node scripts/list-deployable-contracts.js"
   },
