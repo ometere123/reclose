@@ -281,3 +281,39 @@ Work deliberately not attempted because out of scope: any AssuranceKernel/Policy
 contract implementation, any frontend UI implementation, any SDK method implementation beyond frozen signatures,
 starting a local Docker/Studio-Mode simulator, benchmark scenarios (H1 scope).
 
+## 2026-09-10 - A0 audit-reference correction (still A0, not started C1)
+
+Authorized phase: remain at A0; correct audit-packet mechanics before external submission, per explicit
+repository-owner instruction. C1 NOT begun.
+
+Two real issues were found and fixed, not merely cosmetically reworded:
+
+1. `docs/execution/Frontend Contract v1.md` and `docs/execution/Interface Change Log.md` both claimed to be
+   "frozen at commit fe86a2f" - but `fe86a2f` only introduced these files with placeholder text; the actual
+   content was added in a later commit (`23fb711`). This was an inaccurate, structurally circular self-reference
+   pattern. Fixed in commit `69204d5bb3db0f9b6381f1ebeb7fc304f20a7433`: both files now state which commit
+   introduced them, which commit stabilized their real content, and verify unchanged-ness via `git diff` between
+   two already-existing commits - never a claim about their own containing commit's hash.
+2. The previous A0 packet (commits `d5e101f`/`bb1f93b`/`cea1aa2`/`cb9a318`) pointed at a "final tranche commit"
+   concept that kept moving with each packet-only edit, and its `file-manifest.txt`/README implied the packet
+   commit could describe itself. Per instruction, a commit cannot contain its own SHA (hash quine). Rebuilt the
+   packet in commit `bfab61e7997711f2104681d564a6f7c9f72b86ab` with a clean separation:
+   - **Audit target commit** (repository state under review): `69204d5bb3db0f9b6381f1ebeb7fc304f20a7433` - an
+     already-existing, immutable commit containing the complete F0+F1+S0 implementation state.
+   - **Audit packet commit** (`bfab61e...`): a later, separate commit that adds only files under
+     `docs/execution/audit-packets/A0/`, changes nothing under review (`git diff 69204d5 bfab61e --name-only`
+     touches only that directory), and never records its own hash inside any file it contains.
+
+Verification re-run against the audit target commit `69204d5` in an isolated `git worktree` (not the primary
+working directory): `npm install` + `npm run verify` (lint/typecheck/test no-op honestly, schema:validate 36/36,
+contracts:lint 0 violations) all pass; `npm audit` 0 vulnerabilities; repository-wide secret scan clean; `git diff
+main 69204d5 -- docs/governance/ CLAUDE.md "Repository Build Master Plan.md" toolchain/` is empty (byte-identical
+to the G0-accepted baseline). Full captured output:
+`docs/execution/audit-packets/A0/verification-results.txt`. Content hashes (git blob SHA + SHA-256, computed
+independently of any commit hash) for the frozen files and locks: `docs/execution/audit-packets/A0/content-hashes.txt`.
+
+Requirements addressed: F1-FREEZE-01 (re-verified non-circular).
+Blockers: none. Architecture deviations: none. No F0/F1/S0 implementation content was altered merely to make the
+packet look cleaner - the only implementation change was the genuine circular-reference fix in `69204d5`.
+Status: still A0, AWAITING EXTERNAL REVIEW. C1 not started.
+

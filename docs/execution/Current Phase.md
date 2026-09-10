@@ -11,5 +11,6 @@ Required gate to advance: external A0 audit decision (PASS / PASS WITH CONDITION
 Latest accepted audit: G0 (externally reviewed and accepted by the repository owner, per their explicit
   instruction beginning this F0-A0 tranche)
 Current branch: claude/r1-foundation
-Current commit: (see docs/execution/audit-packets/A0/COMMIT.txt for the exact commit submitted for review)
+Audit target commit (F0+F1+S0 implementation state under review): 69204d5bb3db0f9b6381f1ebeb7fc304f20a7433
+Audit packet commit (adds only docs/execution/audit-packets/A0/, changes nothing under review): bfab61e7997711f2104681d564a6f7c9f72b86ab
 Updated at: 2026-09-10
