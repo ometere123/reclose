@@ -1,0 +1,70 @@
+[
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "ProviderStubA",
+    "contractAddress": "0xe6AF2d2F5580d05d347AffE85cAE77dC233C94a1",
+    "deploymentTxId": "0x5c31c487307b9e9d65046a47e9ff61bf118968cd461707dce1b0c53034373f80",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "1679840f0d2ba75d932c88c74e4467d1ebb40b0a",
+    "runnerDependency": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng",
+    "constructorArgs": [],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args) - authoritative distribution derived from readCurrentFeePolicy, not hand-guessed"
+  },
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "ProviderStubB",
+    "contractAddress": "0x1dEb2cd419558D17eC8ea500CC970fE8BD1281D3",
+    "deploymentTxId": "0x3ead72a2d84331f3e57aea0d7ff8cdc918bc410b8fcb42b5e8b274b8c44ac62e",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "1679840f0d2ba75d932c88c74e4467d1ebb40b0a",
+    "runnerDependency": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng",
+    "constructorArgs": [],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args)"
+  },
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "AssuranceKernel",
+    "contractAddress": "0xB6FfE8b8d4ad1AC5c418A4dccbA01feD77D6156C",
+    "deploymentTxId": "0x03ca49904e3fb2c06f56fd22b740b39c60238e9cbbc91dfa4c04d26632b3c5be",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "4fc2599b77be1b92d8b6b0d8ae6656f30208592f",
+    "runnerDependency": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng",
+    "constructorArgs": [1, 60],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args)",
+    "note": "Superseded an earlier same-session deployment at 0x21Efcc7726Ab94568962EE5C87C02548a24d0b17 which predated the _normalize_str_arg fix (add_policy_effect's param_str could not be stored as a true empty string via CLI --args) - that address was never registered against a target and carries no live state; it is not a separate deployment attempt worth its own manifest entry."
+  },
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "ReferenceAgentProtocol",
+    "contractAddress": "0x7e3Fb43ea770E2Daa520E9D7725889721DA98768",
+    "deploymentTxId": "0x5bb25050657c9b789c6eb40ce3ce9855d66e2fa3ca2c37c14059af486f436cfa",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "c57455063c0919cabcf9e0e12223244381cb84a1",
+    "constructorArgs": [
+      "0x24fae7cd031ed702be63bdea8912141805b996bd",
+      "reclose-target-001",
+      "0xe6AF2d2F5580d05d347AffE85cAE77dC233C94a1",
+      "0x1dEb2cd419558D17eC8ea500CC970fE8BD1281D3",
+      "1000000000000000000",
+      "100000000000000000",
+      true
+    ],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args)"
+  }
+]
