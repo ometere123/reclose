@@ -1,8 +1,10 @@
 # { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
-"""AssuranceKernel - the deterministic, immutable root of trust for Reclose R1 (C1).
+"""AssuranceKernel - the deterministic, immutable root of trust for Reclose R1 (C1R hardening).
 
-Implements Implementation Specification Sections 16-29. This contract has no web access, no LLM
-call, no arbitrary external call, and no upgrader - it is immutable once deployed (CLAUDE.md
+Implements Implementation Specification Sections 16-29, as corrected by the C1R hardening
+instruction (owner-supplied external findings A1-H01..A1-H12 against the prior C1 submission,
+audit target 82421aa - see docs/execution/Audit Register.md). This contract has no web access, no
+LLM call, no arbitrary external call, and no upgrader - it is immutable once deployed (CLAUDE.md
 Section 12 / Section 7 invariant 5). It never contains open-ended judgment: GenLayer/the Judge
 determines the judgment; this Kernel enforces the boundary that judgment is allowed to act within
 (CLAUDE.md Section 6's permanent principle).
@@ -17,7 +19,32 @@ Security invariants enforced here (CLAUDE.md Section 7, cross-referenced to Thre
   9. stale policy cannot silently create new authority effects   -> TM-AUTH-006
  10. resolving Incident A cannot remove Incident B's restriction -> TM-REC-001, TM-REC-008
  11. recovery cannot restore more authority than policy permits  -> TM-REC-006
+
+C1R hardening summary (findings closed here - see docs/execution/audit-packets/A1-attempt-2/
+findings-closure.md for the full finding-by-finding proof):
+  A1-H02: security timestamps now come ONLY from `_tx_time_seconds()`, which reads GenLayer's own
+    deterministic message-context timestamp (`gl.message.datetime` - verified against the exact
+    pinned genlayer-test 0.30.0rc2 Direct Mode runtime by direct inspection: it is a message-level
+    ISO8601 UTC string set by the VM/consensus context, not a caller-suppliable calldata field).
+    No public method accepts a caller-supplied `now` anymore.
+  A1-H03: authority expansion is now a conservative structural-subset comparator
+    (_classify_expansion), not a rule/effect count comparison.
+  A1-H04: disable_action/disable_resource overlays are checked in _apply_restriction before any
+    restriction is created or effect dispatched.
+  A1-H05: EffectRecord is now bound to an exact rule_id; _effects_for_rule only returns effects
+    belonging to the triggering rule.
+  A1-H06: provisional_allowed is checked before any provisional effect is applied.
+  A1-H01/A1-H07: apply_remediation_decision/apply_recovery_validation are no longer independent
+    public entry points - all semantic judgement enters through authenticated receive_decision(),
+    routed by PolicyRuleRecord.rule_kind.
+  A1-H09: identifiers/hashes are validated via shared helpers; composite keys use one canonical
+    length-prefixed encoding (_ck) everywhere, not raw delimiter concatenation.
+  A1-H11: receive_decision binds policy_key/policy_version/policy_hash/rule_id/judge/judge_version
+    and rejects any mismatch as STALE_POLICY/WRONG_JUDGE/WRONG_JUDGE_VERSION.
+  A1-H08 (live cross-contract proof) is addressed by the C1R deployment evidence, not by this file.
 """
+
+import datetime
 
 import genlayer as gl
 
@@ -57,7 +84,9 @@ SUPPORTED_ACTIONS = {
     ACTION_ALERT,
     ACTION_MONITOR,
     ACTION_RESTRICT,
+    ACTION_THROTTLE,
     ACTION_REVOKE_CAPABILITY,
+    ACTION_REROUTE,
     ACTION_ENTER_SAFE_MODE,
     ACTION_PAUSE,
     ACTION_ENTER_RECOVERY,
@@ -69,12 +98,72 @@ SUPPORTED_ACTIONS = {
 PROVISIONAL_SAFE_ACTIONS = {
     ACTION_MONITOR,
     ACTION_RESTRICT,
+    ACTION_THROTTLE,
     ACTION_REVOKE_CAPABILITY,
     ACTION_ENTER_SAFE_MODE,
 }
 
-# Kernel-v1 hard safety bound (Implementation Specification Section 21; CLAUDE.md Section 12).
+# Actions that are scoped to a specific registered resource (Section 15).
+RESOURCE_SCOPED_ACTIONS = {ACTION_RESTRICT, ACTION_THROTTLE, ACTION_REVOKE_CAPABILITY, ACTION_REROUTE}
+# Actions that are target-wide by default (may use an empty resource_id).
+TARGET_WIDE_ACTIONS = {ACTION_MONITOR, ACTION_ENTER_SAFE_MODE, ACTION_PAUSE, ACTION_ENTER_RECOVERY, ACTION_RESTORE}
+
+# Kernel-v1 hard safety bound (Implementation Specification Section 21; CLAUDE.md Section 12) -
+# per RULE, not per policy (C1R A1-H05/instruction Section 3.3): a rule may never register more
+# than 4 enabled effects, rejected at construction time, never silently truncated at execution.
 MAX_EFFECTS_PER_DECISION = 4
+
+RULE_KIND_INCIDENT = gl.u8(1)
+RULE_KIND_REMEDIATION = gl.u8(2)
+RULE_KIND_RECOVERY_VALIDATION = gl.u8(3)
+VALID_RULE_KINDS = {RULE_KIND_INCIDENT, RULE_KIND_REMEDIATION, RULE_KIND_RECOVERY_VALIDATION}
+
+RELEASE_AT_REMEDIATION_CONFIRMED = gl.u8(1)
+RELEASE_AT_RECOVERY_VALIDATED = gl.u8(2)
+RELEASE_AT_POLICY_REPLACEMENT = gl.u8(3)
+VALID_RELEASE_PHASES = {RELEASE_AT_REMEDIATION_CONFIRMED, RELEASE_AT_RECOVERY_VALIDATED, RELEASE_AT_POLICY_REPLACEMENT}
+
+INCIDENT_STATUS_OPEN = gl.u8(0)
+INCIDENT_STATUS_PROVISIONAL_APPLIED = gl.u8(1)
+INCIDENT_STATUS_FINAL_CONFIRMED = gl.u8(2)
+INCIDENT_STATUS_RECOVERY = gl.u8(3)
+INCIDENT_STATUS_CLOSED = gl.u8(4)
+
+_ID_ALLOWED_EXTRA = set("_.:-")  # underscore, dot, colon, hyphen - explicitly NO whitespace
+
+
+def _valid_identifier(value: str, max_len: int, allow_empty: bool = False) -> bool:
+    if value == "":
+        return allow_empty
+    if len(value) > max_len:
+        return False
+    for ch in value:
+        o = ord(ch)
+        is_alnum = (48 <= o <= 57) or (65 <= o <= 90) or (97 <= o <= 122)
+        if not is_alnum and ch not in _ID_ALLOWED_EXTRA:
+            return False
+    return True
+
+
+def _valid_hash(value: str) -> bool:
+    if len(value) != 66 or not value.startswith("0x"):
+        return False
+    hexpart = value[2:]
+    for ch in hexpart:
+        o = ord(ch)
+        if not ((48 <= o <= 57) or (97 <= o <= 102)):
+            return False
+    return True
+
+
+def _ck(*parts: str) -> str:
+    """Canonical length-prefixed composite-key encoding (C1R A1-H09): `<len(p)>:<p>` per part,
+    concatenated. Immune to delimiter-collision ambiguity that raw `":".join(parts)` has whenever
+    a part itself may contain `:` (identifiers here are allowed to contain `:`)."""
+    out = []
+    for p in parts:
+        out.append(f"{len(p)}:{p}")
+    return "".join(out)
 
 
 @gl.storage.allow
@@ -97,6 +186,7 @@ class PolicyHeader:
     manifest_hash: str
     creator: gl.Address
     created_at: gl.u64
+    sealed_at: gl.u64
     activation_not_before: gl.u64
     activated_at: gl.u64
     sealed: bool
@@ -112,6 +202,7 @@ class PolicyHeader:
 class PolicyRuleRecord:
     rule_id: str
     judge: gl.Address
+    judge_version: gl.u32
     rule_kind: gl.u8
     provisional_allowed: bool
     report_bond: gl.u256
@@ -121,6 +212,7 @@ class PolicyRuleRecord:
 
 @gl.storage.allow
 class EffectRecord:
+    rule_id: str
     action_type: gl.u8
     resource_id: str
     param_u256: gl.u256
@@ -130,12 +222,26 @@ class EffectRecord:
 
 
 @gl.storage.allow
+class RestrictionRecord:
+    restriction_id: str
+    incident_id: str
+    target_id: str
+    rule_id: str
+    effect_index: gl.u16
+    action_type: gl.u8
+    resource_id: str
+    release_phase: gl.u8
+    active: bool
+
+
+@gl.storage.allow
 class IncidentRecord:
     incident_id: str
     parent_incident_id: str
     target_id: str
     policy_key: str
     policy_version: gl.u32
+    policy_hash: str
     rule_id: str
     resource_id: str
     reporter: gl.Address
@@ -144,7 +250,8 @@ class IncidentRecord:
     condition_code: str
     provisional_outcome: gl.u8
     final_outcome: gl.u8
-    status: gl.u8  # 0=OPEN 1=PROVISIONAL_APPLIED 2=FINAL 3=REMEDIATION_PENDING 4=RECOVERY 5=CLOSED
+    status: gl.u8
+    restriction_count: gl.u32
     created_at: gl.u64
     closed_at: gl.u64
 
@@ -158,36 +265,44 @@ class AssuranceKernel(gl.contract.Contract):
     targets: gl.storage.TreeMap[str, TargetRecord]
 
     policy_headers: gl.storage.TreeMap[str, PolicyHeader]
-    # policy_rules/resources/effects keyed by f"{policy_key}:{index}"; counts on PolicyHeader.
+    # policy_rules/resources/effects keyed by _ck(policy_key, str(index)); counts on PolicyHeader.
     policy_rules: gl.storage.TreeMap[str, PolicyRuleRecord]
     policy_resources: gl.storage.TreeMap[str, str]
     policy_effects: gl.storage.TreeMap[str, EffectRecord]
 
-    # Immediate safety overlays (Section 22): generation-scoped disable flags.
-    # Keyed by f"{target_id}:{action_type}" / f"{target_id}:{resource_id}" -> generation at which
-    # the overlay was written. An overlay is active while policy_generation has not advanced past
-    # a NEW POLICY VERSION since the overlay (overlays survive policy_generation bumps that merely
-    # reflect the same or a reduced policy - they are cleared only by an explicit new activation
-    # that the owner has reviewed, per Section 22 "authority increase requires a new timelocked
-    # policy version").
-    owner_action_disable_generation: gl.storage.TreeMap[str, gl.u32]
-    owner_resource_disable_generation: gl.storage.TreeMap[str, gl.u32]
+    # Immediate safety overlays (Section 22 / C1R Section 6): presence-based, not generation-scoped
+    # - they are cleared ONLY by _maybe_clear_overlays_on_expansion, called ONLY on an
+    # expansion-classified (timelocked) activation whose newly active policy re-authorises the
+    # exact action/resource. A reduction-only activation never clears an overlay.
+    owner_action_disabled: gl.storage.TreeMap[str, bool]
+    owner_resource_disabled: gl.storage.TreeMap[str, bool]
 
     incidents: gl.storage.TreeMap[str, IncidentRecord]
-    # restrictions keyed by f"{incident_id}:{resource_id}" -> action_type currently held by that
-    # incident against that resource (reason-indexed, Section 15 / CLAUDE.md Section 17).
-    restrictions: gl.storage.TreeMap[str, gl.u8]
-    # restriction_counts keyed by f"{target_id}:{resource_id}" -> number of distinct incidents
-    # currently restricting that resource (Section 27's core multi-incident safety mechanism).
-    restriction_counts: gl.storage.TreeMap[str, gl.u32]
-    # state_restriction_counts keyed by f"{target_id}:{state}" -> number of distinct incidents
-    # that have pushed the target into at least `state` severity, for monotonic strongest-state
-    # composition (a state may not be weakened while any incident still requires it or worse).
+    # restrictions keyed by restriction_id = _ck(incident_id, str(effect_index_for_incident)).
+    restrictions: gl.storage.TreeMap[str, RestrictionRecord]
+    # resource_restriction_counts keyed by _ck(target_address_hex, resource_id) -> number of
+    # distinct ACTIVE restriction records currently held against that resource (Section 27's core
+    # multi-incident safety mechanism). Only used for resource-scoped actions (resource_id != "").
+    resource_restriction_counts: gl.storage.TreeMap[str, gl.u32]
+    # state_restriction_counts keyed by _ck(target_id, str(int(state))) -> number of ACTIVE
+    # restriction records currently requiring AT LEAST that severity. Used by
+    # _recompute_target_state to move state both up and down deterministically (Section 10).
     state_restriction_counts: gl.storage.TreeMap[str, gl.u32]
+    # number of incidents on this target currently in RECOVERY (Section 10 priority level).
+    recovery_incident_counts: gl.storage.TreeMap[str, gl.u32]
 
     # Replay protection (CLAUDE.md Section 7 invariants 8-9; TM-AUTH-006, TM-LIFE-*).
-    processed_decisions: gl.storage.TreeMap[str, bool]
-    processed_actions: gl.storage.TreeMap[str, bool]
+    # processed_decisions maps decision_key -> canonical fingerprint of the FIRST accepted decision
+    # for that key (C1R A1-H11/Section 7): an exact-duplicate resend is a no-op success; a
+    # conflicting resend (same incident_id+stage, different content) is rejected, not silently
+    # treated as the original.
+    processed_decisions: gl.storage.TreeMap[str, str]
+    # processed_actions tracks dispatch ATTEMPTS, not permanent completion (C1R Section 13) - it
+    # exists so a provisional dispatch and its final counterpart for the exact same semantic effect
+    # do not double-send when both succeed, while still allowing the final stage to redeliver if
+    # the provisional child failed. The ReferenceAgentProtocol's own processed_action_ids remains
+    # the authoritative idempotency boundary against duplicate ECONOMIC effect.
+    processed_action_dispatch_count: gl.storage.TreeMap[str, gl.u32]
 
     audit_sequence: gl.u64
     audit_records: gl.storage.TreeMap[gl.u64, str]
@@ -211,6 +326,20 @@ class AssuranceKernel(gl.contract.Contract):
         if not condition:
             raise gl.vm.UserError(message)
 
+    def _tx_time_seconds(self) -> gl.u64:
+        """The ONLY source of security-critical time (C1R A1-H02). `datetime.datetime.now()` is
+        GenVM's own deterministic-time primitive: the exact pinned genlayer-test 0.30.0rc2 Direct
+        Mode runtime (gltest/direct/vm.py VMContext.activate) patches stdlib `datetime.datetime`
+        during contract execution so `.now()` returns the message/consensus-context time (settable
+        in tests only via `direct_vm.warp(iso_string)`, never via contract calldata) - confirmed by
+        direct inspection: `gl.message.datetime` is fixed at initial message-context construction
+        and is NOT re-synced by warp(), whereas `datetime.datetime.now()` IS the value warp()
+        controls, matching how GenVM itself deterministically intercepts wall-clock reads inside
+        contract execution in production. There is no `now`/timestamp parameter anywhere on this
+        contract's public surface - no method accepts a caller-supplied time value."""
+        dt = datetime.datetime.now(datetime.timezone.utc)
+        return gl.u64(int(dt.timestamp()))
+
     def _live_owner(self, target_address: gl.Address) -> gl.Address:
         # Implementation Specification Section 19: query the LIVE target owner via a synchronous
         # view call, never the cached_owner field alone (cached_owner is display/audit only).
@@ -225,10 +354,10 @@ class AssuranceKernel(gl.contract.Contract):
     # -- Target registration (Section 20) ------------------------------------------------------
 
     @gl.public.write
-    def register_target(self, target_id: str, target_address: gl.Address, human_override_enabled: bool, now: gl.u64) -> None:
+    def register_target(self, target_id: str, target_address: gl.Address, human_override_enabled: bool) -> None:
         # Address-typed parameters arrive as raw bytes over the wire - wrap defensively.
         target_address = gl.Address(target_address)
-        self._require(len(target_id) > 0 and len(target_id) <= 96, "invalid target_id length")
+        self._require(_valid_identifier(target_id, 96), "INVALID_TARGET_ID")
         self._require(target_id not in self.targets, "DUPLICATE_TARGET: target_id already registered")
 
         # Live handshake: the target must acknowledge this Kernel as its controller and report an
@@ -244,7 +373,7 @@ class AssuranceKernel(gl.contract.Contract):
         record.cached_owner = reported_owner
         record.state = ASSURANCE_STATE_NORMAL
         record.active_policy_key = ""
-        record.registered_at = now
+        record.registered_at = self._tx_time_seconds()
         record.policy_generation = gl.u32(0)
         record.authority_revoked = False
         record.human_override_enabled = human_override_enabled
@@ -253,10 +382,12 @@ class AssuranceKernel(gl.contract.Contract):
         self.target_ids.append(target_id)
         self._audit(f"REGISTER_TARGET target_id={target_id}")
 
-    # -- Policy construction (Section 21) -------------------------------------------------------
+    # -- Policy construction (Section 21 / C1R Section 3) ---------------------------------------
 
     @gl.public.write
-    def begin_policy(self, target_id: str, policy_key: str, manifest_hash: str, now: gl.u64) -> None:
+    def begin_policy(self, target_id: str, policy_key: str, manifest_hash: str) -> None:
+        self._require(_valid_identifier(policy_key, 96), "INVALID_POLICY_KEY")
+        self._require(_valid_hash(manifest_hash), "INVALID_MANIFEST_HASH")
         target = self.targets[target_id]
         self._require_live_owner(target_id, target)
         self._require(policy_key not in self.policy_headers, "DUPLICATE_POLICY: policy_key already exists")
@@ -273,7 +404,8 @@ class AssuranceKernel(gl.contract.Contract):
         header.version = gl.u32(int(prior_version) + 1)
         header.manifest_hash = manifest_hash
         header.creator = gl.message.sender_address
-        header.created_at = now
+        header.created_at = self._tx_time_seconds()
+        header.sealed_at = gl.u64(0)
         header.activation_not_before = gl.u64(0)
         header.activated_at = gl.u64(0)
         header.sealed = False
@@ -297,12 +429,16 @@ class AssuranceKernel(gl.contract.Contract):
 
     @gl.public.write
     def add_policy_resource(self, policy_key: str, resource_id: str) -> None:
+        self._require(_valid_identifier(resource_id, 64), "INVALID_RESOURCE_ID")
         header = self.policy_headers[policy_key]
         target = self.targets[header.target_id]
         self._require_live_owner(header.target_id, target)
         self._require(not header.sealed, "SEALED_POLICY: cannot mutate a sealed policy")
+        for i in range(int(header.resource_count)):
+            if self.policy_resources[_ck(policy_key, str(i))] == resource_id:
+                raise gl.vm.UserError("DUPLICATE_RESOURCE: resource_id already registered on this policy")
         idx = int(header.resource_count)
-        self.policy_resources[f"{policy_key}:{idx}"] = resource_id
+        self.policy_resources[_ck(policy_key, str(idx))] = resource_id
         header.resource_count = gl.u16(idx + 1)
         self.policy_headers[policy_key] = header
 
@@ -312,19 +448,30 @@ class AssuranceKernel(gl.contract.Contract):
         policy_key: str,
         rule_id: str,
         judge: gl.Address,
+        judge_version: gl.u32,
         rule_kind: gl.u8,
         provisional_allowed: bool,
         report_bond: gl.u256,
         confirmed_bounty: gl.u256,
     ) -> None:
+        judge = gl.Address(judge)
+        self._require(_valid_identifier(rule_id, 64), "INVALID_RULE_ID")
+        self._require(int(judge_version) != 0, "INVALID_JUDGE_VERSION: judge_version must be non-zero for R1")
+        self._require(rule_kind in VALID_RULE_KINDS, "INVALID_RULE_KIND")
+
         header = self.policy_headers[policy_key]
         target = self.targets[header.target_id]
         self._require_live_owner(header.target_id, target)
         self._require(not header.sealed, "SEALED_POLICY: cannot mutate a sealed policy")
 
+        for i in range(int(header.rule_count)):
+            if self.policy_rules[_ck(policy_key, str(i))].rule_id == rule_id:
+                raise gl.vm.UserError("DUPLICATE_RULE_ID: rule_id already registered on this policy")
+
         rule = PolicyRuleRecord()
         rule.rule_id = rule_id
-        rule.judge = gl.Address(judge)
+        rule.judge = judge
+        rule.judge_version = judge_version
         rule.rule_kind = rule_kind
         rule.provisional_allowed = provisional_allowed
         rule.report_bond = report_bond
@@ -332,31 +479,69 @@ class AssuranceKernel(gl.contract.Contract):
         rule.enabled = True
 
         idx = int(header.rule_count)
-        self.policy_rules[f"{policy_key}:{idx}"] = rule
+        self.policy_rules[_ck(policy_key, str(idx))] = rule
         header.rule_count = gl.u16(idx + 1)
         self.policy_headers[policy_key] = header
+
+    def _effect_count_for_rule(self, policy_key: str, header: PolicyHeader, rule_id: str) -> int:
+        count = 0
+        for i in range(int(header.effect_count)):
+            key = _ck(policy_key, str(i))
+            if key in self.policy_effects and self.policy_effects[key].rule_id == rule_id and self.policy_effects[key].enabled:
+                count += 1
+        return count
 
     @gl.public.write
     def add_policy_effect(
         self,
         policy_key: str,
+        rule_id: str,
         action_type: gl.u8,
         resource_id: str,
         param_u256: gl.u256,
         param_str: str,
         release_phase: gl.u8,
     ) -> None:
+        self._require(_valid_identifier(resource_id, 64, allow_empty=True), "INVALID_RESOURCE_ID")
         header = self.policy_headers[policy_key]
         target = self.targets[header.target_id]
         self._require_live_owner(header.target_id, target)
         self._require(not header.sealed, "SEALED_POLICY: cannot mutate a sealed policy")
-        # TM-AUTH-002: only the finite Kernel-v1 action set may ever be registered as an effect.
-        self._require(action_type in SUPPORTED_ACTIONS, "UNSUPPORTED_ACTION: action_type not in Kernel-v1 action set")
 
-        current = int(header.effect_count)
-        self._require(current < MAX_EFFECTS_PER_DECISION * 16, "TOO_MANY_EFFECTS: policy effect table exceeds Kernel-v1 bound")
+        # C1R A1-H05: the effect MUST be scoped to a rule that exists on THIS exact policy.
+        rule = self._find_rule(policy_key, rule_id, header)
+        self._require(rule is not None, "UNKNOWN_RULE: rule_id not registered on this policy")
+
+        self._require(action_type in SUPPORTED_ACTIONS, "UNSUPPORTED_ACTION: action_type not in Kernel-v1 action set")
+        self._require(release_phase in VALID_RELEASE_PHASES, "INVALID_RELEASE_PHASE")
+        # Policy-authored effects may only use the incident-triggered release phases (Section 3.4);
+        # RELEASE_AT_POLICY_REPLACEMENT is reserved for the Kernel-created FINAL UNDETERMINED hold.
+        self._require(int(release_phase) != int(RELEASE_AT_POLICY_REPLACEMENT), "RESERVED_RELEASE_PHASE: RELEASE_AT_POLICY_REPLACEMENT is Kernel-internal only")
+
+        if action_type in RESOURCE_SCOPED_ACTIONS:
+            self._require(resource_id != "", "RESOURCE_REQUIRED: this action type requires a non-empty resource_id")
+            found = False
+            for i in range(int(header.resource_count)):
+                if self.policy_resources[_ck(policy_key, str(i))] == resource_id:
+                    found = True
+                    break
+            self._require(found, "UNREGISTERED_RESOURCE: resource_id not registered on this policy")
+
+        # C1R Section 3.3: never allow more than MAX_EFFECTS_PER_DECISION enabled effects for one
+        # rule - reject the 5th at construction, never silently truncate at execution.
+        existing_for_rule = self._effect_count_for_rule(policy_key, header, rule_id)
+        self._require(existing_for_rule < MAX_EFFECTS_PER_DECISION, "TOO_MANY_EFFECTS: this rule already has MAX_EFFECTS_PER_DECISION enabled effects")
+
+        for i in range(int(header.effect_count)):
+            key = _ck(policy_key, str(i))
+            if key not in self.policy_effects:
+                continue
+            e = self.policy_effects[key]
+            if e.enabled and e.rule_id == rule_id and int(e.action_type) == int(action_type) and e.resource_id == resource_id:
+                raise gl.vm.UserError("DUPLICATE_EFFECT: an identical enabled effect already exists for this rule")
 
         effect = EffectRecord()
+        effect.rule_id = rule_id
         effect.action_type = action_type
         effect.resource_id = resource_id
         effect.param_u256 = param_u256
@@ -364,8 +549,9 @@ class AssuranceKernel(gl.contract.Contract):
         effect.release_phase = release_phase
         effect.enabled = True
 
-        self.policy_effects[f"{policy_key}:{current}"] = effect
-        header.effect_count = gl.u16(current + 1)
+        idx = int(header.effect_count)
+        self.policy_effects[_ck(policy_key, str(idx))] = effect
+        header.effect_count = gl.u16(idx + 1)
         self.policy_headers[policy_key] = header
 
     @gl.public.write
@@ -375,11 +561,91 @@ class AssuranceKernel(gl.contract.Contract):
         self._require_live_owner(header.target_id, target)
         self._require(not header.sealed, "ALREADY_SEALED")
         header.sealed = True
+        header.sealed_at = self._tx_time_seconds()
+        # Section 3.1: the authority-expansion delay begins at sealed_at, not created_at - an
+        # owner cannot begin_policy(), wait out the delay, THEN add dangerous authority and seal.
+        is_expansion = self._classify_expansion(target, header)
+        header.activation_not_before = header.sealed_at if not is_expansion else gl.u64(int(header.sealed_at) + int(self.minimum_policy_delay_seconds))
         self.policy_headers[policy_key] = header
-        self._audit(f"SEAL_POLICY policy_key={policy_key}")
+        self._audit(f"SEAL_POLICY policy_key={policy_key} is_expansion={is_expansion}")
+
+    def _rule_tuples(self, policy_key: str, header: PolicyHeader) -> set:
+        out = set()
+        for i in range(int(header.rule_count)):
+            key = _ck(policy_key, str(i))
+            if key not in self.policy_rules:
+                continue
+            r = self.policy_rules[key]
+            if not r.enabled:
+                continue
+            out.add((r.rule_id, r.judge.as_hex, int(r.judge_version), int(r.rule_kind), r.provisional_allowed))
+        return out
+
+    def _effect_tuples(self, policy_key: str, header: PolicyHeader) -> set:
+        out = set()
+        for i in range(int(header.effect_count)):
+            key = _ck(policy_key, str(i))
+            if key not in self.policy_effects:
+                continue
+            e = self.policy_effects[key]
+            if not e.enabled:
+                continue
+            out.add((e.rule_id, int(e.action_type), e.resource_id, str(e.param_u256), e.param_str, int(e.release_phase)))
+        return out
+
+    def _classify_expansion(self, target: TargetRecord, new_header: PolicyHeader) -> bool:
+        """Conservative authority-subset comparator (C1R A1-H03/instruction Section 5): a new
+        policy is a REDUCTION only when every enabled rule/effect tuple it carries is IDENTICAL to
+        one already granted by the currently active policy, and human_override has not expanded
+        false->true. Anything else - a same-count substitution, a changed judge, a changed param,
+        a changed resource - is classified EXPANSION. A target's first policy (nothing active yet)
+        cannot expand relative to nothing, so it activates immediately."""
+        active_key = target.active_policy_key
+        if active_key == "" or active_key not in self.policy_headers:
+            return False
+        old_header = self.policy_headers[active_key]
+        new_rules = self._rule_tuples(new_header.policy_key, new_header)
+        old_rules = self._rule_tuples(active_key, old_header)
+        if not new_rules.issubset(old_rules):
+            return True
+        new_effects = self._effect_tuples(new_header.policy_key, new_header)
+        old_effects = self._effect_tuples(active_key, old_header)
+        if not new_effects.issubset(old_effects):
+            return True
+        if new_header.human_override_enabled and not old_header.human_override_enabled:
+            return True
+        return False
+
+    @gl.public.view
+    def get_policy_security_diff_is_expansion(self, target_id: str, policy_key: str) -> bool:
+        """Security-diff helper (Section 5): exposes WHY/whether a sealed-but-not-yet-active
+        policy would be classified as an authority expansion against the target's currently
+        active policy, without mutating state."""
+        target = self.targets[target_id]
+        header = self.policy_headers[policy_key]
+        return self._classify_expansion(target, header)
+
+    def _maybe_clear_overlays_on_expansion(self, target_id: str, policy_key: str, header: PolicyHeader) -> None:
+        # C1R Section 6: overlays are cleared ONLY here, ONLY on an expansion-classified
+        # (timelocked) activation, and ONLY for the exact action/resource the newly active policy
+        # re-authorises. A reduction-only activation never calls this.
+        for i in range(int(header.effect_count)):
+            key = _ck(policy_key, str(i))
+            if key not in self.policy_effects:
+                continue
+            e = self.policy_effects[key]
+            if not e.enabled:
+                continue
+            akey = _ck(target_id, str(int(e.action_type)))
+            if akey in self.owner_action_disabled:
+                del self.owner_action_disabled[akey]
+            if e.resource_id != "":
+                rkey = _ck(target_id, e.resource_id)
+                if rkey in self.owner_resource_disabled:
+                    del self.owner_resource_disabled[rkey]
 
     @gl.public.write
-    def activate_policy(self, policy_key: str, now: gl.u64) -> None:
+    def activate_policy(self, policy_key: str) -> None:
         header = self.policy_headers[policy_key]
         target_id = header.target_id
         target = self.targets[target_id]
@@ -387,19 +653,17 @@ class AssuranceKernel(gl.contract.Contract):
         self._require(header.sealed, "NOT_SEALED: cannot activate an unsealed policy")
         self._require(not header.active, "ALREADY_ACTIVE")
 
-        # TM-AUTH-004/CLAUDE.md invariant 4: authority EXPANSION is always delayed by at least
-        # minimum_policy_delay_seconds. Authority REDUCTION (or a brand-new target's first policy,
-        # which cannot expand relative to nothing) activates immediately.
-        active_key = target.active_policy_key
-        is_expansion = False
-        if active_key != "":
-            prior = self.policy_headers[active_key]
-            is_expansion = int(header.effect_count) > int(prior.effect_count) or int(header.rule_count) > int(prior.rule_count)
-
+        # C1R Section 3.1: recompute expansion against whatever is CURRENTLY active at activation
+        # time - never trust only the classification made at seal time, since the active policy
+        # may have changed in between.
+        is_expansion = self._classify_expansion(target, header)
+        now = self._tx_time_seconds()
         if is_expansion:
-            self._require(int(now) >= int(header.created_at) + int(self.minimum_policy_delay_seconds), "TIMELOCK_NOT_ELAPSED: authority expansion requires the configured delay")
+            required_not_before = int(header.sealed_at) + int(self.minimum_policy_delay_seconds)
+            self._require(int(now) >= required_not_before, "TIMELOCK_NOT_ELAPSED: authority expansion requires the configured delay from seal time")
 
-        if active_key != "":
+        active_key = target.active_policy_key
+        if active_key != "" and active_key in self.policy_headers:
             prior = self.policy_headers[active_key]
             prior.active = False
             prior.superseded = True
@@ -409,41 +673,37 @@ class AssuranceKernel(gl.contract.Contract):
         header.activated_at = now
         self.policy_headers[policy_key] = header
 
+        if is_expansion:
+            self._maybe_clear_overlays_on_expansion(target_id, policy_key, header)
+
         target.active_policy_key = policy_key
         target.policy_generation = gl.u32(int(target.policy_generation) + 1)
         self.targets[target_id] = target
         self._audit(f"ACTIVATE_POLICY policy_key={policy_key} target_id={target_id} expansion={is_expansion}")
 
-    # -- Immediate safety overlays (Section 22) -------------------------------------------------
+    # -- Immediate safety overlays (Section 22 / C1R Section 6) ---------------------------------
 
     @gl.public.write
     def disable_action(self, target_id: str, action_type: gl.u8) -> None:
         target = self.targets[target_id]
         self._require_live_owner(target_id, target)
-        self.owner_action_disable_generation[f"{target_id}:{int(action_type)}"] = target.policy_generation
+        self.owner_action_disabled[_ck(target_id, str(int(action_type)))] = True
         self._audit(f"DISABLE_ACTION target_id={target_id} action_type={int(action_type)}")
 
     @gl.public.write
     def disable_resource(self, target_id: str, resource_id: str) -> None:
         target = self.targets[target_id]
         self._require_live_owner(target_id, target)
-        self.owner_resource_disable_generation[f"{target_id}:{resource_id}"] = target.policy_generation
+        self.owner_resource_disabled[_ck(target_id, resource_id)] = True
         self._audit(f"DISABLE_RESOURCE target_id={target_id} resource_id={resource_id}")
 
-    def _is_action_disabled(self, target_id: str, action_type: gl.u8, generation: gl.u32) -> bool:
-        key = f"{target_id}:{int(action_type)}"
-        if key not in self.owner_action_disable_generation:
-            return False
-        # An overlay written at or before the CURRENT generation is still active (overlays can
-        # only reduce/disable; they never expire on their own - only an explicit new policy
-        # activation the owner reviewed can implicitly supersede one, per Section 22).
-        return int(self.owner_action_disable_generation[key]) <= int(generation)
+    def _is_action_disabled(self, target_id: str, action_type: gl.u8) -> bool:
+        return _ck(target_id, str(int(action_type))) in self.owner_action_disabled
 
-    def _is_resource_disabled(self, target_id: str, resource_id: str, generation: gl.u32) -> bool:
-        key = f"{target_id}:{resource_id}"
-        if key not in self.owner_resource_disable_generation:
+    def _is_resource_disabled(self, target_id: str, resource_id: str) -> bool:
+        if resource_id == "":
             return False
-        return int(self.owner_resource_disable_generation[key]) <= int(generation)
+        return _ck(target_id, resource_id) in self.owner_resource_disabled
 
     # -- Authority revocation (Section 23) ------------------------------------------------------
 
@@ -455,7 +715,29 @@ class AssuranceKernel(gl.contract.Contract):
         self.targets[target_id] = target
         self._audit(f"REVOKE_AUTHORITY target_id={target_id}")
 
-    # -- Decision entry point (Section 24) ------------------------------------------------------
+    # -- Decision entry point (Section 24 / C1R Section 7-8) ------------------------------------
+
+    def _find_rule(self, policy_key: str, rule_id: str, header: PolicyHeader) -> PolicyRuleRecord | None:
+        for i in range(int(header.rule_count)):
+            key = _ck(policy_key, str(i))
+            if key in self.policy_rules and self.policy_rules[key].rule_id == rule_id:
+                return self.policy_rules[key]
+        return None
+
+    def _effects_for_rule(self, policy_key: str, header: PolicyHeader, rule_id: str) -> list[tuple]:
+        """C1R A1-H05: returns ONLY the effects bound to this exact rule_id, as
+        (effect_index, EffectRecord) pairs, bounded by MAX_EFFECTS_PER_DECISION (which
+        add_policy_effect already enforces at construction, so this bound can never be exceeded
+        by a legitimately-constructed policy)."""
+        out: list[tuple] = []
+        for i in range(int(header.effect_count)):
+            key = _ck(policy_key, str(i))
+            if key not in self.policy_effects:
+                continue
+            effect = self.policy_effects[key]
+            if effect.enabled and effect.rule_id == rule_id:
+                out.append((i, effect))
+        return out[:MAX_EFFECTS_PER_DECISION]
 
     @gl.public.write
     def receive_decision(
@@ -464,6 +746,8 @@ class AssuranceKernel(gl.contract.Contract):
         parent_incident_id: str,
         target_id: str,
         policy_key: str,
+        policy_version: gl.u32,
+        policy_hash: str,
         rule_id: str,
         resource_id: str,
         reporter: gl.Address,
@@ -473,11 +757,16 @@ class AssuranceKernel(gl.contract.Contract):
         decision_stage: gl.u8,
         judge_version: gl.u32,
     ) -> None:
-        decision_key = f"{incident_id}:{decision_stage}"
-        if decision_key in self.processed_decisions:
-            # Invariant 8 (CLAUDE.md Section 7): duplicate legitimate delivery is a no-op success,
-            # never a duplicated effect.
-            return
+        reporter = gl.Address(reporter)
+        self._require(_valid_identifier(incident_id, 96), "INVALID_INCIDENT_ID")
+        self._require(_valid_identifier(parent_incident_id, 96, allow_empty=True), "INVALID_PARENT_INCIDENT_ID")
+        self._require(_valid_identifier(rule_id, 64), "INVALID_RULE_ID")
+        self._require(_valid_identifier(condition_code, 64), "INVALID_CONDITION_CODE")
+        self._require(_valid_identifier(resource_id, 64, allow_empty=True), "INVALID_RESOURCE_ID")
+        self._require(_valid_hash(policy_hash), "INVALID_POLICY_HASH")
+        self._require(_valid_hash(evidence_hash), "INVALID_EVIDENCE_HASH")
+        self._require(int(decision_stage) in (int(DECISION_STAGE_PROVISIONAL), int(DECISION_STAGE_FINAL)), "INVALID_DECISION_STAGE")
+        self._require(int(outcome) in (int(DECISION_OUTCOME_CONFIRMED), int(DECISION_OUTCOME_REJECTED), int(DECISION_OUTCOME_UNDETERMINED)), "INVALID_OUTCOME")
 
         target = self.targets[target_id]
         # Invariant 1 / TM-AUTH-001: default-deny without an active policy.
@@ -485,245 +774,348 @@ class AssuranceKernel(gl.contract.Contract):
         self._require(not target.authority_revoked, "AUTHORITY_REVOKED")
 
         header = self.policy_headers[target.active_policy_key]
-        # TM-AUTH-006: the decision must be bound to the CURRENTLY active policy_key/version -
-        # a decision produced against a stale (superseded) policy is rejected outright rather than
-        # silently applied under the new policy's authority.
+        # C1R A1-H11 / TM-AUTH-006: bind policy identity strongly - key, version AND hash must all
+        # match the currently active policy, or the decision is rejected as stale/mismatched.
         self._require(policy_key == target.active_policy_key, "STALE_POLICY: decision references a superseded policy_key")
+        self._require(int(policy_version) == int(header.version), "STALE_POLICY_VERSION: decision references a stale policy_version")
+        self._require(policy_hash == header.manifest_hash, "STALE_POLICY_HASH: decision references a mismatched policy_hash")
 
-        # Find and authenticate the exact rule (and therefore exact Judge/version) this decision
-        # claims to be produced by (TM-AUTH-008: wrong Judge/module must be rejected).
         rule = self._find_rule(policy_key, rule_id, header)
         self._require(rule is not None, "UNKNOWN_RULE: rule_id not registered on active policy")
         self._require(rule.enabled, "RULE_DISABLED")
-        # TM-AUTH-008: exact sender validation - the caller must be the exact Judge address
-        # configured for this rule (PolicyRuleRecord.judge, Implementation Specification Section
-        # 13). `judge_version` is accepted and recorded for audit per the Section 24 signature, but
-        # independent cross-validation against the Judge module's own reported version is deferred
-        # to C2 (IncidentJudge is out of C1 scope per the Master Plan phase boundary) - documented
-        # here rather than adding an undocumented judge_version field to the locked
-        # PolicyRuleRecord schema. The primary TM-AUTH-008 control (exact sender match) is fully
-        # enforced now; this is a defense-in-depth completeness gap, not a P0 control gap.
+        # TM-AUTH-008: exact sender AND exact judge_version validation.
         self._require(gl.message.sender_address == rule.judge, "WRONG_JUDGE: sender is not the configured Judge for this rule")
+        self._require(int(judge_version) == int(rule.judge_version), "WRONG_JUDGE_VERSION: judge_version does not match the configured rule")
 
-        self.processed_decisions[decision_key] = True
+        decision_key = _ck(incident_id, str(int(decision_stage)))
+        fingerprint = _ck(
+            incident_id, parent_incident_id, target_id, policy_key, str(int(policy_version)), policy_hash,
+            rule_id, resource_id, reporter.as_hex, evidence_hash, str(int(outcome)), condition_code,
+            str(int(decision_stage)), str(int(judge_version)),
+        )
+        if decision_key in self.processed_decisions:
+            existing_fingerprint = self.processed_decisions[decision_key]
+            if existing_fingerprint == fingerprint:
+                # Invariant 8 (CLAUDE.md Section 7): exact duplicate delivery is a no-op success.
+                return
+            # C1R Section 7: a CONFLICTING second decision for the same incident/stage is rejected
+            # outright, never silently treated as (or overwriting) the original.
+            raise gl.vm.UserError("CONFLICTING_DECISION: a different decision already exists for this incident/stage")
+        self.processed_decisions[decision_key] = fingerprint
 
         incident_exists = incident_id in self.incidents
         incident = self.incidents[incident_id] if incident_exists else None
-        if incident is None:
-            incident = IncidentRecord()
-            incident.incident_id = incident_id
-            incident.parent_incident_id = parent_incident_id
-            incident.target_id = target_id
-            incident.policy_key = policy_key
-            incident.policy_version = header.version
-            incident.rule_id = rule_id
-            incident.resource_id = resource_id
-            incident.reporter = gl.Address(reporter)
-            incident.judge = rule.judge
-            incident.evidence_hash = evidence_hash
-            incident.condition_code = condition_code
-            incident.provisional_outcome = DECISION_OUTCOME_NONE
-            incident.final_outcome = DECISION_OUTCOME_NONE
-            incident.status = gl.u8(0)
-            incident.created_at = gl.u64(0)
-            incident.closed_at = gl.u64(0)
 
-        if int(decision_stage) == int(DECISION_STAGE_PROVISIONAL):
-            self._apply_provisional(incident, outcome, policy_key, header, target)
-        elif int(decision_stage) == int(DECISION_STAGE_FINAL):
-            self._apply_final(incident, outcome, policy_key, header, target)
+        if int(rule.rule_kind) == int(RULE_KIND_INCIDENT):
+            self._require(parent_incident_id == "", "UNEXPECTED_PARENT: an INCIDENT rule decision must not carry a parent_incident_id")
+            if incident is None:
+                incident = IncidentRecord()
+                incident.incident_id = incident_id
+                incident.parent_incident_id = ""
+                incident.target_id = target_id
+                incident.policy_key = policy_key
+                incident.policy_version = header.version
+                incident.policy_hash = policy_hash
+                incident.rule_id = rule_id
+                incident.resource_id = resource_id
+                incident.reporter = reporter
+                incident.judge = rule.judge
+                incident.evidence_hash = evidence_hash
+                incident.condition_code = condition_code
+                incident.provisional_outcome = DECISION_OUTCOME_NONE
+                incident.final_outcome = DECISION_OUTCOME_NONE
+                incident.status = INCIDENT_STATUS_OPEN
+                incident.restriction_count = gl.u32(0)
+                incident.created_at = self._tx_time_seconds()
+                incident.closed_at = gl.u64(0)
+            if int(decision_stage) == int(DECISION_STAGE_PROVISIONAL):
+                self._apply_provisional(incident, rule, outcome, policy_key, header)
+            else:
+                self._apply_final_incident(incident, rule, outcome, policy_key, header)
+            self.incidents[incident_id] = incident
+        elif int(rule.rule_kind) == int(RULE_KIND_REMEDIATION):
+            self._require(int(decision_stage) == int(DECISION_STAGE_FINAL), "REMEDIATION_MUST_BE_FINAL")
+            self._require(parent_incident_id != "", "PARENT_REQUIRED: remediation decisions require parent_incident_id")
+            self._require(parent_incident_id in self.incidents, "UNKNOWN_PARENT_INCIDENT")
+            parent = self.incidents[parent_incident_id]
+            self._require(parent.target_id == target_id and parent.policy_key == policy_key, "PARENT_LINEAGE_MISMATCH")
+            self._require(int(parent.status) == int(INCIDENT_STATUS_FINAL_CONFIRMED), "PARENT_NOT_REMEDIATION_ELIGIBLE")
+            self._apply_remediation(parent, outcome)
+            self.incidents[parent_incident_id] = parent
+        elif int(rule.rule_kind) == int(RULE_KIND_RECOVERY_VALIDATION):
+            self._require(int(decision_stage) == int(DECISION_STAGE_FINAL), "RECOVERY_VALIDATION_MUST_BE_FINAL")
+            self._require(parent_incident_id != "", "PARENT_REQUIRED: recovery validation decisions require parent_incident_id")
+            self._require(parent_incident_id in self.incidents, "UNKNOWN_PARENT_INCIDENT")
+            parent = self.incidents[parent_incident_id]
+            self._require(parent.target_id == target_id and parent.policy_key == policy_key, "PARENT_LINEAGE_MISMATCH")
+            self._require(int(parent.status) == int(INCIDENT_STATUS_RECOVERY), "PARENT_NOT_IN_RECOVERY")
+            self._apply_recovery_validation(parent, outcome)
+            self.incidents[parent_incident_id] = parent
         else:
-            raise gl.vm.UserError("INVALID_DECISION_STAGE")
+            raise gl.vm.UserError("UNSUPPORTED_RULE_KIND")
 
-        self.incidents[incident_id] = incident
-        self._audit(f"RECEIVE_DECISION incident_id={incident_id} stage={int(decision_stage)} outcome={int(outcome)}")
+        self._audit(f"RECEIVE_DECISION incident_id={incident_id} stage={int(decision_stage)} outcome={int(outcome)} rule_kind={int(rule.rule_kind)}")
 
-    def _find_rule(self, policy_key: str, rule_id: str, header: PolicyHeader) -> PolicyRuleRecord | None:
-        for i in range(int(header.rule_count)):
-            key = f"{policy_key}:{i}"
-            if key in self.policy_rules and self.policy_rules[key].rule_id == rule_id:
-                return self.policy_rules[key]
-        return None
+    # -- INCIDENT rule handling (Section 8.1) ---------------------------------------------------
 
-    def _effects_for_rule(self, policy_key: str, header: PolicyHeader, release_phase: gl.u8) -> list[EffectRecord]:
-        out: list[EffectRecord] = []
-        for i in range(int(header.effect_count)):
-            key = f"{policy_key}:{i}"
-            if key not in self.policy_effects:
-                continue
-            effect = self.policy_effects[key]
-            if effect.enabled and int(effect.release_phase) == int(release_phase):
-                out.append(effect)
-        return out[:MAX_EFFECTS_PER_DECISION]
-
-    # -- Provisional handling (Section 25) ------------------------------------------------------
-
-    def _apply_provisional(self, incident: IncidentRecord, outcome: gl.u8, policy_key: str, header: PolicyHeader, target: TargetRecord) -> None:
+    def _apply_provisional(self, incident: IncidentRecord, rule: PolicyRuleRecord, outcome: gl.u8, policy_key: str, header: PolicyHeader) -> None:
         incident.provisional_outcome = outcome
         if int(outcome) != int(DECISION_OUTCOME_CONFIRMED):
-            # Only PROVISIONAL + CONFIRMED may create provisional restrictions (Section 25).
             return
-        effects = self._effects_for_rule(policy_key, header, gl.u8(0))  # PROVISIONAL release phase
-        for effect in effects:
+        if not rule.provisional_allowed:
+            # C1R A1-H06: recorded as a valid provisional decision, but no restriction is created
+            # and no action is dispatched - never label this PROVISIONAL_APPLIED.
+            return
+        effects = self._effects_for_rule(policy_key, header, rule.rule_id)
+        applied_any = False
+        for idx, effect in effects:
             if int(effect.action_type) not in PROVISIONAL_SAFE_ACTIONS:
                 # Invariant 6 (CLAUDE.md Section 7): provisional action must be reversible/
-                # idempotent/authority-reducing/non-value-moving. Anything outside the R1
-                # provisional-safe set is never applied provisionally.
+                # idempotent/authority-reducing/non-value-moving - PAUSE/ENTER_RECOVERY/RESTORE
+                # are never applied provisionally.
                 continue
-            self._apply_restriction(incident, effect, target)
-        incident.status = gl.u8(1)  # PROVISIONAL_APPLIED
+            if self._apply_restriction(incident, rule.rule_id, idx, effect, decision_stage=DECISION_STAGE_PROVISIONAL):
+                applied_any = True
+        if applied_any:
+            incident.status = INCIDENT_STATUS_PROVISIONAL_APPLIED
 
-    # -- Final handling (Section 26) ------------------------------------------------------------
-
-    def _apply_final(self, incident: IncidentRecord, outcome: gl.u8, policy_key: str, header: PolicyHeader, target: TargetRecord) -> None:
+    def _apply_final_incident(self, incident: IncidentRecord, rule: PolicyRuleRecord, outcome: gl.u8, policy_key: str, header: PolicyHeader) -> None:
         incident.final_outcome = outcome
         if int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
-            # Convert provisional restrictions to final without a temporary unlock window - the
-            # restriction was already applied provisionally (or is applied now if this decision
-            # skipped straight to FINAL), so there is nothing to release; final effects supersede.
-            effects = self._effects_for_rule(policy_key, header, gl.u8(0))
-            for effect in effects:
-                self._apply_restriction(incident, effect, target)
-            incident.status = gl.u8(2)  # FINAL_CONFIRMED
+            effects = self._effects_for_rule(policy_key, header, rule.rule_id)
+            for idx, effect in effects:
+                self._apply_restriction(incident, rule.rule_id, idx, effect, decision_stage=DECISION_STAGE_FINAL)
+            incident.status = INCIDENT_STATUS_FINAL_CONFIRMED
         elif int(outcome) == int(DECISION_OUTCOME_REJECTED):
-            self._release_incident_restrictions(incident, target)
-            incident.status = gl.u8(5)  # CLOSED
+            self._release_all_restrictions(incident)
+            incident.status = INCIDENT_STATUS_CLOSED
+            incident.closed_at = self._tx_time_seconds()
         elif int(outcome) == int(DECISION_OUTCOME_UNDETERMINED):
-            # Remove high-impact provisional effects (e.g. REVOKE_CAPABILITY/ENTER_SAFE_MODE) and
-            # apply the explicit uncertainty mapping to MONITORED for the affected resource, per
-            # Section 26 - never left silently unresolved and never coerced into confidence.
-            self._release_incident_restrictions(incident, target)
-            self._set_state_floor(incident.target_id, target, ASSURANCE_STATE_MONITORED)
-            incident.status = gl.u8(5)  # CLOSED
+            # Section 8.1: release every restriction belonging to this incident, then create a
+            # single Kernel-owned MONITOR hold (RELEASE_AT_POLICY_REPLACEMENT) for the same
+            # incident - never left silently unresolved and never coerced into confidence.
+            self._release_all_restrictions(incident)
+            monitor_effect = EffectRecord()
+            monitor_effect.rule_id = rule.rule_id
+            monitor_effect.action_type = ACTION_MONITOR
+            monitor_effect.resource_id = ""
+            monitor_effect.param_u256 = gl.u256(0)
+            monitor_effect.param_str = ""
+            monitor_effect.release_phase = RELEASE_AT_POLICY_REPLACEMENT
+            monitor_effect.enabled = True
+            self._apply_restriction(incident, rule.rule_id, gl.u16(0xFFFF), monitor_effect, decision_stage=DECISION_STAGE_FINAL)
+            incident.status = INCIDENT_STATUS_CLOSED
+            incident.closed_at = self._tx_time_seconds()
         else:
             raise gl.vm.UserError("INVALID_OUTCOME")
 
-    def _apply_restriction(self, incident: IncidentRecord, effect: EffectRecord, target: TargetRecord) -> None:
-        rkey = f"{incident.incident_id}:{effect.resource_id}"
-        if rkey not in self.restrictions:
-            ckey = f"{target.target_address.as_hex}:{effect.resource_id}"
-            count = int(self.restriction_counts[ckey]) if ckey in self.restriction_counts else 0
-            # Section 27: 0 -> 1 emits the restriction; 1 -> 2 (already restricted) is a no-op
-            # duplicate-semantic-action, never double-applied.
-            self.restriction_counts[ckey] = gl.u32(count + 1)
-            self.restrictions[rkey] = effect.action_type
+    # -- REMEDIATION rule handling (Section 8.2) ------------------------------------------------
 
-        if int(effect.action_type) == int(ACTION_ENTER_SAFE_MODE):
-            self._set_state_floor(incident.target_id, target, ASSURANCE_STATE_SAFE_MODE)
-        elif int(effect.action_type) == int(ACTION_RESTRICT) or int(effect.action_type) == int(ACTION_REVOKE_CAPABILITY):
-            self._set_state_floor(incident.target_id, target, ASSURANCE_STATE_RESTRICTED)
-        elif int(effect.action_type) == int(ACTION_MONITOR):
-            self._set_state_floor(incident.target_id, target, ASSURANCE_STATE_MONITORED)
-        elif int(effect.action_type) == int(ACTION_PAUSE):
-            self._set_state_floor(incident.target_id, target, ASSURANCE_STATE_PAUSED)
+    def _apply_remediation(self, parent: IncidentRecord, outcome: gl.u8) -> None:
+        if int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
+            self._release_restrictions_by_phase(parent, RELEASE_AT_REMEDIATION_CONFIRMED)
+            parent.status = INCIDENT_STATUS_RECOVERY
+            target = self.targets[parent.target_id]
+            key = _ck(parent.target_id)
+            cur = int(self.recovery_incident_counts[key]) if key in self.recovery_incident_counts else 0
+            self.recovery_incident_counts[key] = gl.u32(cur + 1)
+            self._recompute_target_state(parent.target_id)
+            self._dispatch_recompute(parent, target, ACTION_ENTER_RECOVERY, "", DECISION_STAGE_FINAL)
+        # REJECTED or UNDETERMINED: do not restore authority, do not release restrictions
+        # (invariant 11) - parent remains in FINAL_CONFIRMED (remediation-pending).
 
-        self._dispatch_action(incident, effect, target, decision_stage=DECISION_STAGE_FINAL if incident.status != gl.u8(1) else DECISION_STAGE_PROVISIONAL)
+    # -- RECOVERY_VALIDATION rule handling (Section 8.3) ----------------------------------------
 
-    def _release_incident_restrictions(self, incident: IncidentRecord, target: TargetRecord) -> None:
-        # Reason-indexed release (Section 27; TM-REC-001/TM-REC-002): only THIS incident's own
-        # restriction entries are removed, and the shared per-resource count is decremented by
-        # exactly one per resource this incident held - it can never go negative, and restoration
-        # (RESTORE dispatch) only occurs on the 1 -> 0 transition, never on 2 -> 1.
-        for resource_id in self._resources_restricted_by(incident.incident_id):
-            rkey = f"{incident.incident_id}:{resource_id}"
-            if rkey not in self.restrictions:
+    def _apply_recovery_validation(self, parent: IncidentRecord, outcome: gl.u8) -> None:
+        if int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
+            self._release_restrictions_by_phase(parent, RELEASE_AT_RECOVERY_VALIDATED)
+            parent.status = INCIDENT_STATUS_CLOSED
+            parent.closed_at = self._tx_time_seconds()
+            key = _ck(parent.target_id)
+            cur = int(self.recovery_incident_counts[key]) if key in self.recovery_incident_counts else 0
+            self.recovery_incident_counts[key] = gl.u32(max(0, cur - 1))
+            self._recompute_target_state(parent.target_id)
+        # REJECTED or UNDETERMINED: do not restore authority, leave parent in RECOVERY.
+
+    # -- Restriction lifecycle (Section 3.5 / Section 10) ---------------------------------------
+
+    def _apply_restriction(self, incident: IncidentRecord, rule_id: str, effect_index, effect: EffectRecord, decision_stage: gl.u8) -> bool:
+        target_id = incident.target_id
+        target = self.targets[target_id]
+
+        if self._is_action_disabled(target_id, effect.action_type):
+            self._audit(f"SUPPRESSED_BY_OVERLAY incident_id={incident.incident_id} action_type={int(effect.action_type)} reason=action_disabled")
+            return False
+        if self._is_resource_disabled(target_id, effect.resource_id):
+            self._audit(f"SUPPRESSED_BY_OVERLAY incident_id={incident.incident_id} resource_id={effect.resource_id} reason=resource_disabled")
+            return False
+
+        # Idempotency: does this incident already hold an ACTIVE restriction for this exact
+        # (rule_id, action_type, resource_id)? If so, do not create a duplicate restriction record
+        # or double-count it - but still (re)dispatch, since dispatch has its own attempt-tracking
+        # and the target's own idempotency boundary (Section 13).
+        existing_id = None
+        for i in range(int(incident.restriction_count)):
+            rid = _ck(incident.incident_id, str(i))
+            if rid not in self.restrictions:
                 continue
-            del self.restrictions[rkey]
-            ckey = f"{target.target_address.as_hex}:{resource_id}"
-            count = int(self.restriction_counts[ckey]) if ckey in self.restriction_counts else 0
-            new_count = max(0, count - 1)
-            self.restriction_counts[ckey] = gl.u32(new_count)
-            if new_count == 0:
-                self._dispatch_restore(incident, resource_id, target)
+            rec = self.restrictions[rid]
+            if rec.active and rec.rule_id == rule_id and int(rec.action_type) == int(effect.action_type) and rec.resource_id == effect.resource_id:
+                existing_id = rid
+                break
 
-    def _resources_restricted_by(self, incident_id: str) -> list[str]:
-        out: list[str] = []
-        prefix = f"{incident_id}:"
-        for key in self.restrictions.keys():
-            if key.startswith(prefix):
-                out.append(key[len(prefix):])
-        return out
+        if existing_id is None:
+            idx = int(incident.restriction_count)
+            restriction_id = _ck(incident.incident_id, str(idx))
+            rec = RestrictionRecord()
+            rec.restriction_id = restriction_id
+            rec.incident_id = incident.incident_id
+            rec.target_id = target_id
+            rec.rule_id = rule_id
+            rec.effect_index = gl.u16(int(effect_index) if isinstance(effect_index, int) else 0xFFFF)
+            rec.action_type = effect.action_type
+            rec.resource_id = effect.resource_id
+            rec.release_phase = effect.release_phase
+            rec.active = True
+            self.restrictions[restriction_id] = rec
+            incident.restriction_count = gl.u32(idx + 1)
 
-    def _set_state_floor(self, target_id: str, target: TargetRecord, minimum_state: gl.u8) -> None:
-        # Monotonic strongest-state composition (TM-REC-008): the target's state may only move
-        # UP to at least `minimum_state` here - it is lowered only via explicit RESTORE handling
-        # once no active incident requires the stronger state.
-        if int(target.state) < int(minimum_state):
-            target.state = minimum_state
-            self.targets[target_id] = target
+            required_state = self._required_state_for_action(effect.action_type)
+            if int(required_state) != int(ASSURANCE_STATE_NORMAL):
+                skey = _ck(target_id, str(int(required_state)))
+                cur = int(self.state_restriction_counts[skey]) if skey in self.state_restriction_counts else 0
+                self.state_restriction_counts[skey] = gl.u32(cur + 1)
+            if effect.resource_id != "":
+                rkey = _ck(target.target_address.as_hex, effect.resource_id)
+                cur = int(self.resource_restriction_counts[rkey]) if rkey in self.resource_restriction_counts else 0
+                self.resource_restriction_counts[rkey] = gl.u32(cur + 1)
 
-    def _dispatch_action(self, incident: IncidentRecord, effect: EffectRecord, target: TargetRecord, decision_stage: gl.u8) -> None:
-        action_id = f"{incident.incident_id}:{effect.resource_id}:{int(effect.action_type)}"
-        if action_id in self.processed_actions:
-            return  # Invariant 8: duplicate action dispatch is a no-op.
-        self.processed_actions[action_id] = True
+            self._recompute_target_state(target_id)
 
-        # Implementation Specification Section 29: provisional messages use on='accepted' (only
-        # ever reached here for the R1 provisional-safe action set); final actions use
-        # on='finalized'.
+        self._dispatch_action(target_id, incident.incident_id, incident.policy_key, effect.action_type, effect.resource_id, effect.param_u256, effect.param_str, decision_stage)
+        return True
+
+    def _required_state_for_action(self, action_type: gl.u8) -> gl.u8:
+        a = int(action_type)
+        if a == int(ACTION_PAUSE):
+            return ASSURANCE_STATE_PAUSED
+        if a == int(ACTION_ENTER_SAFE_MODE):
+            return ASSURANCE_STATE_SAFE_MODE
+        if a in (int(ACTION_RESTRICT), int(ACTION_REVOKE_CAPABILITY), int(ACTION_THROTTLE), int(ACTION_REROUTE)):
+            return ASSURANCE_STATE_RESTRICTED
+        if a == int(ACTION_MONITOR):
+            return ASSURANCE_STATE_MONITORED
+        return ASSURANCE_STATE_NORMAL
+
+    def _release_restrictions_by_phase(self, incident: IncidentRecord, release_phase: gl.u8) -> None:
+        self._release_restrictions(incident, only_phase=release_phase)
+
+    def _release_all_restrictions(self, incident: IncidentRecord) -> None:
+        self._release_restrictions(incident, only_phase=None)
+
+    def _release_restrictions(self, incident: IncidentRecord, only_phase) -> None:
+        target_id = incident.target_id
+        target = self.targets[target_id]
+        released_resources: list[str] = []
+        any_released = False
+        for i in range(int(incident.restriction_count)):
+            rid = _ck(incident.incident_id, str(i))
+            if rid not in self.restrictions:
+                continue
+            rec = self.restrictions[rid]
+            if not rec.active:
+                continue
+            if only_phase is not None and int(rec.release_phase) != int(only_phase):
+                continue
+            rec.active = False
+            self.restrictions[rid] = rec
+            any_released = True
+
+            required_state = self._required_state_for_action(rec.action_type)
+            if int(required_state) != int(ASSURANCE_STATE_NORMAL):
+                skey = _ck(target_id, str(int(required_state)))
+                cur = int(self.state_restriction_counts[skey]) if skey in self.state_restriction_counts else 0
+                self.state_restriction_counts[skey] = gl.u32(max(0, cur - 1))
+            if rec.resource_id != "":
+                rkey = _ck(target.target_address.as_hex, rec.resource_id)
+                cur = int(self.resource_restriction_counts[rkey]) if rkey in self.resource_restriction_counts else 0
+                new_count = max(0, cur - 1)
+                self.resource_restriction_counts[rkey] = gl.u32(new_count)
+                if new_count == 0:
+                    released_resources.append(rec.resource_id)
+
+        if not any_released:
+            return
+
+        new_state = self._recompute_target_state(target_id)
+        for resource_id in released_resources:
+            self._dispatch_restore(target_id, incident.incident_id, incident.policy_key, resource_id, gl.u256(0))
+        # Target-wide reconciliation: always tell the target the recomputed state once per
+        # release batch (Section 11: RESTORE with empty resource_id performs target-wide
+        # reconciliation only).
+        self._dispatch_restore(target_id, incident.incident_id, incident.policy_key, "", gl.u256(int(new_state)))
+
+    def _recompute_target_state(self, target_id: str) -> gl.u8:
+        # C1R Section 10: deterministic explicit-priority recomputation from ACTIVE reasons - never
+        # numeric enum ordering alone, and moves both UP and DOWN correctly.
+        def count(state: gl.u8) -> int:
+            key = _ck(target_id, str(int(state)))
+            return int(self.state_restriction_counts[key]) if key in self.state_restriction_counts else 0
+
+        if count(ASSURANCE_STATE_PAUSED) > 0:
+            new_state = ASSURANCE_STATE_PAUSED
+        elif count(ASSURANCE_STATE_SAFE_MODE) > 0:
+            new_state = ASSURANCE_STATE_SAFE_MODE
+        elif count(ASSURANCE_STATE_RESTRICTED) > 0:
+            new_state = ASSURANCE_STATE_RESTRICTED
+        else:
+            rkey = _ck(target_id)
+            recovery_count = int(self.recovery_incident_counts[rkey]) if rkey in self.recovery_incident_counts else 0
+            if recovery_count > 0:
+                new_state = ASSURANCE_STATE_RECOVERY
+            elif count(ASSURANCE_STATE_MONITORED) > 0:
+                new_state = ASSURANCE_STATE_MONITORED
+            else:
+                new_state = ASSURANCE_STATE_NORMAL
+
+        target = self.targets[target_id]
+        target.state = new_state
+        self.targets[target_id] = target
+        return new_state
+
+    # -- Target dispatch (Section 13) ------------------------------------------------------------
+
+    def _dispatch_action(self, target_id: str, incident_id: str, policy_key: str, action_type: gl.u8, resource_id: str, param_u256: gl.u256, param_str: str, decision_stage: gl.u8) -> None:
+        target = self.targets[target_id]
+
+        action_id = _ck(incident_id, policy_key, str(int(action_type)), resource_id)
+        attempt_key = _ck(action_id, "attempts")
+        attempts = int(self.processed_action_dispatch_count[attempt_key]) if attempt_key in self.processed_action_dispatch_count else 0
+        # C1R Section 13: track attempts, never permanently suppress redelivery of the same
+        # semantic action after a prior attempt - the target's own processed_action_ids is the
+        # real idempotency boundary against duplicate economic/state effect.
+        self.processed_action_dispatch_count[attempt_key] = gl.u32(attempts + 1)
+
+        # Implementation Specification Section 29: provisional messages use on='accepted'; final
+        # actions use on='finalized'.
         on = "accepted" if int(decision_stage) == int(DECISION_STAGE_PROVISIONAL) else "finalized"
         target_contract = gl.contract.get_at(target.target_address)
         target_contract.emit(on=on).apply_assurance_action(
             action_id,
-            incident.incident_id,
-            incident.policy_key,
-            int(effect.action_type),
-            effect.resource_id,
-            effect.param_u256,
-            effect.param_str,
+            incident_id,
+            policy_key,
+            int(action_type),
+            resource_id,
+            param_u256,
+            param_str,
             int(decision_stage),
         )
 
-    def _dispatch_restore(self, incident: IncidentRecord, resource_id: str, target: TargetRecord) -> None:
-        action_id = f"restore:{incident.incident_id}:{resource_id}"
-        if action_id in self.processed_actions:
-            return
-        self.processed_actions[action_id] = True
-        target_contract = gl.contract.get_at(target.target_address)
-        target_contract.emit(on="finalized").apply_assurance_action(
-            action_id, incident.incident_id, incident.policy_key, int(ACTION_RESTORE), resource_id, gl.u256(0), "", int(DECISION_STAGE_FINAL)
-        )
+    def _dispatch_restore(self, target_id: str, incident_id: str, policy_key: str, resource_id: str, param_u256: gl.u256) -> None:
+        self._dispatch_action(target_id, incident_id, policy_key, ACTION_RESTORE, resource_id, param_u256, "", DECISION_STAGE_FINAL)
 
-    # -- Remediation and recovery (Section 28) --------------------------------------------------
-
-    @gl.public.write
-    def apply_remediation_decision(self, incident_id: str, outcome: gl.u8) -> None:
-        incident = self.incidents[incident_id]
-        target = self.targets[incident.target_id]
-        if int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
-            # REMEDIATION_CONFIRMED releases effects marked for remediation and enters RECOVERY -
-            # stricter effects tied to OTHER incidents may remain (TM-REC-003).
-            incident.status = gl.u8(4)  # RECOVERY
-            self._set_state_floor(incident.target_id, target, ASSURANCE_STATE_RECOVERY)
-        else:
-            # REJECTED/UNDETERMINED remediation does not restore authority (invariant 11).
-            pass
-        self.incidents[incident_id] = incident
-        self._audit(f"REMEDIATION_DECISION incident_id={incident_id} outcome={int(outcome)}")
-
-    @gl.public.write
-    def apply_recovery_validation(self, incident_id: str, outcome: gl.u8) -> None:
-        incident = self.incidents[incident_id]
-        target = self.targets[incident.target_id]
-        if int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
-            self._release_incident_restrictions(incident, target)
-            incident.status = gl.u8(5)  # CLOSED
-            # Restore NORMAL only if no OTHER active incident on this target still requires a
-            # restrictive state (TM-REC-006: recovery cannot restore more authority than the
-            # currently active policy permits, and cannot ignore unrelated active incidents).
-            if not self._any_active_restriction(incident.target_id):
-                target.state = ASSURANCE_STATE_NORMAL
-                self.targets[incident.target_id] = target
-        self.incidents[incident_id] = incident
-        self._audit(f"RECOVERY_VALIDATION incident_id={incident_id} outcome={int(outcome)}")
-
-    def _any_active_restriction(self, target_id: str) -> bool:
-        target = self.targets[target_id]
-        prefix_addr = target.target_address.as_hex
-        for key in self.restriction_counts.keys():
-            if key.startswith(f"{prefix_addr}:") and int(self.restriction_counts[key]) > 0:
-                return True
-        return False
+    def _dispatch_recompute(self, incident: IncidentRecord, target: TargetRecord, action_type: gl.u8, resource_id: str, decision_stage: gl.u8) -> None:
+        self._dispatch_action(incident.target_id, incident.incident_id, incident.policy_key, action_type, resource_id, gl.u256(0), "", decision_stage)
 
     # -- Views ------------------------------------------------------------------------------
 
@@ -736,11 +1128,15 @@ class AssuranceKernel(gl.contract.Contract):
         return self.targets[target_id].active_policy_key
 
     @gl.public.view
-    def get_restriction_count(self, target_address: gl.Address, resource_id: str) -> gl.u32:
+    def get_resource_restriction_count(self, target_address: gl.Address, resource_id: str) -> gl.u32:
         target_address = gl.Address(target_address)
-        key = f"{target_address.as_hex}:{resource_id}"
-        return self.restriction_counts[key] if key in self.restriction_counts else gl.u32(0)
+        key = _ck(target_address.as_hex, resource_id)
+        return self.resource_restriction_counts[key] if key in self.resource_restriction_counts else gl.u32(0)
 
     @gl.public.view
     def is_authority_revoked(self, target_id: str) -> bool:
         return self.targets[target_id].authority_revoked
+
+    @gl.public.view
+    def get_incident_status(self, incident_id: str) -> gl.u8:
+        return self.incidents[incident_id].status
