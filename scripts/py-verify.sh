@@ -34,36 +34,35 @@ if [ "$DISCOVERY_EXIT" -ne 0 ]; then
 elif [ "${CANDIDATE_COUNT:-0}" = "0" ]; then
   echo "SKIPPED: no deployable-contract candidates exist yet under contracts/ (F0/pre-C1 state). Nothing to lint."
 else
-  echo "Found $CANDIDATE_COUNT deployable-contract candidate(s) - running genvm-lint (informational; see below for why this does not gate the build)."
+  echo "Found $CANDIDATE_COUNT deployable-contract candidate(s) - running genvm-lint through the NARROW waiver wrapper (C1R A1-H10)."
   # `genvm-lint lint`/`check` take exactly one contract FILE, not a directory (passing a
   # directory raised IsADirectoryError on real GitHub Actions CI - see git history for the
   # failing run) - lint each discovered candidate individually.
   #
-  # genvm-lint 0.11.1rc2's static `lint` check has a CONFIRMED STALE rule: it flags storage
-  # classes decorated with `@gl.storage.allow` as "needs @allow_storage decorator". Verified
-  # directly against the pinned py-lib-genlayer-std source
-  # (genlayer/storage/_internal/generate.py) that the real, currently-exported decorator is named
-  # `allow`, not `allow_storage` - there is no `allow_storage` alias anywhere in the actual pinned
-  # runtime. This is the THIRD time in this implementation that genvm-linter's own static
-  # types/rules were found to disagree with the actual pinned SDK it is supposed to check (see
-  # Interface Change Log / commit history for the other two: `get_contract_at` vs
-  # `contract.get_at`, `advanced.user_error_immediate` vs `vm.UserError`). Per CLAUDE.md Section 5
-  # ("verified live ... RC behaviour ... controls runtime/toolchain facts"), the ACTUAL EXECUTED
-  # behavior is authoritative over a static linter's possibly-stale rule table: the genlayer-test
-  # 0.30.0rc2 Direct Mode suite below actually LOADS AND EXECUTES these `@gl.storage.allow`
-  # contracts successfully (31/31 tests passing, independently re-confirmed on GitHub Actions'
-  # real Linux CI runner), which is direct, stronger runtime proof than a static AST rule. genvm-lint
-  # output is therefore captured for visibility but does NOT fail this build; pytest (below) is
-  # the authoritative, blocking semantic gate for these contracts.
+  # C1R A1-H10 (owner-supplied external finding): a blanket `genvm-lint ... || true` is too broad
+  # an exception - it would silently swallow a genuinely new failure (syntax error, unsupported
+  # import, unknown API, a new storage diagnostic) alongside the one specific diagnostic this
+  # session has independently confirmed is stale. scripts/genvm-lint-wrapper.js replaces the
+  # blanket suppression with a narrow one: it waives ONLY
+  # "Class '<Name>' used in storage needs @allow_storage decorator" and ONLY when the exact named
+  # class is confirmed, by reading the contract's own source, to already carry
+  # `@gl.storage.allow` - verified directly against the pinned py-lib-genlayer-std source
+  # (genlayer/storage/_internal/generate.py exports `allow`, not `allow_storage`; this is the
+  # THIRD time genvm-linter's own static rules were found to disagree with the actual pinned SDK -
+  # see Interface Change Log for the other two: `get_contract_at` vs `contract.get_at`,
+  # `advanced.user_error_immediate` vs `vm.UserError`). ANY other genvm-lint diagnostic FAILS this
+  # build. pytest (below) remains the authoritative, blocking semantic gate regardless.
   if command -v genvm-lint >/dev/null 2>&1; then
     CANDIDATE_PATHS=$(echo "$DISCOVERY_OUTPUT" | sed -n 's/^  //p')
     while IFS= read -r candidate; do
       [ -z "$candidate" ] && continue
-      echo "--- genvm-lint lint $candidate (informational) ---"
-      genvm-lint lint "$candidate" || true
+      node scripts/genvm-lint-wrapper.js "$candidate"
+      if [ $? -ne 0 ]; then
+        STATUS=1
+      fi
     done <<< "$CANDIDATE_PATHS"
   else
-    echo "genvm-lint is not installed/on PATH - skipping the informational pass (does not affect build status)."
+    echo "genvm-lint is not installed/on PATH - skipping the lint pass (does not affect build status)."
   fi
 fi
 

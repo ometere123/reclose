@@ -24,14 +24,27 @@ ASSURANCE_STATE_RESTRICTED = gl.u8(2)
 ASSURANCE_STATE_SAFE_MODE = gl.u8(3)
 ASSURANCE_STATE_PAUSED = gl.u8(4)
 ASSURANCE_STATE_RECOVERY = gl.u8(5)
+VALID_ASSURANCE_STATES = {0, 1, 2, 3, 4, 5}
 
+ACTION_NO_ACTION = gl.u8(0)
+ACTION_ALERT = gl.u8(1)
 ACTION_MONITOR = gl.u8(2)
 ACTION_RESTRICT = gl.u8(3)
+ACTION_THROTTLE = gl.u8(4)
 ACTION_REVOKE_CAPABILITY = gl.u8(5)
+ACTION_REROUTE = gl.u8(6)
 ACTION_ENTER_SAFE_MODE = gl.u8(7)
 ACTION_PAUSE = gl.u8(8)
 ACTION_ENTER_RECOVERY = gl.u8(9)
 ACTION_RESTORE = gl.u8(10)
+
+DECISION_STAGE_PROVISIONAL = gl.u8(1)
+DECISION_STAGE_FINAL = gl.u8(2)
+
+# Provisional-safe subset this target accepts at PROVISIONAL stage (C1R Section 12) - must be a
+# subset of AssuranceKernel's own PROVISIONAL_SAFE_ACTIONS; PAUSE/ENTER_RECOVERY/RESTORE can never
+# be PROVISIONAL regardless of what the Kernel claims to send.
+PROVISIONAL_SAFE_ACTIONS = {int(ACTION_MONITOR), int(ACTION_RESTRICT), int(ACTION_THROTTLE), int(ACTION_REVOKE_CAPABILITY)}
 
 RESOURCE_PROVIDER_A = "provider_a"
 RESOURCE_PROVIDER_B = "provider_b"
@@ -145,9 +158,16 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         param_str: str,
         decision_stage: gl.u8,
     ) -> None:
+        # C1R Section 12 defense-in-depth: this target independently validates every field of the
+        # Kernel's dispatch rather than trusting it blindly - it is the final backstop against a
+        # Kernel bug, not merely a passive executor.
         self._require_kernel()
+        self._require(len(incident_id) > 0, "INVALID_INCIDENT_ID")
+        self._require(len(policy_key) > 0, "INVALID_POLICY_KEY")
+        self._require(int(decision_stage) in (int(DECISION_STAGE_PROVISIONAL), int(DECISION_STAGE_FINAL)), "INVALID_DECISION_STAGE")
+
         if action_id in self.processed_action_ids:
-            return  # duplicate action ID -> no-op (Section 48).
+            return  # duplicate action ID -> no-op (Section 48) - the real idempotency boundary.
         self.processed_action_ids[action_id] = True
 
         # Target independently validates resource and bounds (Section 48) - it does not simply
@@ -157,13 +177,25 @@ class ReferenceAgentProtocol(gl.contract.Contract):
             "UNSUPPORTED_RESOURCE: not a resource this target recognizes",
         )
 
+        is_provisional = int(decision_stage) == int(DECISION_STAGE_PROVISIONAL)
+        if is_provisional:
+            self._require(int(action_type) in PROVISIONAL_SAFE_ACTIONS, "PROVISIONAL_NOT_SAFE: this action may never be applied provisionally")
+            # PAUSE/ENTER_RECOVERY/RESTORE are already excluded from PROVISIONAL_SAFE_ACTIONS, but
+            # assert explicitly per Section 12's exact required checks.
+            self._require(int(action_type) != int(ACTION_PAUSE), "PROVISIONAL_PAUSE_FORBIDDEN")
+            self._require(int(action_type) != int(ACTION_ENTER_RECOVERY), "PROVISIONAL_ENTER_RECOVERY_FORBIDDEN")
+            self._require(int(action_type) != int(ACTION_RESTORE), "PROVISIONAL_RESTORE_FORBIDDEN")
+
         if int(action_type) == int(ACTION_MONITOR):
+            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER: MONITOR takes no parameters")
             if int(self.state) < int(ASSURANCE_STATE_MONITORED):
                 self.state = ASSURANCE_STATE_MONITORED
-        elif int(action_type) == int(ACTION_RESTRICT):
+        elif int(action_type) == int(ACTION_RESTRICT) or int(action_type) == int(ACTION_THROTTLE):
+            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
             if int(self.state) < int(ASSURANCE_STATE_RESTRICTED):
                 self.state = ASSURANCE_STATE_RESTRICTED
         elif int(action_type) == int(ACTION_REVOKE_CAPABILITY):
+            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
             if resource_id == RESOURCE_PROVIDER_A:
                 self.provider_a_enabled = False
             elif resource_id == RESOURCE_PROVIDER_B:
@@ -171,18 +203,32 @@ class ReferenceAgentProtocol(gl.contract.Contract):
             if int(self.state) < int(ASSURANCE_STATE_RESTRICTED):
                 self.state = ASSURANCE_STATE_RESTRICTED
         elif int(action_type) == int(ACTION_ENTER_SAFE_MODE):
+            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
             self.state = ASSURANCE_STATE_SAFE_MODE
         elif int(action_type) == int(ACTION_PAUSE):
+            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
             self.state = ASSURANCE_STATE_PAUSED
         elif int(action_type) == int(ACTION_ENTER_RECOVERY):
+            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
             self.state = ASSURANCE_STATE_RECOVERY
         elif int(action_type) == int(ACTION_RESTORE):
+            # C1R Section 11: RESTORE is FINAL-only; already enforced above for PROVISIONAL. The
+            # only C1R action that intentionally uses param_u256 is this one, carrying the exact
+            # recomputed AssuranceState the Kernel wants this target to hold after release.
+            self._require(int(param_u256) in VALID_ASSURANCE_STATES, "INVALID_RESTORE_STATE: param_u256 must be a valid AssuranceState value")
             if resource_id == RESOURCE_PROVIDER_A:
-                self.provider_a_enabled = True
+                # Owner-level revocation is authoritative and is NOT cleared by a Kernel RESTORE -
+                # the Kernel only ever tells us its aggregate restriction count for this resource
+                # reached zero, never that owner-level policy should be overridden.
+                if not self.provider_a_revoked:
+                    self.provider_a_enabled = True
             elif resource_id == RESOURCE_PROVIDER_B:
-                self.provider_b_enabled = True
+                if not self.provider_b_revoked:
+                    self.provider_b_enabled = True
             else:
-                self.state = ASSURANCE_STATE_NORMAL
+                # Empty resource_id: target-wide state reconciliation only, bounded to the
+                # Kernel-computed value - never arbitrary.
+                self.state = gl.u8(int(param_u256))
         else:
             raise gl.vm.UserError("UNSUPPORTED_ACTION")
 
