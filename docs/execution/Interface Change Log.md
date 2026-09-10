@@ -1,5 +1,83 @@
 # Interface Change Log
 
+## 2026-09-10 - F1-v4 -> F1-v5 (A0 final remediation Parts A1-A9: F1 compiled-interface/schema parity)
+
+**Change:** a further external review found that `docs/execution/Frontend Contract v1.md` (this document) and
+`schemas/**/*.schema.json` had been correct and consistent with each other all along, but
+`packages/protocol-sdk/src/types.ts`/`sdk.ts` (the compiled TypeScript half of the F1 boundary, added at F1-v4 to
+close A0-T1) had drifted from both. This is exactly the class of bug F1-v4's own compiled-types work was meant to
+prevent, and it was not caught because no automated check compared the TypeScript against the schema/document -
+only `tsc` type-checking the TypeScript against *itself*.
+
+**Drift found and fixed (Part A1):**
+- `Target`: TypeScript used `address`/`activePolicyVersion`/`controllerMode` instead of the canonical
+  `targetAddress`/`policyGeneration`, and had no `cachedOwner`/`authorityRevoked`/`humanOverrideEnabled`.
+- `AssuranceState`/`AssuranceStateSummary`: TypeScript collapsed both into one type; `getAssuranceState()`
+  returned the bare enum instead of the summary object.
+- `RuleKind` vs `RuleId`: TypeScript had no `RuleKind` (INCIDENT/REMEDIATION/RECOVERY_VALIDATION) at all and used
+  a single conflated type for both concepts.
+- `PolicySummary`/`PolicyDetail`/`PolicySecurityDiff`, `Incident`, `EvidenceSource`, `RecoveryState`,
+  `ErrorEnvelope`, `FeeTransactionPreview`: each used an ad hoc shape instead of mirroring its schema/document
+  field-by-field (e.g. `EvidenceSource` was missing `fetchedAt`/`observedAt` naming and used a different
+  availability model entirely).
+- `DecisionRecord`: missing the optional `decisionId` field present in the schema.
+- `GenLayerTransactionLifecycle.derived`: was incorrectly required in TypeScript; schema always had it optional.
+
+**Drift found and fixed (Part A2, RecloseSDK):**
+- `getDecision()` returned `DecisionView` (absorbing `getDecisionView`'s own return type).
+- `getDecisionView()` was missing entirely from the compiled interface, despite being one of the 14 frozen
+  methods documented in this file's own Section 2.
+- `getAssuranceState()` returned `AssuranceState` (the bare enum) instead of `AssuranceStateSummary`.
+- `trackTransaction()` returned `unknown` instead of `GenLayerTransactionLifecycle`.
+
+**New automated parity check (Part A3):** `scripts/test-f1-parity.js`, wired into `npm run verify`, mechanically
+diffs `packages/protocol-sdk/src/types.ts` field sets against `schemas/**/*.schema.json` (field names,
+required/optional) and checks `RecloseSDK`'s method list/signatures for `getDecision`/`getDecisionView`/
+`getAssuranceState` against the frozen 14-method list. Immediately upon first running it against the corrected
+types, it caught one more real drift bug (missing `decisionId`), confirming the tool works.
+
+**`ActionEnvelope.boundedParameters` closed (Part A4):** an open `Record<string, unknown>` (introduced at F1-v4
+to fix the prior A0-T2 finding) was itself still an unbounded, free-form container. Replaced with `paramU256:
+string | null` / `paramStr: string | null` - the same closed representation `PolicyDetail.effects` already uses -
+so there is no key namespace in which `calldata`/`selector`/`method`/`destination`/a nested execution payload
+could be smuggled in. Proven by `scripts/test-action-envelope-negative.js` (17 tests).
+
+**`ExecutionReceipt` semantics completed (Part A5):** schema `allOf`/`if`/`then` now enforces:
+`FINISHED_WITH_ERROR`/`TIMEOUT`/`NONDET_DISAGREE`/`DETERMINISTIC_VIOLATION` -> `FAILURE`; `NOT_VOTED` can never
+claim `SUCCESS`; `SUCCESS` is reachable only via `FINISHED_WITH_RETURN`; and where `expectedPostStateRequired` is
+true, `SUCCESS` additionally requires `postStateMatchesExpected === true`.
+
+**`GenLayerTransactionLifecycle` cross-field constraints added (Part A6):** schema `allOf`/`if`/`then` now
+enforces the exact `rawStatus` -> `protocolDecisionOutcome` mapping (`ACCEPTED` -> `"accepted"`, `UNDETERMINED`
+-> `"undetermined"`, `VALIDATORS_TIMEOUT` -> `"validators-timeout"`, `LEADER_TIMEOUT` -> `"leader-timeout"`,
+`CANCELED` -> `null`, never invented), and that mid-flight processing statuses (now including `LEADER_REVEALING`)
+never carry a decided outcome. `scripts/test-transaction-truth-model.js` expanded from 7 to 13 executable
+semantic tests, plus new fixtures `tx-lifecycle-pending-processing.json`, `tx-lifecycle-canceled.json`,
+`tx-lifecycle-validators-timeout.json`.
+
+**`TM-INF-001` corrected again (Part A7, non-breaking to F1 itself but tracked here for completeness):** a
+unit-tested-but-not-integration-proven runtime guard does not make the broader threat `MITIGATED / VERIFIED`;
+corrected to `MITIGATED / UNVERIFIED`. `NFR-CMP-001`, whose narrower acceptance criterion is satisfied by the
+unit-level guard+test, correctly remains `VERIFIED`. See `docs/security/Security Findings.md` F-INF-001.
+
+**A0 integrity check hardened (Part A8, non-breaking to F1 itself but tracked here for completeness):**
+`scripts/a0-integrity-check.js`'s governance-immutability check no longer "best-effort" skips when a baseline
+ref can't be resolved - it now resolves a hardcoded accepted G0 baseline commit and FAILS (never silently skips)
+if that commit or any of the 11 governance/toolchain files can't be hash-compared against it. CI now uses
+`fetch-depth: 0` so the baseline commit is always reachable.
+
+**Schema files touched:** `schemas/transaction/ActionEnvelope.schema.json` (`paramU256`/`paramStr` replace
+`boundedParameters`), `schemas/transaction/ExecutionReceipt.schema.json` (additional `allOf` rules),
+`schemas/transaction/GenLayerTransactionLifecycle.schema.json` (additional `allOf` rules for
+rawStatus/protocolDecisionOutcome mapping).
+**TypeScript files touched:** `packages/protocol-sdk/src/types.ts` (near-total rewrite for parity),
+`packages/protocol-sdk/src/sdk.ts` (added `getDecisionView`, fixed 3 return types).
+**Fixtures touched:** `action-envelope-restrict.json` (paramU256/paramStr), plus 3 new fixtures for the expanded
+lifecycle truth-model tests.
+**Frontend Contract updated:** this document, Sections 1.7, 1.8, 8 (now F1-v5). Sections 1.1-1.6, 1.9-1.10, 2-7
+were found to already be correct and did not need content changes - only the freeze-record version bump.
+**Commit:** see `docs/execution/audit-packets/A0/commit.txt` for the audit target commit introducing this change.
+
 ## 2026-09-10 - F1-v3 -> F1-v4 (A0 final remediation: A0-T1, A0-T2, A0-T3)
 
 **Change:** three fixes required by the A0 final remediation instruction, since the external reviewer determined

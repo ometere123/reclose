@@ -127,6 +127,73 @@ test("derived.displayLabel is always accompanied by, and never a substitute for,
   }
 });
 
+// --- 7. Mid-flight processing statuses carry no decided outcome (A0 final remediation A6) ---
+test("PENDING (mid-flight processing) cannot simultaneously claim a decided protocolDecisionOutcome", () => {
+  const tx = loadFixture("tx-lifecycle-pending-processing.json");
+  assert.strictEqual(tx.rawStatus, "PENDING");
+  assert.strictEqual(tx.protocolDecisionOutcome, null, "PENDING must not carry a decided outcome");
+  assert.strictEqual(tx.derived.isFinal, false);
+});
+
+// --- 8. ACCEPTED maps exactly to protocolDecisionOutcome 'accepted' ------------------------
+test("rawStatus ACCEPTED carries exactly protocolDecisionOutcome 'accepted'", () => {
+  const tx = loadFixture("tx-lifecycle-accepted.json");
+  assert.strictEqual(tx.rawStatus, "ACCEPTED");
+  assert.strictEqual(tx.protocolDecisionOutcome, "accepted");
+});
+
+// --- 9. UNDETERMINED maps exactly to protocolDecisionOutcome 'undetermined' ----------------
+test("rawStatus UNDETERMINED carries exactly protocolDecisionOutcome 'undetermined'", () => {
+  const tx = loadFixture("tx-lifecycle-raw-undetermined.json");
+  assert.strictEqual(tx.rawStatus, "UNDETERMINED");
+  assert.strictEqual(tx.protocolDecisionOutcome, "undetermined");
+});
+
+// --- 10. VALIDATORS_TIMEOUT maps exactly to protocolDecisionOutcome 'validators-timeout' ---
+test("rawStatus VALIDATORS_TIMEOUT carries exactly protocolDecisionOutcome 'validators-timeout'", () => {
+  const tx = loadFixture("tx-lifecycle-validators-timeout.json");
+  assert.strictEqual(tx.rawStatus, "VALIDATORS_TIMEOUT");
+  assert.strictEqual(tx.protocolDecisionOutcome, "validators-timeout");
+  assert.strictEqual(tx.derived.isFinal, false, "VALIDATORS_TIMEOUT is not a terminal lifecycle state");
+});
+
+// --- 11. CANCELED never invents a protocolDecisionOutcome ----------------------------------
+test("rawStatus CANCELED is terminal but never invents a protocolDecisionOutcome (no 'canceled' value exists in genlayer-js)", () => {
+  const tx = loadFixture("tx-lifecycle-canceled.json");
+  assert.strictEqual(tx.rawStatus, "CANCELED");
+  assert.strictEqual(tx.protocolDecisionOutcome, null, "CANCELED must not invent an outcome value that does not exist in the pinned SDK");
+  assert.strictEqual(tx.derived.isFinal, true, "CANCELED is one of exactly two terminal rawStatus values");
+});
+
+// --- 12. Schema-level enforcement of the rawStatus -> protocolDecisionOutcome mapping ------
+test("JSON Schema rejects a mismatched rawStatus/protocolDecisionOutcome pairing (schema-level, not just fixture-level)", () => {
+  const Ajv = require("ajv");
+  const addFormats = require("ajv-formats");
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  addFormats(ajv);
+  const SCHEMAS_DIR = path.join(REPO_ROOT, "schemas");
+  (function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".schema.json")) {
+        const schema = JSON.parse(fs.readFileSync(full, "utf8"));
+        if (!ajv.getSchema(schema.$id)) ajv.addSchema(schema, schema.$id);
+      }
+    }
+  })(SCHEMAS_DIR);
+  const validate = ajv.getSchema("https://reclose.internal/schemas/transaction/GenLayerTransactionLifecycle.schema.json");
+
+  const mismatched = { txId: "0x" + "1".repeat(64), rawStatus: "ACCEPTED", rawResult: "MAJORITY_AGREE", protocolDecisionOutcome: "undetermined", decidedAtBlock: 1, appealDeadline: null };
+  assert.strictEqual(validate(mismatched), false, "ACCEPTED + protocolDecisionOutcome 'undetermined' must be rejected by the schema");
+
+  const inventedOnCancel = { txId: "0x" + "1".repeat(64), rawStatus: "CANCELED", rawResult: null, protocolDecisionOutcome: "accepted", decidedAtBlock: null, appealDeadline: null };
+  assert.strictEqual(validate(inventedOnCancel), false, "CANCELED must never carry an invented protocolDecisionOutcome");
+
+  const processingWithOutcome = { txId: "0x" + "1".repeat(64), rawStatus: "PENDING", rawResult: null, protocolDecisionOutcome: "accepted", decidedAtBlock: null, appealDeadline: null };
+  assert.strictEqual(validate(processingWithOutcome), false, "PENDING must never claim a decided outcome");
+});
+
 console.log("");
 if (failures > 0) {
   console.error(`${failures} transaction-truth-model semantic test(s) FAILED.`);

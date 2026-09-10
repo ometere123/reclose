@@ -54,20 +54,30 @@
   "additionalProperties": false,
   "allOf": [
     {
-      "if": {
-        "properties": { "executionResult": { "const": "FINISHED_WITH_ERROR" } }
-      },
-      "then": {
-        "properties": { "finalStatus": { "const": "FAILURE" } }
-      }
+      "description": "A0 final remediation (A5): every non-success executionResult maps to FAILURE, never SUCCESS or UNKNOWN.",
+      "if": { "properties": { "executionResult": { "enum": ["FINISHED_WITH_ERROR", "TIMEOUT", "NONDET_DISAGREE", "DETERMINISTIC_VIOLATION"] } } },
+      "then": { "properties": { "finalStatus": { "const": "FAILURE" } } }
     },
     {
+      "description": "A0 final remediation (A5): NOT_VOTED (no execution actually occurred) can never be presented as SUCCESS.",
+      "if": { "properties": { "executionResult": { "const": "NOT_VOTED" } } },
+      "then": { "properties": { "finalStatus": { "enum": ["FAILURE", "UNKNOWN"] } } }
+    },
+    {
+      "description": "A0 final remediation (A5): finalStatus SUCCESS may only be reached via FINISHED_WITH_RETURN - the reverse direction of the FINISHED_WITH_RETURN rule below, closing the loophole where some other executionResult claimed SUCCESS.",
+      "if": { "properties": { "finalStatus": { "const": "SUCCESS" } } },
+      "then": { "properties": { "executionResult": { "const": "FINISHED_WITH_RETURN" } } }
+    },
+    {
+      "description": "A0 final remediation (A5): where post-state verification is required for this actionType, SUCCESS additionally requires actual post-state proof - a return value alone is not enough (CLAUDE.md Section 9.6).",
       "if": {
-        "properties": { "executionResult": { "const": "FINISHED_WITH_RETURN" } }
+        "properties": {
+          "finalStatus": { "const": "SUCCESS" },
+          "expectedPostStateRequired": { "const": true }
+        },
+        "required": ["finalStatus", "expectedPostStateRequired"]
       },
-      "then": {
-        "properties": { "finalStatus": { "enum": ["SUCCESS", "UNKNOWN"] } }
-      }
+      "then": { "properties": { "postStateMatchesExpected": { "const": true } } }
     }
   ]
 }

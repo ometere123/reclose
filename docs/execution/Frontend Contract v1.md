@@ -1,13 +1,13 @@
 # Frontend Contract v1
 
 **Status:** FROZEN
-**Version:** F1-v4 (F1-v1 superseded by F1-v2 per external A0 review findings A0-003/A0-004/A0-005/A0-008;
-F1-v2 superseded by F1-v3 per external A0 re-audit finding A0-R3; F1-v3 superseded by F1-v4 per the A0 final
-remediation instruction's Parts 1-4 findings A0-T1/A0-T2/A0-T3: real compiled `@reclose/protocol-sdk` TypeScript
-types now exist, `ActionEnvelope`/`ExecutionReceipt` are rebuilt to their full canonical shape, and
-`DecisionRecord.outcome`/`.decisionStage` now prohibit `NONE` at the schema and type level; see
-`docs/execution/Interface Change Log.md` for all change entries)
-**Freeze verification:** this document identifies itself by a stable human version label (`F1-v4`) and a freeze
+**Version:** F1-v5 (F1-v1 superseded by F1-v2 per external A0 review findings A0-003/A0-004/A0-005/A0-008;
+F1-v2 superseded by F1-v3 per external A0 re-audit finding A0-R3; F1-v3 superseded by F1-v4 per A0-T1/A0-T2/A0-T3;
+F1-v4 superseded by F1-v5 after a further external review found that THIS document had always been correct, but
+`packages/protocol-sdk/src/types.ts`/`sdk.ts` had drifted from it - see Part A1/A2 of the A0 final remediation
+instruction and the Interface Change Log entry below for the exact drift found and fixed, plus the new
+`scripts/test-f1-parity.js` deterministic drift check now wired into `npm run verify`)
+**Freeze verification:** this document identifies itself by a stable human version label (`F1-v5`) and a freeze
 date, not by any commit hash - including its own containing commit's hash, which cannot be known from inside the
 file that would record it. Content-unchanged-ness between any two points in time is verified externally, by
 running `git diff <commit-a> <commit-b> -- "docs/execution/Frontend Contract v1.md"` between two already-existing
@@ -273,6 +273,16 @@ interface GenLayerTransactionLifecycle {
   // Optional UI-convenience label, explicitly derived, never a substitute for the raw fields above.
   derived?: { displayLabel: string; isFinal: boolean } | null;
 }
+// A0 final remediation A6 (schema-enforced, see GenLayerTransactionLifecycle.schema.json allOf):
+//   - mid-flight processing statuses (UNINITIALIZED/PENDING/PROPOSING/COMMITTING/REVEALING/
+//     APPEAL_REVEALING/APPEAL_COMMITTING/LEADER_REVEALING) must have protocolDecisionOutcome === null;
+//   - ACCEPTED -> protocolDecisionOutcome === "accepted" (exactly, not merely non-null);
+//   - UNDETERMINED -> protocolDecisionOutcome === "undetermined";
+//   - VALIDATORS_TIMEOUT -> protocolDecisionOutcome === "validators-timeout";
+//   - LEADER_TIMEOUT -> protocolDecisionOutcome === "leader-timeout";
+//   - CANCELED -> protocolDecisionOutcome === null (never invented - no "canceled" value exists in genlayer-js);
+//   - FINALIZED intentionally has no schema-forced protocolDecisionOutcome value: it is reached from
+//     whichever prior status the transaction was in, and conservatively retains that status's outcome.
 
 // Enum values confirmed live at G0 via `genlayer receipt` (txExecutionResultName field) and cross-checked
 // against the pinned genlayer-js@2.0.0-rc.1 ExecutionResult enum (identical set, no change needed here);
@@ -296,14 +306,19 @@ A finalized transaction may still have failed execution (CF-005, G0-verified; se
 display string `"Finalized · Accepted"` is a derived UI label (see `derived.displayLabel` above), not a raw SDK
 enum value - do not reintroduce it as if it were one.
 
-### 1.8 `ActionEnvelope`, `ExecutionReceipt` (rebuilt F1-v4, A0-T2)
+### 1.8 `ActionEnvelope`, `ExecutionReceipt` (rebuilt F1-v4, A0-T2; closed further at F1-v5, A0 final remediation A4/A5)
 
 `schemas/transaction/{ActionEnvelope,ExecutionReceipt}.schema.json`, rebuilt against the locked Master Design
 Package formal model per external A0-T2 finding: the prior F1-v3 shape was a reduced/incomplete projection
 (`actionId/incidentId/policyHash/actionType/resourceId/boundedParam/nonce/expiry`) that dropped canonical target
-identity and used a single scalar `boundedParam`. `boundedParameters` is a typed, bounded, finite-keyed object -
-never arbitrary calldata, a selector, an arbitrary destination, or an LLM-generated payload (TM-AUTH-003/009).
-Mirrored 1:1 in `@reclose/protocol-sdk`'s compiled `ActionEnvelope`/`ExecutionReceipt` TypeScript types.
+identity and used a single scalar `boundedParam`. The F1-v4 fix replaced it with `boundedParameters: Record<string,
+unknown>`, which external review correctly identified as still an unbounded, free-form container - an open map
+can carry arbitrary keys just as easily as a single scalar could. **F1-v5 closes this properly**: `paramU256`/
+`paramStr` are the ONLY parameter slots, mirroring `PolicyDetail.effects`' own representation exactly, so there is
+no key namespace in which calldata/a selector/a method name/a destination could be smuggled in - proven by
+`scripts/test-action-envelope-negative.js` (17/17: calldata/selector/method/destination/nested-payload/unknown-key
+all rejected). Mirrored 1:1 in `@reclose/protocol-sdk`'s compiled `ActionEnvelope`/`ExecutionReceipt` TypeScript
+types.
 
 ```ts
 interface ActionEnvelope {
@@ -316,7 +331,8 @@ interface ActionEnvelope {
   policyVersion: number;
   resourceId: string;
   actionType: ActionTypeEnum;
-  boundedParameters: Record<string, unknown>; // typed/bounded per actionType - never arbitrary calldata
+  paramU256: string | null; // closed bounded-parameter slot - decimal u256 string, or null
+  paramStr: string | null;  // closed bounded-parameter slot - short string, or null
   decisionStage: "PROVISIONAL" | "FINAL";
   decisionReference: string;
   nonce: string;
@@ -331,7 +347,9 @@ interface ExecutionReceipt {
   parentTxId: string;
   childTx: ChildTransactionState;
   executionResult: ExecutionResultEnum;
-  finalStatus: "SUCCESS" | "FAILURE" | "UNKNOWN"; // FINALIZED+FINISHED_WITH_ERROR must be FAILURE, never SUCCESS
+  finalStatus: "SUCCESS" | "FAILURE" | "UNKNOWN"; // SUCCESS reachable ONLY via FINISHED_WITH_RETURN, and only
+                                                    // when post-state is proven where required (A5); every other
+                                                    // non-success executionResult (incl. NOT_VOTED) maps to FAILURE
   preStateHash: string | null;
   postStateHash: string | null;
   expectedPostStateRequired: boolean;
@@ -560,12 +578,13 @@ procedure being followed: see `docs/execution/Interface Change Log.md` for the c
 ## 8. Freeze record
 
 ```text
-Frozen by: Claude Code (F1 phase; F1-v4 revision during A0 final remediation)
-Version: F1-v4
+Frozen by: Claude Code (F1 phase; F1-v5 revision during A0 final remediation)
+Version: F1-v5
 Freeze date: 2026-09-10
 Schema files: 19 (see schemas/ tree; includes DecisionView.schema.json added in F1-v2)
-Fixture files: 40 (tests/frontend-fixtures/, all passing npm run schema:validate)
-Compiled TypeScript package: packages/protocol-sdk (real, compiling; npm run typecheck / npm run build both pass)
+Fixture files: 43 (tests/frontend-fixtures/, all passing npm run schema:validate)
+Compiled TypeScript package: packages/protocol-sdk (real, compiling; npm run typecheck / npm run build both pass;
+  npm run f1-parity:test deterministically proves it matches this document and schemas/ field-by-field)
 SDK methods frozen: 14 (getTarget, getAssuranceState, getActivePolicy, getIncident, getDecision, getDecisionView,
   getEffectiveProviderStatus, buildIncidentReport, buildRecoveryReport, validateAPM, hashAPM, diffAPM,
   trackTransaction, trackActionTrace)
@@ -580,11 +599,20 @@ History:
   F1-v2: produced during the first A0 remediation pass to fix findings A0-003, A0-004, A0-005 and A0-008.
   F1-v3: produced during A0 re-audit remediation to fix finding A0-R3 (DecisionRecord.reporter
     made required/non-null, matching Master Design Package Section 21 exactly).
-  F1-v4: this revision, produced during A0 final remediation to fix A0-T1 (real compiled
+  F1-v4: produced during A0 final remediation to fix A0-T1 (real compiled
     @reclose/protocol-sdk TypeScript package, Section 1 above), A0-T2 (ActionEnvelope/ExecutionReceipt rebuilt to
     their full canonical MDP shape, Section 1.8) and A0-T3 (DecisionRecord.outcome/.decisionStage now prohibit
     NONE at both the JSON Schema and TypeScript level, with executable negative tests in
     scripts/test-decision-record-negative.js and packages/protocol-sdk/src/__typetests__/).
+  F1-v5: this revision, produced after a further external review found that this document's own field
+    definitions had always been correct, but packages/protocol-sdk/src/types.ts and sdk.ts had drifted from it -
+    Target/PolicyDetail/Incident/EvidenceSource/RecoveryState/ErrorEnvelope/FeeTransactionPreview used ad hoc
+    shapes instead of mirroring this document and schemas/ exactly, getAssuranceState() returned the bare
+    AssuranceState enum instead of AssuranceStateSummary, getDecisionView() was missing from the compiled
+    interface, and ActionEnvelope.boundedParameters was still an open Record<string,unknown> rather than the
+    closed paramU256/paramStr representation. All fixed; a new deterministic parity check
+    (scripts/test-f1-parity.js) is now wired into npm run verify to catch this class of drift automatically,
+    and scripts/test-action-envelope-negative.js proves the closed ActionEnvelope/ExecutionReceipt semantics.
     Exact commit identity is intentionally not claimed inside this file - see
     docs/execution/audit-packets/A0/commit.txt for the audit target commit this version is verified against, and
     docs/execution/Interface Change Log.md for all change entries with their introducing commits.

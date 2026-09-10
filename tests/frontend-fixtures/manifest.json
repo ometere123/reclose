@@ -36,6 +36,9 @@
   { "fixture": "tx-lifecycle-accepted.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
   { "fixture": "tx-lifecycle-finalized-success.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
   { "fixture": "tx-lifecycle-raw-undetermined.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
+  { "fixture": "tx-lifecycle-pending-processing.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
+  { "fixture": "tx-lifecycle-canceled.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
+  { "fixture": "tx-lifecycle-validators-timeout.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
 
   { "fixture": "child-transaction-failed.json", "schema": "transaction/ChildTransactionState.schema.json" },
   { "fixture": "child-transaction-succeeded.json", "schema": "transaction/ChildTransactionState.schema.json" },

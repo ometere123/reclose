@@ -1,0 +1,1 @@
+{"txId":"0x9999999999999999999999999999999999999999999999999999999999999999","rawStatus":"VALIDATORS_TIMEOUT","rawResult":"MAJORITY_TIMEOUT","protocolDecisionOutcome":"validators-timeout","decidedAtBlock":null,"appealDeadline":null,"derived":{"displayLabel":"Validators timeout","isFinal":false}}

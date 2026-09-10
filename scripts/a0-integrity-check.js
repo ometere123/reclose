@@ -224,23 +224,72 @@ check("Fixture/schema counts referenced in Gate Verification Status.csv are not 
 });
 
 // ---------------------------------------------------------------------------
-// Governance / G0 lock immutability (best-effort: compares against main if available)
+// Governance / G0 lock immutability - STRICT (A0 final remediation A8).
+//
+// A prior version of this check "best-effort" skipped (warned, did not fail) when `main` or the
+// baseline commit could not be resolved - e.g. a shallow CI checkout. External review correctly
+// identified that as a status overclaim risk: the script could print "ALL PASS" having silently
+// skipped the one check that actually guards against a hidden governance edit. This version
+// resolves a fixed, hardcoded accepted G0 baseline commit (the R0/G0 seed commit accepted at the
+// externally-reviewed G0 gate) and FAILS - does not skip - if that commit is not resolvable, so a
+// shallow/misconfigured checkout can never silently pass this gate. CI accordingly uses
+// `fetch-depth: 0` so the baseline commit is always reachable.
 // ---------------------------------------------------------------------------
 
-check("Governance documents and CLAUDE.md are not modified relative to main (best-effort)", () => {
+const ACCEPTED_G0_BASELINE_COMMIT = "fe86a2f7ae8f113956cc4815410b79dd26df3f2d";
+const GOVERNANCE_IMMUTABLE_PATHS = [
+  "docs/governance/Research Closure & Architecture Decision Record.md",
+  "docs/governance/Master Design Package.md",
+  "docs/governance/Implementation Specification.md",
+  "docs/governance/Naming & Brand Decision Record.md",
+  "docs/governance/Product Requirements Document.md",
+  "docs/governance/Requirements Traceability Matrix.md",
+  "CLAUDE.md",
+  "Repository Build Master Plan.md",
+  "toolchain/versions.lock",
+  "toolchain/runner.lock",
+  "toolchain/network.lock.json",
+];
+
+check("Accepted G0 baseline commit is resolvable locally (required for the strict governance/toolchain check below)", () => {
   const { execSync } = require("child_process");
-  try {
-    const diff = execSync(
-      'git diff main -- docs/governance/ CLAUDE.md "Repository Build Master Plan.md"',
-      { cwd: REPO_ROOT, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
-    );
-    assert(diff.trim() === "", "unexpected diff against governance/CLAUDE.md/Master Plan relative to main");
-  } catch (e) {
-    if (e.status === undefined) throw e; // real exec failure, not a diff-with-nonzero-exit case
-    // git diff exits 0 normally; a non-zero here means `main` ref or files may not resolve in this
-    // environment (e.g. shallow clone) - do not hard-fail the whole gate for that alone.
-    console.warn("  (skipped strict comparison: " + e.message.split("\n")[0] + ")");
+  execSync(`git cat-file -e ${ACCEPTED_G0_BASELINE_COMMIT}`, { cwd: REPO_ROOT, stdio: ["pipe", "pipe", "pipe"] });
+  // No output/throw = the object exists. A failure here throws and this check FAILS the gate -
+  // it never silently skips ahead to the next check.
+});
+
+check("Governance documents and G0 toolchain locks are byte-identical to the accepted G0 baseline (strict, A0 final remediation A8)", () => {
+  const { execSync } = require("child_process");
+  const mismatches = [];
+  for (const relPath of GOVERNANCE_IMMUTABLE_PATHS) {
+    let baselineBlob;
+    try {
+      baselineBlob = execSync(`git rev-parse "${ACCEPTED_G0_BASELINE_COMMIT}:${relPath}"`, {
+        cwd: REPO_ROOT,
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+    } catch (e) {
+      mismatches.push(`${relPath}: could not resolve baseline blob (${e.message.split("\n")[0]})`);
+      continue;
+    }
+    let currentBlob;
+    try {
+      currentBlob = execSync(`git rev-parse "HEAD:${relPath}"`, {
+        cwd: REPO_ROOT,
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+    } catch (e) {
+      mismatches.push(`${relPath}: could not resolve current (HEAD) blob (${e.message.split("\n")[0]})`);
+      continue;
+    }
+    if (baselineBlob !== currentBlob) {
+      mismatches.push(`${relPath}: baseline blob ${baselineBlob} != current blob ${currentBlob}`);
+    }
   }
+  assert(mismatches.length === 0, `governance/toolchain drift detected:\n  ${mismatches.join("\n  ")}`);
+  return `${GOVERNANCE_IMMUTABLE_PATHS.length}/${GOVERNANCE_IMMUTABLE_PATHS.length} files byte-identical to ${ACCEPTED_G0_BASELINE_COMMIT.slice(0, 7)}`;
 });
 
 console.log(`\n${failures === 0 ? "ALL PASS" : failures + " FAILURE(S)"}`);

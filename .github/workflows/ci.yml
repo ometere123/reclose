@@ -14,7 +14,13 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 (full history) is required so scripts/a0-integrity-check.js can strictly
+      # resolve the accepted G0 baseline commit (fe86a2f) for governance/toolchain immutability
+      # comparison, rather than best-effort skipping when a shallow clone can't see it (A0 final
+      # remediation A8).
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       # Exact G0-accepted baseline (toolchain/versions.lock / Current Phase.md): Node 24.16.0, npm
       # 11.13.0. A generic "24" floating major would drift silently from the evidenced baseline (A0
       # final remediation Part 12) - pin the exact patch version and pin npm to match.

@@ -106,6 +106,43 @@
           }
         }
       }
+    },
+    {
+      "description": "A0 final remediation (A6): mid-flight processing statuses (no consensus round has been retained yet) must not claim a decided protocolDecisionOutcome - they carry no outcome opinion at all.",
+      "if": {
+        "required": ["rawStatus"],
+        "properties": {
+          "rawStatus": {
+            "enum": ["UNINITIALIZED", "PENDING", "PROPOSING", "COMMITTING", "REVEALING", "APPEAL_REVEALING", "APPEAL_COMMITTING", "LEADER_REVEALING"]
+          }
+        }
+      },
+      "then": { "properties": { "protocolDecisionOutcome": { "const": null } } }
+    },
+    {
+      "description": "A0 final remediation (A6): rawStatus ACCEPTED must carry exactly protocolDecisionOutcome 'accepted' (genlayer-js's own consumer-oriented mapping), never an invented or mismatched value.",
+      "if": { "required": ["rawStatus"], "properties": { "rawStatus": { "const": "ACCEPTED" } } },
+      "then": { "properties": { "protocolDecisionOutcome": { "const": "accepted" } } }
+    },
+    {
+      "description": "A0 final remediation (A6): rawStatus UNDETERMINED (the protocol's own lifecycle concept, distinct from Reclose DecisionOutcome.UNDETERMINED per TM-LIFE-003) must carry exactly protocolDecisionOutcome 'undetermined'.",
+      "if": { "required": ["rawStatus"], "properties": { "rawStatus": { "const": "UNDETERMINED" } } },
+      "then": { "properties": { "protocolDecisionOutcome": { "const": "undetermined" } } }
+    },
+    {
+      "description": "A0 final remediation (A6): rawStatus VALIDATORS_TIMEOUT must carry exactly protocolDecisionOutcome 'validators-timeout'.",
+      "if": { "required": ["rawStatus"], "properties": { "rawStatus": { "const": "VALIDATORS_TIMEOUT" } } },
+      "then": { "properties": { "protocolDecisionOutcome": { "const": "validators-timeout" } } }
+    },
+    {
+      "description": "A0 final remediation (A6): rawStatus LEADER_TIMEOUT must carry exactly protocolDecisionOutcome 'leader-timeout'.",
+      "if": { "required": ["rawStatus"], "properties": { "rawStatus": { "const": "LEADER_TIMEOUT" } } },
+      "then": { "properties": { "protocolDecisionOutcome": { "const": "leader-timeout" } } }
+    },
+    {
+      "description": "A0 final remediation (A6): rawStatus CANCELED never invents a protocolDecisionOutcome - genlayer-js's TransactionDecisionOutcome has no 'canceled' member, so this must remain null rather than reusing an unrelated value.",
+      "if": { "required": ["rawStatus"], "properties": { "rawStatus": { "const": "CANCELED" } } },
+      "then": { "properties": { "protocolDecisionOutcome": { "const": null } } }
     }
   ]
 }
