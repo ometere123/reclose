@@ -1,7 +1,12 @@
 # Frontend Contract v1
 
 **Status:** FROZEN
-**Frozen at commit:** `fe86a2f7ae8f113956cc4815410b79dd26df3f2d` (branch `claude/r1-foundation`)
+**Freeze verification:** this file's content has been unchanged since commit `23fb711` and remains unchanged as
+of the A0 audit target commit `cea1aa2` (branch `claude/r1-foundation`) - both are existing, independently
+inspectable commits (`git diff 23fb711 cea1aa2 -- "docs/execution/Frontend Contract v1.md"` produces no output).
+The exact content is anchored by its git blob hash and a SHA-256 of its content, both recorded in
+`docs/execution/audit-packets/A0/content-hashes.txt` (computed and stored outside this file, so this statement
+never claims to cryptographically record its own hash before that hash exists).
 **Owner and consumer:** Claude Code (both protocol and frontend sides)
 **Governs:** the interface boundary between Reclose protocol/SDK semantics and all future product/frontend
 implementation (D1+), per CLAUDE.md Section 22 and Repository Build Master Plan Section 13.
@@ -433,5 +438,8 @@ Governing sources: docs/governance/Research Closure & Architecture Decision Reco
   docs/governance/Master Design Package.md, docs/governance/Implementation Specification.md (Sections 9-14, 68),
   docs/governance/Product Requirements Document.md, docs/governance/Requirements Traceability Matrix.md,
   CLAUDE.md Sections 6, 9, 13, 15, 17, 21-34, 39
-Commit at freeze: fe86a2f7ae8f113956cc4815410b79dd26df3f2d
+First introduced in commit: fe86a2f (placeholder freeze-reference text at that point)
+Content stabilized in commit: 23fb711 (this exact content first appears here)
+Unchanged through audit target commit: cea1aa2 (verified via `git diff 23fb711 cea1aa2 -- "docs/execution/Frontend Contract v1.md"`, zero output)
+Content hash: see docs/execution/audit-packets/A0/content-hashes.txt
 ```
