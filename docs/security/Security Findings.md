@@ -4,35 +4,35 @@ This document operationalizes `docs/security/Threat Model & Security Assurance P
 Section 11-ish security baseline requirement, CLAUDE.md Section 7A). It records concrete findings, evidence, and
 residual-risk state - it does not weaken or reinterpret the locked threat catalogue.
 
-**Revision note (A0 re-audit remediation, 2026-09-10, finding A0-R2):** the external A0 re-audit rejected
-tracking `TM-INF-001`'s missing runtime-guard control under a `residual_risk` footnote while still marking the
-threat itself `MITIGATED / VERIFIED`. `TM-INF-001` is corrected below to `IN PROGRESS`. This document now reflects
-**2** concrete `MITIGATED / VERIFIED` findings (`TM-INF-003`, `TM-INF-006`), not 3. Catalogue severity totals
-(25 CRITICAL / 47 HIGH / 10 MEDIUM = 82 total) were already corrected in the prior remediation pass (finding
-A0-002) and remain unchanged and correct.
+**Revision note (A0 final remediation, 2026-09-10, Part 8/10):** `TM-INF-001`'s required control ("network lock +
+runtime guard") is now genuinely complete - `packages/protocol-sdk/src/networkGuard.ts` implements the runtime
+guard and `scripts/test-network-guard.js` (part of `npm run verify`) proves it rejects any non-61997 chain,
+including stable Studionet 61999. `TM-INF-001` is corrected below from `IN PROGRESS` back to `MITIGATED /
+VERIFIED`, this time with the full control actually in place (not merely a footnoted plan). This document now
+reflects **3** concrete `MITIGATED / VERIFIED` findings (`TM-INF-001`, `TM-INF-003`, `TM-INF-006`). All counts
+below are computed directly from `docs/security/Threat Status.csv` (82 rows) rather than hand-maintained.
 
-## S0 summary (corrected 2026-09-10, A0-R2)
+## S0 summary (corrected 2026-09-10, A0 final remediation)
 
 - **Total threats catalogued:** 82 (`TM-AUTH-*` 12, `TM-EVID-*` 14, `TM-LIFE-*` 12, `TM-REC-*` 8, `TM-ECON-*` 8,
   `TM-INF-*` 12, `TM-UX-*` 10, `TM-REL-*` 6).
 - **Catalogue severity totals:** CRITICAL = 25, HIGH = 47, MEDIUM = 10 (verified against
   `docs/security/Threat Model & Security Assurance Plan.md` Section 11 and cross-checked against
   `docs/security/Threat Status.csv`, which is regenerated directly from that section).
-- **MITIGATED / VERIFIED (concrete evidence exists now):** 2 - `TM-INF-003`, `TM-INF-006`. Both are `TM-INF-*`
+- **MITIGATED / VERIFIED (concrete evidence exists now):** 3 - `TM-INF-001` (HIGH - network lock + runtime guard,
+  see F-INF-001 below), `TM-INF-003` (HIGH), `TM-INF-006` (CRITICAL). All three are `TM-INF-*`
   (infrastructure/toolchain) threats whose full required control is genuinely implemented and evidenced.
-- **IN PROGRESS (partial control, correctly not claimed as mitigated):** 1 - `TM-INF-001`. Its required control
-  has two parts ("network lock + runtime guard" per `docs/security/Threat Model & Security Assurance Plan.md`
-  Section 11.6); only the network-lock half exists. See F-INF-001 below.
 - **MITIGATED / UNVERIFIED (a control exists but is not yet fully automated/tested):** 2 (`TM-INF-004`,
   `TM-INF-011`).
 - **OPEN (baseline, unimplemented):** 77 - the overwhelming majority, because no AssuranceKernel, Policy, Judge,
   Evidence pipeline, Vault, or frontend implementation exists yet (C1-D4 scope). Per CLAUDE.md Section 7A rule 1,
   none of these may be marked `MITIGATED` merely because a future control is *described* in documentation - and
   none are.
-- **CRITICAL threats:** all 25 CRITICAL-severity threats in the catalogue remain `OPEN`; none are closed. Per
-  CLAUDE.md Section 7A rule 2 and Threat Model Section 15 rule 1, **no CRITICAL threat may ever be marked
-  `ACCEPTED RESIDUAL RISK` for R1** - every one must reach `MITIGATED / VERIFIED` (or, if a feature is genuinely
-  removed from R1 scope, `REMOVED FROM SCOPE`) before its respective audit gate (mostly A1/A2, per
+- **CRITICAL threats:** 24 of the 25 CRITICAL-severity threats remain `OPEN`; **one, `TM-INF-006`, is `MITIGATED /
+  VERIFIED`** (this is permitted - CLAUDE.md Section 7A rule 2 only prohibits marking a CRITICAL threat `ACCEPTED
+  RESIDUAL RISK`, not reaching genuine `MITIGATED / VERIFIED`). No CRITICAL threat has been marked `ACCEPTED
+  RESIDUAL RISK`. Every remaining open CRITICAL threat must reach `MITIGATED / VERIFIED` (or, if a feature is
+  genuinely removed from R1 scope, `REMOVED FROM SCOPE`) before its respective audit gate (mostly A1/A2, per
   `docs/security/Threat Status.csv`'s `audit_gate` column).
 - **Implementation/test traceability (finding A0-R1):** every one of the 72 CRITICAL/HIGH threats now has a
   non-empty `implementation_refs` and `test_refs` in `Threat Status.csv`, citing the exact PLANNED file/module
@@ -43,23 +43,25 @@ A0-002) and remain unchanged and correct.
 
 ## Findings with concrete evidence (S0-verified)
 
-### F-INF-001 - Network/chain identity threat (TM-INF-001) is only partially mitigated - status corrected to IN PROGRESS
+### F-INF-001 - Network/chain identity threat (TM-INF-001) - both control halves now complete, MITIGATED / VERIFIED
 
 Studio-dev chain identity (61997, distinct from stable studionet's 61999) was independently verified via four
 sources at G0 (raw JSON-RPC, CLI, `genlayer-js`, `genlayer-py`) and is pinned in `toolchain/network.lock.json`.
 See `release-evidence/r1/g0/network-verification.json`. This half of the control is real and verified.
 
-**Correction (A0-R2, supersedes the A0-002 correction):** the required control for `TM-INF-001` is "network lock
-**+ runtime guard**" (two parts). Only the network lock exists; no SDK/frontend code has been written at all, so
-there is no runtime guard to enforce this at the application layer. A prior remediation pass kept this threat's
-status as `MITIGATED / VERIFIED` and recorded the gap only in a `residual_risk` footnote - the external reviewer
-correctly rejected this as insufficient: a threat whose own required control is half-missing is not
-`MITIGATED / VERIFIED`, regardless of how clearly the gap is footnoted. `Threat Status.csv`'s `TM-INF-001` row is
-now `IN PROGRESS`, with `control_refs` explicitly marking the lock half DONE and the guard half NOT DONE, and a
-planned `implementation_refs`/`test_refs` entry for the still-missing runtime guard
-(`packages/protocol-sdk/` / `tests/frontend/test_network_guard.py`, tracked jointly with `TM-UX-002`, which
-remains fully `OPEN`). This threat will move to `MITIGATED / VERIFIED` only once both halves of its control are
-implemented and tested.
+**History:** the required control for `TM-INF-001` is "network lock **+ runtime guard**" (two parts). A prior
+remediation pass kept this threat `MITIGATED / VERIFIED` while the runtime guard did not exist, recording the gap
+only in a `residual_risk` footnote; the external reviewer correctly rejected this as insufficient (A0-R2), and the
+status was corrected to `IN PROGRESS`.
+
+**Resolution (A0 final remediation, Part 8):** `packages/protocol-sdk/src/networkGuard.ts` now implements
+`assertCanonicalChainId`/`isCanonicalChainId`, which reject any chain ID other than the canonical `61997` -
+including the stable Studionet `61999`, never treated as an acceptable substitute (CLAUDE.md Section 10 rule 2).
+`scripts/test-network-guard.js`, run as part of `npm run verify`, proves: 61997 accepted; 61999 rejected; an
+arbitrary chain ID rejected. Both halves of the required control are now genuinely implemented and tested, so
+`TM-INF-001` is `MITIGATED / VERIFIED`. This guard is not yet wired into a live SDK/frontend network call path
+(no such path exists yet - C1+ scope); `TM-UX-002` separately tracks the UX-surface concern of displaying
+wrong-network state to a user once a frontend exists, and remains `OPEN`.
 
 ### F-INF-003 - Runner-hash drift threat (TM-INF-003) is mitigated with reproducible, sourced evidence
 

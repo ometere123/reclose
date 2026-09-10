@@ -1,10 +1,13 @@
 # Frontend Contract v1
 
 **Status:** FROZEN
-**Version:** F1-v3 (F1-v1 superseded by F1-v2 per external A0 review findings A0-003/A0-004/A0-005/A0-008;
-F1-v2 superseded by F1-v3 per external A0 re-audit finding A0-R3; see
-`docs/execution/Interface Change Log.md` for both change entries)
-**Freeze verification:** this document identifies itself by a stable human version label (`F1-v3`) and a freeze
+**Version:** F1-v4 (F1-v1 superseded by F1-v2 per external A0 review findings A0-003/A0-004/A0-005/A0-008;
+F1-v2 superseded by F1-v3 per external A0 re-audit finding A0-R3; F1-v3 superseded by F1-v4 per the A0 final
+remediation instruction's Parts 1-4 findings A0-T1/A0-T2/A0-T3: real compiled `@reclose/protocol-sdk` TypeScript
+types now exist, `ActionEnvelope`/`ExecutionReceipt` are rebuilt to their full canonical shape, and
+`DecisionRecord.outcome`/`.decisionStage` now prohibit `NONE` at the schema and type level; see
+`docs/execution/Interface Change Log.md` for all change entries)
+**Freeze verification:** this document identifies itself by a stable human version label (`F1-v4`) and a freeze
 date, not by any commit hash - including its own containing commit's hash, which cannot be known from inside the
 file that would record it. Content-unchanged-ness between any two points in time is verified externally, by
 running `git diff <commit-a> <commit-b> -- "docs/execution/Frontend Contract v1.md"` between two already-existing
@@ -293,31 +296,50 @@ A finalized transaction may still have failed execution (CF-005, G0-verified; se
 display string `"Finalized · Accepted"` is a derived UI label (see `derived.displayLabel` above), not a raw SDK
 enum value - do not reintroduce it as if it were one.
 
-### 1.8 `ActionEnvelope`, `ExecutionReceipt`
+### 1.8 `ActionEnvelope`, `ExecutionReceipt` (rebuilt F1-v4, A0-T2)
 
-`schemas/transaction/{ActionEnvelope,ExecutionReceipt}.schema.json`. Per Implementation Specification Section 68:
-action ID, incident ID, policy hash, typed action, resource, bounded parameter, nonce and expiry - no arbitrary
-calldata (TM-AUTH-003/009).
+`schemas/transaction/{ActionEnvelope,ExecutionReceipt}.schema.json`, rebuilt against the locked Master Design
+Package formal model per external A0-T2 finding: the prior F1-v3 shape was a reduced/incomplete projection
+(`actionId/incidentId/policyHash/actionType/resourceId/boundedParam/nonce/expiry`) that dropped canonical target
+identity and used a single scalar `boundedParam`. `boundedParameters` is a typed, bounded, finite-keyed object -
+never arbitrary calldata, a selector, an arbitrary destination, or an LLM-generated payload (TM-AUTH-003/009).
+Mirrored 1:1 in `@reclose/protocol-sdk`'s compiled `ActionEnvelope`/`ExecutionReceipt` TypeScript types.
 
 ```ts
 interface ActionEnvelope {
+  schemaVersion: "1.0.0";
   actionId: string;
+  targetId: string;
+  targetAddress: string;
   incidentId: string;
   policyHash: string;
-  actionType: ActionTypeEnum;
+  policyVersion: number;
   resourceId: string;
-  boundedParam: string | null;
+  actionType: ActionTypeEnum;
+  boundedParameters: Record<string, unknown>; // typed/bounded per actionType - never arbitrary calldata
+  decisionStage: "PROVISIONAL" | "FINAL";
+  decisionReference: string;
   nonce: string;
   expiry: string;
 }
 
 interface ExecutionReceipt {
+  schemaVersion: "1.0.0";
   actionId: string;
+  targetId: string;
+  adapterId: string;
+  parentTxId: string;
   childTx: ChildTransactionState;
+  executionResult: ExecutionResultEnum;
+  finalStatus: "SUCCESS" | "FAILURE" | "UNKNOWN"; // FINALIZED+FINISHED_WITH_ERROR must be FAILURE, never SUCCESS
+  preStateHash: string | null;
+  postStateHash: string | null;
   expectedPostStateRequired: boolean;
   observedPostState?: Record<string, unknown> | null;
-  postStateMatchesExpected?: boolean | null;
-  feeAccounting?: { paidFeeValueWei: string; totalRefundedWei: string } | null;
+  postStateMatchesExpected?: boolean | null; // derived convenience only
+  executionTime: string;
+  feeAccounting?: { paidFeeValueWei: string; totalRefundedWei: string } | null; // derived convenience only
+  displaySummary?: string | null; // derived convenience only
 }
 ```
 
@@ -538,11 +560,12 @@ procedure being followed: see `docs/execution/Interface Change Log.md` for the c
 ## 8. Freeze record
 
 ```text
-Frozen by: Claude Code (F1 phase; F1-v3 revision during A0 re-audit remediation)
-Version: F1-v3
+Frozen by: Claude Code (F1 phase; F1-v4 revision during A0 final remediation)
+Version: F1-v4
 Freeze date: 2026-09-10
 Schema files: 19 (see schemas/ tree; includes DecisionView.schema.json added in F1-v2)
 Fixture files: 40 (tests/frontend-fixtures/, all passing npm run schema:validate)
+Compiled TypeScript package: packages/protocol-sdk (real, compiling; npm run typecheck / npm run build both pass)
 SDK methods frozen: 14 (getTarget, getAssuranceState, getActivePolicy, getIncident, getDecision, getDecisionView,
   getEffectiveProviderStatus, buildIncidentReport, buildRecoveryReport, validateAPM, hashAPM, diffAPM,
   trackTransaction, trackActionTrace)
@@ -555,11 +578,16 @@ History:
   F1-v1: content stabilized in commit 23fb711 (superseded - contained a circular self-reference bug, fixed in
     69204d5, and the A0-003/A0-004/A0-005 defects described throughout this document)
   F1-v2: produced during the first A0 remediation pass to fix findings A0-003, A0-004, A0-005 and A0-008.
-  F1-v3: this revision, produced during A0 re-audit remediation to fix finding A0-R3 (DecisionRecord.reporter
+  F1-v3: produced during A0 re-audit remediation to fix finding A0-R3 (DecisionRecord.reporter
     made required/non-null, matching Master Design Package Section 21 exactly).
+  F1-v4: this revision, produced during A0 final remediation to fix A0-T1 (real compiled
+    @reclose/protocol-sdk TypeScript package, Section 1 above), A0-T2 (ActionEnvelope/ExecutionReceipt rebuilt to
+    their full canonical MDP shape, Section 1.8) and A0-T3 (DecisionRecord.outcome/.decisionStage now prohibit
+    NONE at both the JSON Schema and TypeScript level, with executable negative tests in
+    scripts/test-decision-record-negative.js and packages/protocol-sdk/src/__typetests__/).
     Exact commit identity is intentionally not claimed inside this file - see
     docs/execution/audit-packets/A0/commit.txt for the audit target commit this version is verified against, and
-    docs/execution/Interface Change Log.md for both change entries with their introducing commits.
+    docs/execution/Interface Change Log.md for all change entries with their introducing commits.
 Content hash: see docs/execution/audit-packets/A0/content-hashes.txt (computed from an already-existing commit,
   after that commit exists)
 ```

@@ -15,10 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Exact G0-accepted baseline (toolchain/versions.lock / Current Phase.md): Node 24.16.0, npm
+      # 11.13.0. A generic "24" floating major would drift silently from the evidenced baseline (A0
+      # final remediation Part 12) - pin the exact patch version and pin npm to match.
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "24.16.0"
           cache: "npm"
+      - run: npm install -g npm@11.13.0
+      - run: npm --version
       # Python version matches the G0-pinned toolchain baseline exactly (toolchain/versions.lock:
       # python: 3.14.4) - do not silently substitute a different minor version. If GenLayer package
       # compatibility ever requires a different CI Python version than the G0 runtime baseline, that

@@ -2,17 +2,60 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reclose.internal/schemas/transaction/ActionEnvelope.schema.json",
   "title": "ActionEnvelope",
-  "description": "Generic external action envelope per Implementation Specification Section 68: action ID, incident ID, policy hash, typed action, resource, bounded parameter, nonce and expiry. No arbitrary calldata (TM-AUTH-003/TM-AUTH-009).",
+  "description": "Canonical bounded Kernel action envelope, rebuilt against the locked Master Design Package formal model (A0-T2; supersedes the reduced A0/A0-R shape that only carried actionId/incidentId/policyHash/actionType/resourceId/boundedParam/nonce/expiry). Carries a typed, finite, bounded action - never arbitrary calldata, selector, destination, method name or LLM-generated payload (CLAUDE.md Section 7 invariants 2-3, TM-AUTH-003/TM-AUTH-009). A narrower adapter/transport projection may be defined separately for a specific Target Adapter; it must not replace this canonical shape.",
   "type": "object",
-  "required": ["actionId", "incidentId", "policyHash", "actionType", "resourceId", "nonce", "expiry"],
+  "required": [
+    "schemaVersion",
+    "actionId",
+    "targetId",
+    "targetAddress",
+    "incidentId",
+    "policyHash",
+    "policyVersion",
+    "resourceId",
+    "actionType",
+    "boundedParameters",
+    "decisionStage",
+    "decisionReference",
+    "nonce",
+    "expiry"
+  ],
   "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
     "actionId": { "type": "string" },
+    "targetId": { "type": "string", "description": "The registered Reclose Target this action is bounded to." },
+    "targetAddress": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "On-chain address of the protected target/adapter the effect applies to."
+    },
     "incidentId": { "type": "string" },
-    "policyHash": { "type": "string" },
-    "actionType": { "type": "string", "enum": ["NO_ACTION", "ALERT", "MONITOR", "RESTRICT", "THROTTLE", "REVOKE_CAPABILITY", "REROUTE", "ENTER_SAFE_MODE", "PAUSE", "ENTER_RECOVERY", "RESTORE"] },
-    "resourceId": { "type": "string" },
-    "boundedParam": { "type": ["string", "null"], "description": "typed, bounded parameter value only - never arbitrary calldata" },
-    "nonce": { "type": "string" },
+    "policyHash": {
+      "type": "string",
+      "description": "Canonical hash of the active policy that authorized this action (RFC 8785 JCS + Keccak, ADR-010; TM-AUTH-011)."
+    },
+    "policyVersion": { "type": "integer", "minimum": 1 },
+    "resourceId": { "type": "string", "description": "The protected resource/capability this action is scoped to." },
+    "actionType": {
+      "type": "string",
+      "enum": ["NO_ACTION", "ALERT", "MONITOR", "RESTRICT", "THROTTLE", "REVOKE_CAPABILITY", "REROUTE", "ENTER_SAFE_MODE", "PAUSE", "ENTER_RECOVERY", "RESTORE"],
+      "description": "Finite Kernel-v1 action set (Implementation Specification). Never an arbitrary string chosen by a Reporter/LLM (TM-AUTH-003)."
+    },
+    "boundedParameters": {
+      "type": "object",
+      "description": "Typed, bounded parameters for the given actionType only - a structured object of named, schema-constrained fields, never arbitrary calldata bytes, a raw selector, an arbitrary destination address, or free-form LLM-generated payload (CLAUDE.md Section 7 invariant 3; TM-AUTH-003/TM-AUTH-009). The finite set of allowed keys/value shapes per actionType is defined by the Implementation Specification's Kernel-v1 action table, not by this envelope.",
+      "additionalProperties": true
+    },
+    "decisionStage": {
+      "type": "string",
+      "enum": ["PROVISIONAL", "FINAL"],
+      "description": "Whether this action was authorized under a provisional or final DecisionRecord (CLAUDE.md Section 16). NONE is not a valid stage for an action actually being submitted to the Kernel."
+    },
+    "decisionReference": {
+      "type": "string",
+      "description": "Reference (e.g. incidentId+ruleId+decisionStage composite key, or decisionId lookup convenience) binding this action to the exact DecisionRecord that authorized it. Never a bare transaction hash alone, since a DecisionRecord is a semantic object distinct from its GenLayer transaction lifecycle (see DecisionView.schema.json)."
+    },
+    "nonce": { "type": "string", "description": "Replay-protection nonce (TM-LIFE-*, duplicate-delivery invariant CLAUDE.md Section 7 invariant 8)." },
     "expiry": { "type": "string", "format": "date-time" }
   },
   "additionalProperties": false

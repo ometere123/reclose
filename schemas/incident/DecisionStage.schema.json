@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reclose.internal/schemas/incident/DecisionStage.schema.json",
   "title": "DecisionStage",
-  "description": "CLAUDE.md Section 9.3 / Implementation Specification Section 10. Never label PROVISIONAL as FINAL in any UI or SDK surface (TM-UX-005).",
+  "description": "CLAUDE.md Section 9.3 / Implementation Specification Section 10. Never label PROVISIONAL as FINAL in any UI or SDK surface (TM-UX-005). NONE is a storage/internal uninitialized value only; the canonical emitted DecisionRecord.decisionStage prohibits NONE and uses an inline restricted enum instead (A0-T3) - see DecisionRecord.schema.json.",
   "type": "string",
   "enum": ["NONE", "PROVISIONAL", "FINAL"]
 }

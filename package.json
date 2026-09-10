@@ -11,18 +11,23 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint": "echo 'no JS/TS packages implemented yet (F0) - nothing to lint'",
-    "typecheck": "echo 'no JS/TS packages implemented yet (F0) - nothing to typecheck'",
-    "test": "echo 'no JS/TS packages implemented yet (F0) - nothing to test'",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run schema:validate && npm run truth-model:test && npm run contracts:lint && npm run contracts:lint:selftest && npm run verify:py",
+    "lint": "echo 'no JS/TS lint rules configured yet beyond typecheck - tracked as a known limitation'",
+    "typecheck": "npm run typecheck -w @reclose/protocol-sdk",
+    "build": "npm run build -w @reclose/protocol-sdk",
+    "test": "node scripts/test-decision-record-negative.js",
+    "verify:js": "npm run lint && npm run typecheck && npm run build && npm run test && npm run schema:validate && npm run truth-model:test && npm run network-guard:test && npm run contracts:lint && npm run contracts:lint:selftest && npm run a0-integrity",
+    "verify": "npm run verify:js && npm run verify:py",
     "schema:validate": "node scripts/validate-fixtures.js",
     "truth-model:test": "node scripts/test-transaction-truth-model.js",
+    "network-guard:test": "node scripts/test-network-guard.js",
     "contracts:lint": "node scripts/list-deployable-contracts.js",
     "contracts:lint:selftest": "node scripts/test-list-deployable-contracts.js",
-    "verify:py": "bash scripts/py-verify.sh"
+    "verify:py": "bash scripts/py-verify.sh",
+    "a0-integrity": "node scripts/a0-integrity-check.js"
   },
   "devDependencies": {
     "ajv": "8.20.0",
-    "ajv-formats": "3.0.1"
+    "ajv-formats": "3.0.1",
+    "typescript": "^5.9.3"
   }
 }

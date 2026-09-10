@@ -1,5 +1,51 @@
 # Interface Change Log
 
+## 2026-09-10 - F1-v3 -> F1-v4 (A0 final remediation: A0-T1, A0-T2, A0-T3)
+
+**Change:** three fixes required by the A0 final remediation instruction, since the external reviewer determined
+F1 was not complete as Markdown/JSON Schema alone.
+
+1. **Compiled shared types (A0-T1):** created `packages/protocol-sdk/` - a real, pinned-TypeScript (`5.9.3`)
+   package with `src/types.ts` (all F1 canonical types), `src/sdk.ts` (the type-only `RecloseSDK` interface),
+   and `src/networkGuard.ts` (the NFR-CMP-001 wrong-network runtime guard, see below). `npm run typecheck` now
+   runs a real `tsc --noEmit` against this package and previously would have failed on the `@ts-expect-error`
+   negative type fixtures in `src/__typetests__/` if the NONE-prohibition types were wrong. No network calls or
+   C1 business logic were added - this is type/interface foundation only, per instruction.
+2. **Canonical `ActionEnvelope`/`ExecutionReceipt` (A0-T2):** rebuilt both against the locked Master Design
+   Package formal model. `ActionEnvelope` gained `schemaVersion`, `targetId`, `targetAddress`, `policyVersion`,
+   `boundedParameters` (a typed, bounded, finite-keyed object - not a single arbitrary `boundedParam` scalar),
+   `decisionStage` and `decisionReference`; the reduced/incomplete prior shape is superseded, not extended in
+   place. `ExecutionReceipt` gained `schemaVersion`, `targetId`, `adapterId`, `parentTxId`, `executionResult`,
+   `finalStatus` (schema-enforced: `FINISHED_WITH_ERROR` execution result cannot map to `finalStatus: SUCCESS`),
+   `preStateHash`, `postStateHash` and `executionTime`, while keeping `postStateMatchesExpected`/`feeAccounting`
+   as clearly-derived convenience fields.
+3. **`DecisionRecord` NONE prohibition (A0-T3):** `DecisionRecord.outcome` and `.decisionStage` now use inline
+   restricted enums (`CONFIRMED`/`REJECTED`/`UNDETERMINED` and `PROVISIONAL`/`FINAL` respectively) instead of
+   `$ref`-ing the full `DecisionOutcome`/`DecisionStage` enums, which retain `NONE` for storage/internal
+   uninitialized state only (per the Implementation Specification's default-state requirement). Negative tests
+   added in both `scripts/test-decision-record-negative.js` (JSON Schema) and
+   `packages/protocol-sdk/src/__typetests__/decisionRecord.test-d.ts` (TypeScript, via `@ts-expect-error`).
+
+**Also delivered in this remediation pass (foundation-level, not a breaking F1 type change):** the NFR-CMP-001
+wrong-network preflight guard (`packages/protocol-sdk/src/networkGuard.ts`), tested by
+`scripts/test-network-guard.js`, which accepts chain ID `61997` and rejects any other chain including the stable
+Studionet `61999` (CLAUDE.md Section 10 rule 2). This closes the previously-missing runtime-guard half of
+`TM-INF-001`'s required control.
+
+**Schema files touched:** `schemas/incident/DecisionRecord.schema.json` (outcome/decisionStage enums restricted),
+`schemas/incident/DecisionOutcome.schema.json` and `schemas/incident/DecisionStage.schema.json` (description
+clarifies NONE is storage-only), `schemas/transaction/ActionEnvelope.schema.json` (rebuilt),
+`schemas/transaction/ExecutionReceipt.schema.json` (rebuilt, added `allOf`/`if`/`then` cross-field enforcement).
+**Fixtures touched:** `action-envelope-restrict.json`, `execution-receipt-success.json`,
+`execution-receipt-child-failure.json` (all rebuilt to the new canonical shape; re-verified 40/40 via
+`npm run schema:validate`).
+**Frontend Contract updated:** `docs/execution/Frontend Contract v1.md` Sections 1 (new), 1.8, 8 (now F1-v4).
+**Rationale:** the external A0 final remediation instruction found that a frozen interface boundary expressed
+only as Markdown/JSON Schema, with a reduced `ActionEnvelope`/`ExecutionReceipt` shape and a `DecisionRecord`
+that still permitted `NONE` outcome/stage values, did not meet the bar of a genuinely frozen, machine-enforced F1
+contract (A0-T1/A0-T2/A0-T3).
+**Commit:** see `docs/execution/audit-packets/A0/commit.txt` for the audit target commit introducing this change.
+
 ## 2026-09-10 - F1-v2 -> F1-v3 (A0 re-audit remediation: A0-R3)
 
 **Change:** `DecisionRecord.reporter` changed from optional/nullable (`` `0x${string}` | null ``) to a required,

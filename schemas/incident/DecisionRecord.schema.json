@@ -57,7 +57,11 @@
       "pattern": "^0x[a-fA-F0-9]{40}$",
       "description": "Reporter address (required canonical field per Master Design Package Section 21). Every governed R1 rule family, including RECOVERY_VALIDATED_V1, is submitted by an identified Reporter address (which MAY be the target owner/operator acting as their own Reporter for a remediation/recovery submission) - there is no locked governance decision authorizing a reporter-less DecisionRecord, so this field is never null (A0-R3)."
     },
-    "outcome": { "$ref": "https://reclose.internal/schemas/incident/DecisionOutcome.schema.json" },
+    "outcome": {
+      "type": "string",
+      "enum": ["CONFIRMED", "REJECTED", "UNDETERMINED"],
+      "description": "Canonical DecisionRecord.outcome per A0-T3: NONE is a storage/internal uninitialized value only (see DecisionOutcome.schema.json) and MUST NOT appear in an emitted canonical DecisionRecord - every emitted decision is a completed judgment."
+    },
     "conditionCode": {
       "type": "string",
       "description": "Rule-specific semantic condition code produced by the Judge (e.g. the specific sub-condition of PROVIDER_COMPROMISE_V1 that was found true/false). Distinct from `outcome`: `outcome` is the Reclose-wide CONFIRMED/REJECTED/UNDETERMINED classification; `conditionCode` is the rule's own finer-grained semantic result. Never an executable instruction or arbitrary payload (TM-AUTH-003)."
@@ -73,7 +77,11 @@
       "description": "Address/identity of the Judge module that produced this decision (AS-04; TM-AUTH-008)."
     },
     "judgeVersion": { "type": "integer", "minimum": 1 },
-    "decisionStage": { "$ref": "https://reclose.internal/schemas/incident/DecisionStage.schema.json" },
+    "decisionStage": {
+      "type": "string",
+      "enum": ["PROVISIONAL", "FINAL"],
+      "description": "Canonical DecisionRecord.decisionStage per A0-T3: NONE is a storage/internal uninitialized value only (see DecisionStage.schema.json) and MUST NOT appear in an emitted canonical DecisionRecord."
+    },
     "generatedAt": {
       "type": "string",
       "format": "date-time",
