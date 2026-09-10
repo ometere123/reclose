@@ -22,6 +22,13 @@ CF-010 (the runner-hash discrepancy between the SDK registry snapshot and Studio
 external acceptance, and is unchanged by this remediation. See
 `docs/execution/Studio-dev Toolchain & Network Compatibility Record.md` (CF-010 entry).
 
+## CI Node/npm exact-version pinning (this submission)
+
+The G0-accepted baseline is Node `24.16.0`, npm `11.13.0`. CI previously pinned a floating major version
+(`node-version: "24"`), which could silently drift to a later Node 24.x than the one G0 actually
+verified. CI now pins `node-version: "24.16.0"` exactly and installs `npm@11.13.0` explicitly, matching
+the G0 baseline byte-for-byte on version identity (not merely "close enough").
+
 ## No new C2 architecture contradiction
 
 Nothing in this remediation required an architecture change. `docs/execution/Architecture Deviations.md`

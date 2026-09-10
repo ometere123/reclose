@@ -1,31 +1,50 @@
-M	.github/workflows/ci.yml
-M	Makefile
-M	docs/execution/Current Phase.md
-M	docs/execution/Frontend Contract v1.md
-M	docs/execution/Gate Verification Status.csv
-M	docs/execution/Interface Change Log.md
-M	docs/execution/Phase Log.md
-M	docs/execution/Requirements Status.csv
-M	docs/execution/audit-packets/A0/COMMIT.txt
-M	docs/execution/audit-packets/A0/README.md
-A	docs/execution/audit-packets/A0/commands-and-results.md
-A	docs/execution/audit-packets/A0/compatibility-findings.md
-M	docs/execution/audit-packets/A0/content-hashes.txt
-A	docs/execution/audit-packets/A0/evidence-index.md
-M	docs/execution/audit-packets/A0/file-manifest.txt
-A	docs/execution/audit-packets/A0/files-changed.txt
-A	docs/execution/audit-packets/A0/frontend-contract-review.md
-A	docs/execution/audit-packets/A0/known-limitations.md
-M	docs/execution/audit-packets/A0/requirements-status-snapshot.csv
-A	docs/execution/audit-packets/A0/requirements.csv
-A	docs/execution/audit-packets/A0/scope.md
-A	docs/execution/audit-packets/A0/threat-model-review.md
-M	docs/execution/audit-packets/A0/threat-status-snapshot.csv
-A	docs/execution/audit-packets/A0/threat-status.csv
-M	docs/execution/audit-packets/A0/verification-results.txt
-M	docs/security/Security Findings.md
-M	docs/security/Threat Status.csv
-M	package.json
-M	schemas/incident/DecisionRecord.schema.json
-M	schemas/transaction/GenLayerTransactionLifecycle.schema.json
-A	scripts/test-transaction-truth-model.js
+ .github/workflows/ci.yml                           |   7 +-
+ docs/execution/Audit Register.md                   |  43 ++-
+ docs/execution/Current Phase.md                    |  41 ++-
+ docs/execution/Frontend Contract v1.md             |  62 +++--
+ docs/execution/Gate Verification Status.csv        |  91 ++++---
+ docs/execution/Interface Change Log.md             |  50 +++-
+ docs/execution/Phase Log.md                        |  58 ++++
+ docs/execution/Requirements Status.csv             |   2 +-
+ docs/execution/audit-packets/A0/COMMIT.txt         |  32 ---
+ docs/execution/audit-packets/A0/README.md          | 107 ++++----
+ .../audit-packets/A0/commands-and-results.md       |  32 ++-
+ docs/execution/audit-packets/A0/commit.txt         |  38 +++
+ .../audit-packets/A0/compatibility-findings.md     |  28 +-
+ docs/execution/audit-packets/A0/content-hashes.txt |  38 ++-
+ docs/execution/audit-packets/A0/evidence-index.md  |  50 ++--
+ docs/execution/audit-packets/A0/file-manifest.txt  |  11 +
+ docs/execution/audit-packets/A0/files-changed.txt  |  48 ++--
+ .../audit-packets/A0/frontend-contract-review.md   | 114 +++-----
+ .../A0/gate-verification-status-snapshot.csv       |  45 +++
+ .../audit-packets/A0/known-limitations.md          |  49 ++--
+ .../A0/requirements-status-snapshot.csv            | 136 ++++-----
+ docs/execution/audit-packets/A0/requirements.csv   | 136 ++++-----
+ docs/execution/audit-packets/A0/scope.md           |  52 ++--
+ .../audit-packets/A0/threat-model-review.md        | 111 ++++----
+ .../audit-packets/A0/threat-status-snapshot.csv    | 144 +++++-----
+ docs/execution/audit-packets/A0/threat-status.csv  | 144 +++++-----
+ .../audit-packets/A0/verification-results.txt      |  37 ++-
+ docs/security/Security Findings.md                 |  56 ++--
+ docs/security/Threat Status.csv                    |   2 +-
+ package-lock.json                                  |  28 +-
+ package.json                                       |  17 +-
+ packages/protocol-sdk/package.json                 |  15 +
+ .../src/__typetests__/decisionRecord.test-d.ts     |  36 +++
+ packages/protocol-sdk/src/index.ts                 |   3 +
+ packages/protocol-sdk/src/networkGuard.ts          |  30 ++
+ packages/protocol-sdk/src/sdk.ts                   |  35 +++
+ packages/protocol-sdk/src/types.ts                 | 303 +++++++++++++++++++++
+ packages/protocol-sdk/tsconfig.json                |  20 ++
+ schemas/incident/DecisionOutcome.schema.json       |   2 +-
+ schemas/incident/DecisionRecord.schema.json        |  12 +-
+ schemas/incident/DecisionStage.schema.json         |   2 +-
+ schemas/transaction/ActionEnvelope.schema.json     |  57 +++-
+ schemas/transaction/ExecutionReceipt.schema.json   |  64 ++++-
+ scripts/a0-integrity-check.js                      | 247 +++++++++++++++++
+ scripts/test-decision-record-negative.js           |  88 ++++++
+ scripts/test-network-guard.js                      |  53 ++++
+ .../action-envelope-restrict.json                  |   2 +-
+ .../execution-receipt-child-failure.json           |   2 +-
+ .../execution-receipt-success.json                 |   2 +-
+ 49 files changed, 2004 insertions(+), 778 deletions(-)

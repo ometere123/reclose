@@ -1,28 +1,36 @@
 AUDIT TARGET COMMIT (repository state under review):
-  full SHA:  fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff
-  short SHA: fef26f2
+  full SHA:  c7ace037f63029dccff708cde1ac52372c3f642d
+  short SHA: c7ace03
   branch:    claude/r1-foundation
-  subject:   docs(execution): refresh Gate Verification Status.csv after A0 remediation (A0-R4)
+  subject:   fix(f0): regenerate package-lock.json to include @reclose/protocol-sdk workspace
   verified:  npm ci + npm run verify passes cleanly in an isolated `git worktree` checked out at this
              commit (40/40 fixtures valid across 19 schema files; 7/7 executable transaction-truth
-             semantic tests; 0 contract-discovery violations; 8/8 discovery-boundary self-tests;
-             Python conditional gate SKIPPED both halves as expected); `npm audit` reports 0
-             vulnerabilities; secret scan clean; docs/governance/, CLAUDE.md,
-             "Repository Build Master Plan.md" and toolchain/ are byte-identical to the G0-accepted
-             baseline (`git diff main -- ...` -> 0 lines). Full output: verification-results.txt in
-             this directory.
+             semantic tests; 4/4 network-guard tests; 6/6 DecisionRecord negative tests; 8/8
+             discovery-boundary self-tests; 12/12 a0-integrity-check assertions; Python conditional
+             gate SKIPPED both halves as expected); `npm audit` reports 0 vulnerabilities; secret scan
+             clean (the only grep hit is this packet's own commands-and-results.md describing the scan
+             pattern); docs/governance/, CLAUDE.md, "Repository Build Master Plan.md" and toolchain/ are
+             byte-identical to the G0-accepted baseline (`git diff main -- ...` -> 0 lines). Full output:
+             verification-results.txt in this directory.
 
-This is the THIRD A0 audit target, submitted after two prior FAIL decisions:
+This is the FOURTH A0 audit target, submitted after three prior FAIL decisions:
   1. 69204d5bb3db0f9b6381f1ebeb7fc304f20a7433 - FAILED, findings A0-001 through A0-009.
   2. 82b0d7ce50ad3db62aaa34b677bd6d8927dd7b25 - fixed A0-001 through A0-007 (+ part of A0-008);
      re-audited and FAILED again, findings A0-R1 through A0-R6 (A0-001/A0-004/A0-007 and most of
      A0-008/A0-009 were accepted as closed and not reopened).
-  3. fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff (THIS commit) - fixes A0-R1 through A0-R6 across three
+  3. fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff - fixed A0-R1 through A0-R6; re-audited and FAILED again,
+     findings A0-T1 through A0-T5.
+  4. c7ace037f63029dccff708cde1ac52372c3f642d (THIS commit) - fixes A0-T1 through A0-T5 across three
      commits:
-       - 1f78b374e621fd3cc8ff2b2e7f863e69149b233f (A0-R1, A0-R2, A0-R3, A0-R5, A0-R6)
-       - fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff (A0-R4 - Gate Verification Status.csv refresh)
+       - c125fe483647206ce7aa7647fa1fc7e864ab0f5d (A0-T1, A0-T2, A0-T3, A0-T4, plus the
+         scripts/a0-integrity-check.js gate and CI Node/npm exact-version pinning that support A0-T5)
+       - f2fc1156efd014e01fd2101095648e2dbcfb65be (metadata: populate `commit` columns in
+         Requirements/Threat/Gate Verification Status CSVs with c125fe4's already-existing SHA;
+         refresh Current Phase.md and Audit Register.md)
+       - c7ace037f63029dccff708cde1ac52372c3f642d (THIS commit - regenerate package-lock.json so
+         `npm ci` is reproducible against the new packages/protocol-sdk workspace)
 None of these commits rewrite or alter the earlier audit target commits - each is a new, later,
-already-existing commit. Full history: `git log --oneline 69204d5..fef26f2`.
+already-existing commit. Full history: `git log --oneline 69204d5..c7ace03`.
 
 AUDIT PACKET COMMIT (this packet's own commit):
   Intentionally NOT recorded in this file. A commit cannot contain its own hash without either being
@@ -30,9 +38,9 @@ AUDIT PACKET COMMIT (this packet's own commit):
   a hash quine (this exact defect is also why the FIRST A0 submission's Frontend Contract v1.md was
   found broken). The audit packet commit is a later, separate commit built ON TOP OF the audit target
   commit above; find it with:
-    git log --oneline fef26f2..claude/r1-foundation -- docs/execution/audit-packets/A0/
+    git log --oneline c7ace03..claude/r1-foundation -- docs/execution/audit-packets/A0/
   It changes only files under docs/execution/audit-packets/A0/ (this packet) - it does not change
-  anything under audit review (docs/governance/, toolchain/, schemas/, tests/, contracts/, CLAUDE.md,
-  Repository Build Master Plan.md, docs/security/, docs/execution/Requirements Status.csv,
+  anything under audit review (docs/governance/, toolchain/, schemas/, tests/, contracts/, packages/,
+  CLAUDE.md, Repository Build Master Plan.md, docs/security/, docs/execution/Requirements Status.csv,
   docs/execution/Gate Verification Status.csv, and all other F0/F1/S0 implementation files remain
-  exactly as they are at fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff).
+  exactly as they are at c7ace037f63029dccff708cde1ac52372c3f642d).

@@ -141,7 +141,7 @@ NFR-OBS-003,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
 NFR-OBS-004,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
 NFR-OBS-005,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
 NFR-OBS-006,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
-NFR-CMP-001,VERIFIED,Claude/Release,G0,toolchain/versions.lock;toolchain/runner.lock;toolchain/network.lock.json,"G0 preflight (see Gate Verification Status.csv: G0-NET-01..05, G0-TOOL-01..07)",release-evidence/r1/g0/,TM-INF-001;TM-INF-002,,69204d5bb3db0f9b6381f1ebeb7fc304f20a7433,2026-09-10
+NFR-CMP-001,VERIFIED,Claude/Release,G0/F1,packages/protocol-sdk/src/networkGuard.ts (assertCanonicalChainId/isCanonicalChainId; rejects 61999 and any non-61997 chain),scripts/test-network-guard.js (accepts 61997; rejects 61999; rejects arbitrary chain ID),release-evidence/r1/g0/;packages/protocol-sdk/dist/,TM-INF-001;TM-INF-002,,c125fe483647206ce7aa7647fa1fc7e864ab0f5d,2026-09-10
 NFR-CMP-002,VERIFIED,Claude/Release,G0,toolchain/,"G0 smoke deploy/write (see Gate Verification Status.csv: G0-DEP-01..05, G0-FEE-01/02)",release-evidence/r1/g0/deploy-success-pinned/,TM-INF-003;TM-INF-002,,69204d5bb3db0f9b6381f1ebeb7fc304f20a7433,2026-09-10
 NFR-CMP-003,NOT STARTED,Claude/Release,G0/F0,,,,TM-LIFE-003;TM-UX-010,,,2026-09-10
 NFR-CMP-004,NOT STARTED,Claude/Release,G0/F0,,,,TM-INF-012,,,2026-09-10

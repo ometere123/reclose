@@ -19,15 +19,16 @@ docs/execution/Open Blockers.md
 docs/execution/Phase Log.md
 docs/execution/Requirements Status.csv
 docs/execution/Studio-dev Toolchain & Network Compatibility Record.md
-docs/execution/audit-packets/A0/COMMIT.txt
 docs/execution/audit-packets/A0/README.md
 docs/execution/audit-packets/A0/commands-and-results.md
+docs/execution/audit-packets/A0/commit.txt
 docs/execution/audit-packets/A0/compatibility-findings.md
 docs/execution/audit-packets/A0/content-hashes.txt
 docs/execution/audit-packets/A0/evidence-index.md
 docs/execution/audit-packets/A0/file-manifest.txt
 docs/execution/audit-packets/A0/files-changed.txt
 docs/execution/audit-packets/A0/frontend-contract-review.md
+docs/execution/audit-packets/A0/gate-verification-status-snapshot.csv
 docs/execution/audit-packets/A0/known-limitations.md
 docs/execution/audit-packets/A0/requirements-status-snapshot.csv
 docs/execution/audit-packets/A0/requirements.csv
@@ -51,6 +52,13 @@ integrations/README.md
 package-lock.json
 package.json
 packages/README.md
+packages/protocol-sdk/package.json
+packages/protocol-sdk/src/__typetests__/decisionRecord.test-d.ts
+packages/protocol-sdk/src/index.ts
+packages/protocol-sdk/src/networkGuard.ts
+packages/protocol-sdk/src/sdk.ts
+packages/protocol-sdk/src/types.ts
+packages/protocol-sdk/tsconfig.json
 policies/README.md
 release-evidence/r1/g0/compatibility-evidence-index.md
 release-evidence/r1/g0/deploy-success-pinned/fee-profile.json
@@ -94,9 +102,12 @@ schemas/transaction/ExecutionReceipt.schema.json
 schemas/transaction/ExecutionResult.schema.json
 schemas/transaction/FeeTransactionPreview.schema.json
 schemas/transaction/GenLayerTransactionLifecycle.schema.json
+scripts/a0-integrity-check.js
 scripts/list-deployable-contracts.js
 scripts/py-verify.sh
+scripts/test-decision-record-negative.js
 scripts/test-list-deployable-contracts.js
+scripts/test-network-guard.js
 scripts/test-transaction-truth-model.js
 scripts/validate-fixtures.js
 sentinel/README.md

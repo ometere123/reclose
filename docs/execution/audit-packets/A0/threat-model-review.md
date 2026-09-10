@@ -1,58 +1,52 @@
-# Threat Model Review (A0, second remediation pass)
+# Threat Model Review (A0, third remediation pass)
 
 Independent cross-check of `docs/security/Threat Status.csv` and `docs/security/Security Findings.md`
-addressing findings A0-R1 and A0-R2 (A0-002's column/enum/severity-count work from the first
-remediation pass was accepted as closed and is not re-litigated here).
+addressing finding A0-T4 (A0-R1/A0-R2 and earlier findings were accepted as closed in prior reviews and
+are not re-litigated here - see the archived review content in git history at `fef26f2` for that detail).
 
-## A0-R1: implementation/test traceability completeness
+## A0-T4: TM-INF-001 / NFR-CMP-001 - runtime guard now genuinely implemented
 
-At the second submission, `Threat Status.csv` had correct IDs and `requirement_refs` mappings, but 68
-of the 72 CRITICAL/HIGH threats had blank `implementation_refs` and `test_refs`. The Master Plan
-requires every CRITICAL/HIGH threat to have a planned control, implementation location, verification
-path, audit gate, and requirement mapping - "planned" explicitly meaning these are S0-stage plans, not
-claims that code or tests exist yet.
+At the third submission, `TM-INF-001` was `MITIGATED / VERIFIED`, but `NFR-CMP-001` in
+`Requirements Status.csv` was ALSO marked `VERIFIED` despite no runtime wrong-network guard existing
+anywhere in the repository - it was VERIFIED only because G0's live verification happened to run
+against chain ID 61997, not because any code would actually reject a different chain. The reviewer
+correctly identified this as an overclaim: `NFR-CMP-001` requires "network preflight fails if chain ID
+!= 61997", which is a claim about behavior, not a claim about what happened to be true during one G0
+run.
 
-**Fix:** every one of the 72 CRITICAL/HIGH threats now has both fields populated, citing:
+**Fix:** `packages/protocol-sdk/src/networkGuard.ts` implements `assertCanonicalChainId` (throws
+`WrongNetworkError` unless `chainId === 61997`) and `isCanonicalChainId` (non-throwing boolean form).
+`RECLOSE_CANONICAL_CHAIN_ID` is hardcoded to `61997` and the guard never treats the stable Studionet
+`61999` as an acceptable substitute (CLAUDE.md Section 10 rule 2). `scripts/test-network-guard.js`,
+wired into `npm run verify`, proves: 61997 is accepted; 61999 is rejected; an arbitrary chain ID (e.g.
+`1`) is rejected.
 
-- an `implementation_refs` location under the Implementation Specification's canonical repository
-  structure (Section 7: `contracts/assurance_kernel.py`, `contracts/incident_judge_v1.py`,
-  `contracts/incentive_vault.py`, `contracts/reference_agent_protocol.py`, `packages/policy-compiler/`,
-  `packages/evidence-builder/`, `packages/protocol-sdk/`, `packages/transaction-tracker/`, or - for
-  already-G0-verified infrastructure threats - the actual existing `toolchain/`/`.github/` files);
-- a `test_refs` planned path under a consistent test-tree convention (`tests/kernel/`, `tests/judge/`,
-  `tests/vault/`, `tests/lifecycle/`, `tests/recovery/`, `tests/economics/`, `tests/infra/`,
-  `tests/frontend/`) - this convention is Claude's own reasonable choice, since the Implementation
-  Specification names `contracts/` modules but does not itself enumerate `tests/` subdirectories; it is
-  consistent with the test categories CLAUDE.md Section 36 requires.
+**Threat status impact:** `TM-INF-001`'s required control is "network lock + runtime guard" (two
+parts). The network-lock half was already done at G0 (`toolchain/network.lock.json`). The runtime-guard
+half now genuinely exists and is tested, so both halves are complete - `TM-INF-001` is correctly
+`MITIGATED / VERIFIED` again, this time with the actual control in place rather than a footnoted plan.
+`docs/security/Security Findings.md` was updated to match: 3 concrete `MITIGATED / VERIFIED` findings
+now (`TM-INF-001`, `TM-INF-003`, `TM-INF-006`), and the F-INF-001 finding entry rewritten to describe
+the resolution rather than the gap.
 
-Verified programmatically: 72/72 CRITICAL/HIGH threats have non-empty `implementation_refs` AND
-`test_refs` (0 missing) - see `commands-and-results.md` item 9.
+**Requirement status impact:** `NFR-CMP-001` in `Requirements Status.csv` now cites the real
+implementation (`packages/protocol-sdk/src/networkGuard.ts`) and test
+(`scripts/test-network-guard.js`) refs, replacing the prior reference to G0 preflight evidence alone.
 
-**Reverse mapping:** `docs/execution/Requirements Status.csv`'s `threat_ref` column now carries the
-reverse mapping for every requirement referenced by at least one threat - 70 requirement rows,
-including all `NFR-SEC-*` rows, so traceability works in both directions as required.
+**Residual scope note (correctly still open):** the guard is a foundation-level primitive not yet wired
+into any live SDK/frontend network call path, because no such path exists yet (C1+ scope). `TM-UX-002`
+separately tracks the UX-surface concern of displaying wrong-network state to a user once a frontend
+exists, and correctly remains `OPEN` - this is not the same concern as the guard's own existence and
+testedness, which is what `TM-INF-001`/`NFR-CMP-001` require.
 
-## A0-R2: TM-INF-001 status correction
+Verified programmatically: `TM-INF-001.status === "MITIGATED / VERIFIED"` with `control_refs` no longer
+containing "NOT DONE"; `scripts/a0-integrity-check.js` explicitly asserts no `MITIGATED / VERIFIED` row
+acknowledges a missing control half - see `commands-and-results.md` items 10, 21.
 
-At the second submission, `TM-INF-001` was `MITIGATED / VERIFIED` with a `residual_risk` note
-explaining that the required control's runtime-guard half was missing. The reviewer correctly rejected
-this: `TM-INF-001`'s locked required control is "network lock + runtime guard" (two parts) - a threat
-whose own required control is half-missing cannot be `MITIGATED / VERIFIED` regardless of how clearly
-a footnote records the gap.
+## Unchanged from prior remediation passes (accepted as closed)
 
-**Fix:** `TM-INF-001` is now `IN PROGRESS`. Its `control_refs` field explicitly marks the lock half
-DONE and the guard half NOT DONE; its `implementation_refs`/`test_refs` describe the still-missing
-planned runtime guard (`packages/protocol-sdk/` / `tests/frontend/test_network_guard.py`, tracked
-jointly with `TM-UX-002`, which remains fully `OPEN`). `docs/security/Security Findings.md` was
-updated to match: 2 concrete `MITIGATED / VERIFIED` findings now (`TM-INF-003`, `TM-INF-006`), not 3.
-
-Verified programmatically: `TM-INF-001.status === "IN PROGRESS"`; the `MITIGATED / VERIFIED` set is
-exactly `{TM-INF-003, TM-INF-006}` - see `commands-and-results.md` item 10.
-
-## Unchanged from the first remediation pass (accepted as closed)
-
-- Column completeness (`control_refs`, `requirement_refs`, `implementation_refs`, `test_refs`,
-  `evidence_refs`, `residual_risk`, `owner`, `commit`, `last_updated` plus permitted extras).
-- Status enum compliance (only the seven allowed values).
+- Column completeness and status-enum compliance (unchanged since A0-002/A0-R1).
+- 72/72 CRITICAL/HIGH threats have non-empty `implementation_refs`/`test_refs` (A0-R1, unchanged).
 - Severity totals (CRITICAL=25, HIGH=47, MEDIUM=10, matching the locked catalogue exactly).
 - 0 CRITICAL threats marked `ACCEPTED RESIDUAL RISK`.
+- Reverse `threat_ref` mapping in `Requirements Status.csv` (A0-R1, unchanged).

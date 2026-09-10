@@ -1,59 +1,26 @@
-Content hashes computed independently of any commit's own hash (git blob SHA and SHA-256),
-generated from already-existing audit target commit fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff after that commit existed.
-
-docs/execution/Frontend Contract v1.md
-  git_blob_sha1: 262fb25a481469b8637d5d07fbc81591f2794047
-  sha256:        d131cba0b60659d8afcd1677f2d24f3ed1fdfd090355a05f793f4f791b483e71
-
-docs/execution/Interface Change Log.md
-  git_blob_sha1: cfc2838742cd2f072bcbe3d1c3d52fbe7d6f759a
-  sha256:        3fdfadacf4ab0bb06684fcce2fb37ba62e45b2525fdf7b014d67da3c80a7e7b8
-
-docs/security/Threat Status.csv
-  git_blob_sha1: de2d436a30b001b2dac954793da2d50c27920534
-  sha256:        68f292e080772c85712b935ee18ca74f0feb2998128a0b0c5177478a840c3267
-
-docs/execution/Requirements Status.csv
-  git_blob_sha1: 247c65f0a92f42245205c6c85240a4b86dfa4415
-  sha256:        ca59f8cfcb08b613df9da10b5b08a0fd2f47adda71062e03f4893c39989cca61
-
-docs/execution/Gate Verification Status.csv
-  git_blob_sha1: f293de95a039c73a954f485c137e4b04e2d6f8ac
-  sha256:        22818af536a18a84c5c2d315387d5359042dd17ae840c8d1f1dd2ee63ad643fd
-
-toolchain/versions.lock
-  git_blob_sha1: bd36547001e0e998cd0733fdb56b9426138f17ec
-  sha256:        bb262ade300f5e12c8ef6ea8a07164ed0491ec6308b3525689e861707e0cbc88
-
-toolchain/runner.lock
-  git_blob_sha1: f4b9788bce44df0e4a8704f35cc0d53d132f0574
-  sha256:        769d3c1057ae479cb870c5f710973935d7e9b625f2f216d15af3871710e48da3
-
-toolchain/network.lock.json
-  git_blob_sha1: 8c83c655e8fa7ae670a9f34224b82108d80a6113
-  sha256:        502002854e8d1ff2865a97821cfba66f25f9e21e61caf20de1900a024e5f4ebc
-
-schemas/incident/DecisionRecord.schema.json
-  git_blob_sha1: 1b98caf2c0a3cd53b761b6929d4176e23848c334
-  sha256:        cb6cb30097ce40a2f88a672e03c94db9eb59675a307a924e2d29374a27dd8085
-
-schemas/incident/DecisionView.schema.json
-  git_blob_sha1: efd8aad13cad49fa275cbed7be5d2c18a3535dd6
-  sha256:        c9d197123311e16952b586449d62febc53c90dbb8bf029819cfac738686b0372
-
-schemas/evidence/EvidenceSource.schema.json
-  git_blob_sha1: 722dba0825a99b0513cab9f08d311ef259435d25
-  sha256:        e0630057bdfd5ae754d9037f57213d5c08890058f93758694b4e659921aba9ae
-
-schemas/transaction/GenLayerTransactionLifecycle.schema.json
-  git_blob_sha1: 96ae6716c0a51834d5fe82a2c4d6fb6b4625c164
-  sha256:        1fb267ea0013e2e06632256ac5ebec85d7960cce43e8a63d9ff673cca0b10b26
-
-scripts/test-transaction-truth-model.js
-  git_blob_sha1: 2841b107414b53d93b970974a3d52cac91fab34e
-  sha256:        1e1716387c877cce024c148f35764204cca0fe0e2d88a846f3752737fb4f5156
-
-.github/workflows/ci.yml
-  git_blob_sha1: 863f56654bb4ad1f1e1111b582156a6113c098da
-  sha256:        dc40ad9de8e2759c2e02be5ba6acaf499e06744179acdefd7dcc596e2fa02425
-
+# Content hashes computed from git blob bytes at audit target c7ace037f63029dccff708cde1ac52372c3f642d
+# path | git blob SHA | SHA-256 of exact blob bytes
+docs/governance/Research Closure & Architecture Decision Record.md | cc766e5a366b30e35b75eaa62b4a9d6c470a5e68 | ce945fcec0e84dba4ab4502a876cc6ce1eea3ec8ef7d3ac6f7139f1aa291f902
+docs/governance/Master Design Package.md | ce346fe9b0fadc119bf48c6ad43b91261125feb2 | 3101ad742bdfba583483dd789cd0760e93fe94a2c80335aa920238513ecd9653
+docs/governance/Implementation Specification.md | abf91ac64f7075d5b80c3dc4499f4cebfef27ca7 | cbee752d31a3942d731ac7a889538474596e3f6176155ea2d033716f5ba96d18
+docs/governance/Naming & Brand Decision Record.md | a12635c90f8316de4274748b2f306720e21886a2 | 8562bcbbc94aee9b4ad23f8a5315f44e51184cf901729a389f75a07a727b966e
+docs/governance/Product Requirements Document.md | e226d319499bef4097ba9c434f859fc58e5e9f91 | d27b671f9436423f4d06d708a5d01271e6eb5adf9ce7d329831afe1d0b2439c2
+docs/governance/Requirements Traceability Matrix.md | 031f67e89af2abbd7e33bae1a18a6c599a2d38e3 | a365423404a9add3f3d8921a85092ad29095eb3ebeb75289e159b6c78efbbc09
+Repository Build Master Plan.md | 8eb7f8ea920826774a4ad7a191887e72b7c0fa0d | fc80c8fd3f18c9ffa1f411951cd0b1956ac1219ae2d733f3d4e888b852981597
+CLAUDE.md | cee5771f4f46ae34e368d91ccacbe52f6d4f7c09 | a352fc2fe94e916d55402e463d6a25c455752b4397a23249fcea8e938582719c
+docs/execution/Studio-dev Toolchain & Network Compatibility Record.md | 5f7bf8704630de5e87c9a61cca8242705cf0d48f | fedbe672423403d2bb2cff4916ba22f895420a0c5ae3230d0e40165fa615ea9f
+docs/security/Threat Model & Security Assurance Plan.md | 1ce7d370abb2ffd19606ed60dceddb7ca72365de | 5ea18501c314b88a5ce295302a0716ce8e64d4ddbac0e73d1f7cb576abcc8b40
+docs/execution/Frontend Contract v1.md | 3c5325ed8c7f270300fe630a958f581baedd00cb | 867b741dc876e145ed43719a84329150648c66de71bf1190dee14e9d89692006
+docs/execution/Interface Change Log.md | 8ee7b20a55b348da05b5764e4dcfe015f3c68d04 | 727e28f7e31c9abd9d1b686fb0795cf40913ad6602569a1a9e39d3565a930819
+docs/execution/Requirements Status.csv | 2618a2af1bd655625ad99f3b3f2c5a030fd8849d | 7910f1dd93a7656682e5fee737f3832deeb1210fc422baee887c04e6501399d0
+docs/execution/Gate Verification Status.csv | 7c85463b49f38da821a2573edf810223f00ae7bd | d40dac578a09802af827b7b4f16a0deeb106c16648351fdcf3712a481715b743
+docs/security/Threat Status.csv | ce1b1517b495ed52e71b8daf3c9aa18dcc95aa76 | ea28dec91fe152410fe4e529c772f7e3f6d317c0d73d65a60930d483c10ffe6a
+packages/protocol-sdk/src/types.ts | aa113aed30db0aed09a59a5dd503caad89cf124e | 4c62965213e163113d892661e218fe8d74c89a37567de3cb9cbcf4f83255000e
+packages/protocol-sdk/src/networkGuard.ts | 21c11d7fa54ac64d46e9a6afeadf236953b05365 | bc5224759258d4b37cb7556afc69a769bc1ace114731049dcd395571a58c417c
+packages/protocol-sdk/src/sdk.ts | 13accdf7d4e79e45417d45769113aa05dc7e7891 | 5986a998a70ea6afce3bedf342f079ca4abe65365ca1c04d675abb07c0562683
+schemas/incident/DecisionRecord.schema.json | 796f8e9051ecd610d56c1527d16ae4a53bebe50c | 1c86eb7db7370d640d4381c5189abf55aa7a5c0304e9536d6d1e3e6fad8afba5
+schemas/transaction/ActionEnvelope.schema.json | afde0bac54daf8ce8c654f255aa540fd5c21182e | 5926c9a7930d4efd860829593a5501bacd570b6a226cca0508f56a7b7487a92e
+schemas/transaction/ExecutionReceipt.schema.json | 9cacea1a46ad634397d553ce78c6369523054ca2 | af07259ac179c2b854a6caefa0a4add7ab6f78f3f465dfe1d81efbf3cc3bcf5d
+toolchain/versions.lock | bd36547001e0e998cd0733fdb56b9426138f17ec | bb262ade300f5e12c8ef6ea8a07164ed0491ec6308b3525689e861707e0cbc88
+toolchain/runner.lock | f4b9788bce44df0e4a8704f35cc0d53d132f0574 | 769d3c1057ae479cb870c5f710973935d7e9b625f2f216d15af3871710e48da3
+toolchain/network.lock.json | 8c83c655e8fa7ae670a9f34224b82108d80a6113 | 502002854e8d1ff2865a97821cfba66f25f9e21e61caf20de1900a024e5f4ebc
