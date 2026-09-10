@@ -14,9 +14,10 @@
     "lint": "echo 'no JS/TS packages implemented yet (F0) - nothing to lint'",
     "typecheck": "echo 'no JS/TS packages implemented yet (F0) - nothing to typecheck'",
     "test": "echo 'no JS/TS packages implemented yet (F0) - nothing to test'",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run schema:validate && npm run contracts:lint",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run schema:validate && npm run contracts:lint && npm run contracts:lint:selftest",
     "schema:validate": "node scripts/validate-fixtures.js",
-    "contracts:lint": "node scripts/list-deployable-contracts.js"
+    "contracts:lint": "node scripts/list-deployable-contracts.js",
+    "contracts:lint:selftest": "node scripts/test-list-deployable-contracts.js"
   },
   "devDependencies": {
     "ajv": "8.20.0",

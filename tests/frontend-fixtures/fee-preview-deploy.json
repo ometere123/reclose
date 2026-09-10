@@ -1,1 +1,1 @@
-{"network":"studio-dev","chainId":61997,"estimatedFeeValueWei":"225000000000063129","isEstimate":true,"bondWei":null,"distributionSummary":{"leaderTimeunitsAllocation":"100","validatorTimeunitsAllocation":"200","appealRounds":"1"}}
+{"network":"studio-dev","chainId":61997,"estimatedFeeValueWei":"200000000000000000","isEstimate":true,"bondWei":null,"distributionSummary":{"leaderTimeunitsAllocation":"50","validatorTimeunitsAllocation":"100","appealRounds":"1"}}

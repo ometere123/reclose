@@ -1,45 +1,157 @@
 requirement_id,status,owner,phase,implementation_ref,test_ref,evidence_ref,threat_ref,blocker,commit,last_updated
-G0-NET-01,VERIFIED,Claude/Protocol,G0,,manual curl JSON-RPC,release-evidence/r1/g0/network-verification.json,,,,"2026-09-10"
-G0-NET-02,VERIFIED,Claude/Protocol,G0,,manual curl JSON-RPC,release-evidence/r1/g0/network-verification.json,,,,"2026-09-10"
-G0-NET-03,VERIFIED,Claude/Protocol,G0,,genlayer network info,release-evidence/r1/g0/network-verification.json,,,,"2026-09-10"
-G0-NET-04,VERIFIED,Claude/SDK,G0,,node import genlayer-js chains,release-evidence/r1/g0/network-verification.json,,,,"2026-09-10"
-G0-NET-05,VERIFIED,Claude/SDK,G0,,python import genlayer_py.chains,release-evidence/r1/g0/network-verification.json,,,,"2026-09-10"
-G0-TOOL-01,VERIFIED,Claude/Release,G0,,genlayer --version,release-evidence/r1/g0/version-report.txt,,,,"2026-09-10"
-G0-TOOL-02,VERIFIED,Claude/Release,G0,,npm ls / package.json,release-evidence/r1/g0/version-report.txt,,,,"2026-09-10"
-G0-TOOL-03,VERIFIED,Claude/Release,G0,,pip show genlayer-py,release-evidence/r1/g0/version-report.txt,,,,"2026-09-10"
-G0-TOOL-04,VERIFIED,Claude/Release,G0,,pip show genlayer-test,release-evidence/r1/g0/version-report.txt,,,,"2026-09-10"
-G0-TOOL-05,VERIFIED,Claude/Release,G0,,genvm-lint --version,release-evidence/r1/g0/version-report.txt,,,,"2026-09-10"
-G0-TOOL-06,VERIFIED,Claude/Release,G0,,python3 --version,release-evidence/r1/g0/version-report.txt,,,,"2026-09-10"
-G0-TOOL-07,VERIFIED,Claude/Release,G0,,node -v / npm -v,release-evidence/r1/g0/version-report.txt,,,,"2026-09-10"
-G0-RUN-01,VERIFIED,Claude/Protocol,G0,,genvm-lint check against genvm-manager v0.6.0-rc3/rc4 bundles,toolchain/runner.lock,,,,"2026-09-10"
-G0-RUN-02,VERIFIED,Claude/Protocol,G0,,runner.json manifest read from pinned runner,toolchain/runner.lock,,,,"2026-09-10"
-G0-RUN-03,VERIFIED,Claude/Protocol,G0,release-evidence/r1/g0/deploy-success-pinned/smoke-contract-pinned.py,genvm-lint check,release-evidence/r1/g0/smoke-test-report.txt,,,,"2026-09-10"
-G0-LINT-01,VERIFIED,Claude/Protocol,G0,release-evidence/r1/g0/deploy-success-pinned/smoke-contract-pinned.py,genvm-lint lint,release-evidence/r1/g0/smoke-test-report.txt,,,,"2026-09-10"
-G0-LINT-02,VERIFIED,Claude/Protocol,G0,release-evidence/r1/g0/deploy-success-pinned/smoke-contract-pinned.py,genvm-lint validate,release-evidence/r1/g0/smoke-test-report.txt,,,,"2026-09-10"
-G0-LINT-03,VERIFIED,Claude/Protocol,G0,release-evidence/r1/g0/deploy-success-pinned/smoke-contract-pinned.py,genvm-lint schema --json,release-evidence/r1/g0/smoke-schema.json,,,,"2026-09-10"
-G0-LINT-04,VERIFIED,Claude/Protocol,G0,release-evidence/r1/g0/deploy-success-pinned/smoke-contract-pinned.py,genvm-lint typecheck --json,release-evidence/r1/g0/smoke-test-report.txt,,CF-007 accepted known limitation,,"2026-09-10"
-G0-TEST-01,VERIFIED,Claude/QA,G0,release-evidence/r1/g0/deploy-success-pinned/smoke-contract-pinned.py,pytest direct_deploy fixture (Direct Mode),release-evidence/r1/g0/direct-mode-report.md,,CF-013 Windows-host caveat worked around via WSL,,"2026-09-10"
-G0-DEP-01,VERIFIED,Claude/Release,G0,release-evidence/r1/g0/deploy-success-pinned/smoke-contract-pinned.py,genlayer deploy --fee-profile,release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt,,,,"2026-09-10"
-G0-DEP-02,VERIFIED,Claude/Release,G0,,genlayer deploy,release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt,,,,"2026-09-10"
-G0-DEP-03,VERIFIED,Claude/Release,G0,,genlayer receipt,release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt,,,,"2026-09-10"
-G0-DEP-04,VERIFIED,Claude/Release,G0,,genlayer receipt,release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt,,,,"2026-09-10"
-G0-DEP-05,VERIFIED,Claude/Release,G0,,genlayer call get_counter (before/after write),release-evidence/r1/g0/deploy-success-pinned/smoke-write-receipt.txt,,,,"2026-09-10"
-G0-FEE-01,VERIFIED,Claude/Release,G0,,genlayer deploy --fee-profile,release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt,,,,"2026-09-10"
-G0-FEE-02,VERIFIED,Claude/Release,G0,,genlayer write --fee-profile,release-evidence/r1/g0/deploy-success-pinned/smoke-write-receipt.txt,,,,"2026-09-10"
-F0-GIT-01,VERIFIED,Claude/Release,F0,,git init; git log,Phase Log.md,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-STRUCT-01,VERIFIED,Claude/Release,F0,package.json;contracts/;schemas/;policies/;evidence/;tests/,manual structure review,Phase Log.md,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-DEPS-01,VERIFIED,Claude/Release,F0,package.json;requirements.txt,npm install; pip install -r requirements.txt,package-lock.json,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-LOCKS-01,VERIFIED,Claude/Release,F0,toolchain/,diff against G0 locks,toolchain/versions.lock;toolchain/runner.lock;toolchain/network.lock.json,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-GITIGNORE-01,VERIFIED,Claude/Release,F0,.gitignore,manual review,.gitignore,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-ENVEXAMPLE-01,VERIFIED,Claude/Release,F0,.env.example,secret scan,.env.example,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-LINT-01,VERIFIED,Claude/Release,F0,package.json scripts;Makefile,npm run schema:validate,release-evidence/r1 (see Phase Log),,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-CI-01,VERIFIED,Claude/Release,F0,.github/workflows/ci.yml,manual review (not yet run on a remote),.github/workflows/ci.yml,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-DISCOVERY-01,VERIFIED,Claude/Protocol,F0,scripts/list-deployable-contracts.js,node scripts/list-deployable-contracts.js,Phase Log.md,TM-AUTH-009,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-MANIFEST-01,VERIFIED,Claude/Release,F0,deployment/manifest.schema.json,manual schema review,deployment/manifest.schema.json,TM-INF-010,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-EVIDENCE-01,VERIFIED,Claude/Release,F0,release-evidence/r1/*,directory listing,Phase Log.md,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F0-SECRETS-01,VERIFIED,Claude/Release,F0,,repo-wide secret grep scan,Phase Log.md,TM-INF-006,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F1-TYPES-01,VERIFIED,Claude/Frontend,F1,schemas/,manual + governance cross-reference,docs/execution/Frontend Contract v1.md,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F1-SDK-01,IMPLEMENTED / UNVERIFIED,Claude/SDK,F1,docs/execution/Frontend Contract v1.md Section 2,signature review only; no implementation yet,docs/execution/Frontend Contract v1.md,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F1-FIXTURES-01,VERIFIED,Claude/QA,F1,tests/frontend-fixtures/,npm run schema:validate (36/36 pass),tests/frontend-fixtures/manifest.json,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F1-TRUTHMODEL-01,VERIFIED,Claude/Frontend,F1,schemas/transaction/,fixture validation + governance cross-reference,docs/execution/Frontend Contract v1.md Section 3,TM-LIFE-002;TM-LIFE-003,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
-F1-FREEZE-01,VERIFIED,Claude/Release,F1,docs/execution/Frontend Contract v1.md,manual review,docs/execution/Interface Change Log.md,,,fe86a2f7ae8f113956cc4815410b79dd26df3f2d,"2026-09-10"
+PRD-ACC-001,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-ACC-002,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-ACC-003,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-ACC-004,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-ACC-005,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-ACC-006,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-ACC-007,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-ACC-008,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-TGT-001,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-TGT-002,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-TGT-003,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-TGT-004,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-TGT-005,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-TGT-006,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-TGT-007,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-TGT-008,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-POL-001,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-002,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-003,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-004,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-005,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-006,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-007,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-008,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-009,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-010,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-011,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-012,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-REP-001,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-002,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-003,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-004,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-005,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-006,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-007,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-008,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-009,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-010,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REP-011,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-001,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-002,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-003,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-004,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-005,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-006,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-007,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-008,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-009,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-010,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-011,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-012,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-013,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-INC-014,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REC-001,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REC-002,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REC-003,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REC-004,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REC-005,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REC-006,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REC-007,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-REC-008,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-EXP-001,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-EXP-002,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-EXP-003,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-EXP-004,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-EXP-005,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-EXP-006,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-EXP-007,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-EXP-008,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-EXP-009,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+PRD-DEV-001,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-002,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-003,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-004,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-005,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-006,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-007,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-008,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-009,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-010,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-011,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-DEV-012,NOT STARTED,Claude/SDK,C2,,,,,,,2026-09-10
+PRD-SEN-001,NOT STARTED,Claude/Sentinel,C2,,,,,,,2026-09-10
+PRD-SEN-002,NOT STARTED,Claude/Sentinel,C2,,,,,,,2026-09-10
+PRD-SEN-003,NOT STARTED,Claude/Sentinel,C2,,,,,,,2026-09-10
+PRD-SEN-004,NOT STARTED,Claude/Sentinel,C2,,,,,,,2026-09-10
+PRD-SEN-005,NOT STARTED,Claude/Sentinel,C2,,,,,,,2026-09-10
+PRD-SEN-006,NOT STARTED,Claude/Sentinel,C2,,,,,,,2026-09-10
+PRD-SEN-007,NOT STARTED,Claude/Sentinel,C2,,,,,,,2026-09-10
+PRD-BEN-001,NOT STARTED,Claude/QA,H1,,,,,,,2026-09-10
+PRD-BEN-002,NOT STARTED,Claude/QA,H1,,,,,,,2026-09-10
+PRD-BEN-003,NOT STARTED,Claude/QA,H1,,,,,,,2026-09-10
+PRD-BEN-004,NOT STARTED,Claude/QA,H1,,,,,,,2026-09-10
+PRD-BEN-005,NOT STARTED,Claude/QA,H1,,,,,,,2026-09-10
+PRD-BEN-006,NOT STARTED,Claude/QA,H1,,,,,,,2026-09-10
+PRD-BEN-007,NOT STARTED,Claude/QA,H1,,,,,,,2026-09-10
+PRD-INT-001,NOT STARTED,Claude/Integrations,post-R1 (D-phase),,,,,,,2026-09-10
+PRD-INT-002,NOT STARTED,Claude/Integrations,post-R1 (D-phase),,,,,,,2026-09-10
+PRD-INT-003,NOT STARTED,Claude/Integrations,post-R1 (D-phase),,,,,,,2026-09-10
+PRD-INT-004,NOT STARTED,Claude/Integrations,post-R1 (D-phase),,,,,,,2026-09-10
+PRD-INT-005,NOT STARTED,Claude/Integrations,post-R1 (D-phase),,,,,,,2026-09-10
+PRD-INT-006,NOT STARTED,Claude/Integrations,post-R1 (D-phase),,,,,,,2026-09-10
+NFR-SEC-001,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-SEC-002,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-SEC-003,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-SEC-004,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-SEC-005,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-SEC-006,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-SEC-007,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-SEC-008,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-SEC-009,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-SEC-010,NOT STARTED,Claude/Protocol,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-REL-001,NOT STARTED,Claude/Shared,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-REL-002,NOT STARTED,Claude/Shared,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-REL-003,NOT STARTED,Claude/Shared,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-REL-004,NOT STARTED,Claude/Shared,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-REL-005,NOT STARTED,Claude/Shared,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-REL-006,NOT STARTED,Claude/Shared,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-REL-007,NOT STARTED,Claude/Shared,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-REL-008,NOT STARTED,Claude/Shared,C1-C4 (cross-cutting),,,,,,,2026-09-10
+NFR-UX-001,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-UX-002,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-UX-003,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-UX-004,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-UX-005,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-UX-006,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-UX-007,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-UX-008,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-UX-009,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-UX-010,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-PERF-001,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-PERF-002,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-PERF-003,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-PERF-004,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-PERF-005,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-PERF-006,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
+NFR-OBS-001,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
+NFR-OBS-002,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
+NFR-OBS-003,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
+NFR-OBS-004,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
+NFR-OBS-005,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
+NFR-OBS-006,NOT STARTED,Claude/Shared,C2/C4,,,,,,,2026-09-10
+NFR-CMP-001,VERIFIED,Claude/Release,G0,toolchain/versions.lock;toolchain/runner.lock;toolchain/network.lock.json,"G0 preflight (see Gate Verification Status.csv: G0-NET-01..05, G0-TOOL-01..07)",release-evidence/r1/g0/,TM-INF-001;TM-INF-002,,69204d5bb3db0f9b6381f1ebeb7fc304f20a7433,2026-09-10
+NFR-CMP-002,VERIFIED,Claude/Release,G0,toolchain/,"G0 smoke deploy/write (see Gate Verification Status.csv: G0-DEP-01..05, G0-FEE-01/02)",release-evidence/r1/g0/deploy-success-pinned/,TM-INF-003,,69204d5bb3db0f9b6381f1ebeb7fc304f20a7433,2026-09-10
+NFR-CMP-003,NOT STARTED,Claude/Release,G0/F0,,,,,,,2026-09-10
+NFR-CMP-004,NOT STARTED,Claude/Release,G0/F0,,,,,,,2026-09-10
+NFR-CMP-005,NOT STARTED,Claude/Release,G0/F0,,,,,,,2026-09-10
+NFR-CMP-006,IMPLEMENTED / UNVERIFIED,Claude/Release,G0,docs/execution/Studio-dev Toolchain & Network Compatibility Record.md (CF-010 runner-hash change record),CF-010 investigation and re-verification after resolving the hash discrepancy,docs/execution/Studio-dev Toolchain & Network Compatibility Record.md,TM-INF-003;TM-INF-004,no automated CI upgrade-rehearsal gate exists yet; the one real compatibility-sensitive change (CF-010) was handled manually,69204d5bb3db0f9b6381f1ebeb7fc304f20a7433,2026-09-10
+PRD-EVO-001,NOT STARTED,Claude/Protocol,R5 (out of R1 scope),,,,,,,2026-09-10
+PRD-EVO-002,NOT STARTED,Claude/Protocol,R5 (out of R1 scope),,,,,,,2026-09-10
+PRD-EVO-003,NOT STARTED,Claude/Protocol,R5 (out of R1 scope),,,,,,,2026-09-10
+PRD-EVO-004,NOT STARTED,Claude/Protocol,R5 (out of R1 scope),,,,,,,2026-09-10
+PRD-BIZ-001,NOT STARTED,Claude/Product,R2 (out of R1 scope),,,,,,,2026-09-10
+PRD-BIZ-002,NOT STARTED,Claude/Product,R2 (out of R1 scope),,,,,,,2026-09-10
+PRD-BIZ-003,NOT STARTED,Claude/Product,R2 (out of R1 scope),,,,,,,2026-09-10
+PRD-BIZ-004,NOT STARTED,Claude/Product,R2 (out of R1 scope),,,,,,,2026-09-10

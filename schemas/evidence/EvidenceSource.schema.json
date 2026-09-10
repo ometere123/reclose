@@ -2,13 +2,29 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reclose.internal/schemas/evidence/EvidenceSource.schema.json",
   "title": "EvidenceSource",
-  "description": "A single source within an Evidence Artifact Package. Evidence is always hostile/untrusted data (CLAUDE.md Section 15) - this type never carries executable instructions, only provenance and fetched content metadata.",
+  "description": "A single source within an Evidence Artifact Package. Evidence is always hostile/untrusted data (CLAUDE.md Section 15) - this type never carries executable instructions, only provenance and fetched content metadata. `sourceClass` corrected per external A0 review finding A0-004 to use the exact ADR-011 governed source classes instead of an invented descriptive taxonomy.",
   "type": "object",
   "required": ["sourceId", "url", "sourceClass", "fetchedAt", "availability"],
   "properties": {
     "sourceId": { "type": "string" },
     "url": { "type": "string", "format": "uri", "pattern": "^https://" },
-    "sourceClass": { "type": "string", "enum": ["OFFICIAL_STATUS_PAGE", "PROVIDER_API", "NEWS", "SOCIAL", "THIRD_PARTY_MONITOR", "OTHER"] },
+    "sourceClass": {
+      "type": "string",
+      "enum": [
+        "AUTHORITATIVE_SIGNED",
+        "AUTHORITATIVE_PUBLIC",
+        "ONCHAIN",
+        "INDEPENDENT_PUBLIC",
+        "CONTENT_ADDRESSED_SNAPSHOT",
+        "DERIVED_DETERMINISTIC"
+      ],
+      "description": "The exact initial governed Reclose source classes per ADR-011. This field controls per-rule source policy/trust weighting (TM-EVID-003/004) and MUST NOT be overloaded with descriptive UI categories - see `sourceType` for that."
+    },
+    "sourceType": {
+      "type": ["string", "null"],
+      "enum": [null, "STATUS_PAGE", "PROVIDER_API", "NEWS", "SOCIAL", "THIRD_PARTY_MONITOR", "OTHER"],
+      "description": "Optional descriptive/provenance-grouping metadata for UI/Judge display purposes only (PRD-REP-004). This is NOT a trust classification and has no bearing on `sourceClass`'s security semantics - it exists so the product can show 'status page' vs 'social' style categories without corrupting the governed source-class enum."
+    },
     "fetchedAt": { "type": "string", "format": "date-time" },
     "observedAt": { "type": ["string", "null"], "format": "date-time" },
     "contentHash": { "type": ["string", "null"] },

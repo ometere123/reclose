@@ -9,11 +9,10 @@ py-venv:
 	.venv/Scripts/python -m pip install -r requirements.txt
 
 py-lint:
-	.venv/Scripts/genvm-lint check contracts || true
-	node scripts/list-deployable-contracts.js
+	bash scripts/py-verify.sh
 
 py-test:
-	.venv/Scripts/python -m pytest tests -v
+	bash scripts/py-verify.sh
 
 js-verify:
 	npm run verify

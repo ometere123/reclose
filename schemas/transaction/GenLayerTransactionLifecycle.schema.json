@@ -2,15 +2,70 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reclose.internal/schemas/transaction/GenLayerTransactionLifecycle.schema.json",
   "title": "GenLayerTransactionLifecycle",
-  "description": "Protocol transaction lifecycle state only (CLAUDE.md Section 9.1). This is NOT DecisionOutcome/DecisionStage and NOT execution result - a transaction can reach a consensus-final lifecycle state while execution failed (Section 9.4/CF-005, G0-verified live). Status strings are taken from real G0 evidence: 'Accepted' (in-flight/pending finality) and 'Finalized · Accepted' (observed via `genlayer receipt`, release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt).",
+  "description": "Protocol transaction lifecycle state only (CLAUDE.md Section 9.1). Rebuilt per external A0 review finding A0-005: `rawStatus` and `rawResult` are taken verbatim from the pinned `genlayer-js@2.0.0-rc.1` package's own `TransactionStatus` and `TransactionResult` enums (independently extracted from `node_modules/genlayer-js/dist/index-BT1ApAqQ.d.ts` in the pinned tarball on 2026-09-10 - not invented, not guessed from stale examples). This schema never merges finalization (`rawStatus`) with the retained consensus result (`rawResult`), and never merges either with Reclose's own DecisionOutcome, which is a completely separate application-level concept living only in DecisionRecord.schema.json. A `derived` display object is permitted for UI convenience but is explicitly marked derived and must never replace the raw fields above it (e.g. the CLI's own composed label 'Finalized · Accepted', observed live at G0 in release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt, is a derived display string, not a raw SDK status value).",
   "type": "object",
-  "required": ["txId", "lifecycleStatus", "consensusResultName"],
+  "required": ["txId", "rawStatus"],
   "properties": {
     "txId": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64,}$" },
-    "lifecycleStatus": { "type": "string", "enum": ["SUBMITTED", "ACCEPTED", "FINALIZED_ACCEPTED", "APPEALED", "REVERTED_PRE_FINALITY"] },
-    "consensusResultName": { "type": ["string", "null"], "enum": [null, "MAJORITY_AGREE", "SPLIT", "MAJORITY_DISAGREE", "TIMEOUT"] },
+    "rawStatus": {
+      "type": "string",
+      "enum": [
+        "UNINITIALIZED",
+        "PENDING",
+        "PROPOSING",
+        "COMMITTING",
+        "REVEALING",
+        "ACCEPTED",
+        "UNDETERMINED",
+        "FINALIZED",
+        "CANCELED",
+        "APPEAL_REVEALING",
+        "APPEAL_COMMITTING",
+        "VALIDATORS_TIMEOUT",
+        "LEADER_TIMEOUT",
+        "LEADER_REVEALING"
+      ],
+      "description": "Verbatim genlayer-js@2.0.0-rc.1 TransactionStatus. `FINALIZED` is a lifecycle terminal state ONLY - it says nothing about whether the retained result was accepted, undetermined, or execution succeeded (TM-LIFE-001/002). `UNDETERMINED` here is the protocol's own lifecycle/decision-outcome concept and is NOT the same value space as Reclose's DecisionOutcome.UNDETERMINED (TM-LIFE-003) - a test must exist proving these are distinct (see tests/frontend-fixtures)."
+    },
+    "rawResult": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "IDLE",
+        "AGREE",
+        "DISAGREE",
+        "TIMEOUT",
+        "DETERMINISTIC_VIOLATION",
+        "NO_MAJORITY",
+        "MAJORITY_AGREE",
+        "MAJORITY_DISAGREE",
+        "MAJORITY_TIMEOUT"
+      ],
+      "description": "Verbatim genlayer-js@2.0.0-rc.1 TransactionResult (the retained consensus round result). Null when `rawStatus` has not yet reached a state that carries a round result (e.g. PENDING). Never invented values such as 'SPLIT' - these 9 are the actual enum members in the pinned package."
+    },
+    "protocolDecisionOutcome": {
+      "type": ["string", "null"],
+      "enum": [null, "accepted", "undetermined", "validators-timeout", "leader-timeout"],
+      "description": "genlayer-js's own consumer-oriented `TransactionDecisionOutcome` (lowercase, hyphenated - taken verbatim from the pinned package's type definitions). This is a THIRD distinct concept from `rawStatus`/`rawResult` above and from Reclose's DecisionOutcome (CONFIRMED/REJECTED/UNDETERMINED) in DecisionRecord.schema.json. Never conflate the three."
+    },
     "decidedAtBlock": { "type": ["integer", "null"] },
-    "appealDeadline": { "type": ["string", "null"], "format": "date-time" }
+    "appealDeadline": { "type": ["string", "null"], "format": "date-time" },
+    "derived": {
+      "type": ["object", "null"],
+      "description": "Optional UI-convenience display derived from the raw fields above. Must never be treated as protocol truth and must never be the only field a consumer reads.",
+      "required": ["displayLabel", "isFinal"],
+      "properties": {
+        "displayLabel": {
+          "type": "string",
+          "description": "Human display string such as 'Finalized · Accepted', explicitly derived from rawStatus + rawResult, never a raw protocol enum value on its own."
+        },
+        "isFinal": {
+          "type": "boolean",
+          "description": "Derived boolean convenience: true only when rawStatus is FINALIZED or CANCELED. Never treat this alone as execution success (TM-LIFE-002) - always check ExecutionResult and, where required, target post-state."
+        }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

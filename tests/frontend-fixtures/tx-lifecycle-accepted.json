@@ -1,1 +1,1 @@
-{"txId":"0x83338017fd8376805c722b16a91128abe2a150ccdb9fb812c5023c32942b1c30","lifecycleStatus":"ACCEPTED","consensusResultName":"MAJORITY_AGREE","decidedAtBlock":null,"appealDeadline":"2026-09-10T00:00:30Z"}
+{"txId":"0x1111111111111111111111111111111111111111111111111111111111111111","rawStatus":"ACCEPTED","rawResult":"MAJORITY_AGREE","protocolDecisionOutcome":"accepted","decidedAtBlock":null,"appealDeadline":"2026-09-10T00:00:30Z","derived":{"displayLabel":"Accepted (awaiting finality)","isFinal":false}}

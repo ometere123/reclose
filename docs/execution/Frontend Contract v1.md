@@ -1,12 +1,16 @@
 # Frontend Contract v1
 
 **Status:** FROZEN
-**Freeze verification:** this file's content has been unchanged since commit `23fb711` and remains unchanged as
-of the A0 audit target commit `cea1aa2` (branch `claude/r1-foundation`) - both are existing, independently
-inspectable commits (`git diff 23fb711 cea1aa2 -- "docs/execution/Frontend Contract v1.md"` produces no output).
-The exact content is anchored by its git blob hash and a SHA-256 of its content, both recorded in
-`docs/execution/audit-packets/A0/content-hashes.txt` (computed and stored outside this file, so this statement
-never claims to cryptographically record its own hash before that hash exists).
+**Version:** F1-v2 (superseded F1-v1 per external A0 review findings A0-003/A0-004/A0-005/A0-008; see
+`docs/execution/Interface Change Log.md` for the F1-v1 -> F1-v2 change entry)
+**Freeze verification:** this document identifies itself by a stable human version label (`F1-v2`) and a freeze
+date, not by any commit hash - including its own containing commit's hash, which cannot be known from inside the
+file that would record it. Content-unchanged-ness between any two points in time is verified externally, by
+running `git diff <commit-a> <commit-b> -- "docs/execution/Frontend Contract v1.md"` between two already-existing
+commits, and by comparing the git blob hash / SHA-256 recorded in
+`docs/execution/audit-packets/A0/content-hashes.txt` (computed and stored in a file outside this one, generated
+from an already-existing commit after that commit exists). This document never claims a commit recorded its own
+hash before that commit existed.
 **Owner and consumer:** Claude Code (both protocol and frontend sides)
 **Governs:** the interface boundary between Reclose protocol/SDK semantics and all future product/frontend
 implementation (D1+), per CLAUDE.md Section 22 and Repository Build Master Plan Section 13.
@@ -14,9 +18,11 @@ implementation (D1+), per CLAUDE.md Section 22 and Repository Build Master Plan 
 This document is F1 deliverable. It defines stable **types**, **SDK method signatures**, the **transaction truth
 model**, the **error envelope**, fixture locations, known implementation gaps, and the interface change procedure.
 Every semantic field below is derived from the six locked governance documents (ADR, MDP, Implementation
-Specification, Naming & Brand Decision Record, PRD, RTM) and from real G0 execution evidence - none of it is
-invented protocol behaviour. Where a field is illustrated with a fixture, the fixture is synthetic (clearly
-labeled) and does not assert live protocol truth.
+Specification, Naming & Brand Decision Record, PRD, RTM), from real G0 execution evidence, and - for the
+transaction-lifecycle types in Section 1.7 - from the actual pinned `genlayer-js@2.0.0-rc.1` package's own type
+definitions (independently extracted from the published npm tarball, not invented or guessed from stale examples).
+Where a field is illustrated with a fixture, the fixture is synthetic (clearly labeled, using clearly-fake
+placeholder IDs/hashes rather than real G0 transaction hashes) and does not assert live protocol truth.
 
 Do not bypass this document's discipline merely because one agent owns both the protocol and frontend sides
 (CLAUDE.md Section 22).
@@ -145,11 +151,21 @@ interface Incident {
 Evidence is hostile/untrusted data by default (CLAUDE.md Section 15). This type carries only provenance/fetch
 metadata, never executable instructions.
 
+**Corrected per A0-004:** `sourceClass` now uses the exact ADR-011 governed source classes instead of an invented
+descriptive taxonomy. Descriptive/display categories (status page, news, social, etc.) live in the separate,
+non-security-bearing `sourceType` field.
+
 ```ts
+type SourceClass =
+  | "AUTHORITATIVE_SIGNED" | "AUTHORITATIVE_PUBLIC" | "ONCHAIN"
+  | "INDEPENDENT_PUBLIC" | "CONTENT_ADDRESSED_SNAPSHOT" | "DERIVED_DETERMINISTIC";
+type SourceType = "STATUS_PAGE" | "PROVIDER_API" | "NEWS" | "SOCIAL" | "THIRD_PARTY_MONITOR" | "OTHER" | null;
+
 interface EvidenceSource {
   sourceId: string;
   url: `https://${string}`;
-  sourceClass: "OFFICIAL_STATUS_PAGE" | "PROVIDER_API" | "NEWS" | "SOCIAL" | "THIRD_PARTY_MONITOR" | "OTHER";
+  sourceClass: SourceClass; // security/trust classification (ADR-011) - never overloaded with UI categories
+  sourceType?: SourceType;  // optional descriptive/provenance-grouping metadata (PRD-REP-004), not a trust class
   fetchedAt: string;
   observedAt: string | null;
   contentHash: string | null;
@@ -158,48 +174,99 @@ interface EvidenceSource {
 }
 ```
 
-### 1.6 `DecisionRecord`, `DecisionOutcome`, `DecisionStage` - `schemas/incident/*.schema.json`
+### 1.6 `DecisionRecord`, `DecisionView`, `DecisionOutcome`, `DecisionStage` - `schemas/incident/*.schema.json`
 
-`DecisionRecord` contains semantic codes only - never arbitrary calldata/target/authority payloads
-(TM-AUTH-003).
+**Rebuilt per A0-003.** The canonical `DecisionRecord` carries the governed Reclose semantic identity and
+never embeds GenLayer transaction lifecycle state (that was the A0-003 defect: the previous version centred
+`decisionId`/`ruleKind`/`judge`/`decidedAt`/`genlayerTx` and was missing consensus/policy/evidence binding
+fields). A separate product-facing `DecisionView` composes the canonical record with its transaction lifecycle for
+UI convenience, without contaminating the protocol-semantic record itself.
 
 ```ts
 type DecisionOutcome = "NONE" | "CONFIRMED" | "REJECTED" | "UNDETERMINED";
 type DecisionStage = "NONE" | "PROVISIONAL" | "FINAL";
+type RuleId = "PROVIDER_COMPROMISE_V1" | "SERVICE_FAILURE_V1" | "REMEDIATION_CONFIRMED_V1" | "RECOVERY_VALIDATED_V1";
 
 interface DecisionRecord {
-  decisionId: string;
+  schemaVersion: "1.0.0";
+  decisionId?: string | null;       // optional internal indexing convenience only
   incidentId: string;
-  ruleKind: RuleKindEnum;
+  targetId: string;
+  policyHash: string;               // canonical policy hash at decision time (ADR-010, TM-AUTH-011)
+  policyVersion: number;
+  ruleId: RuleId;                   // the governed Judge rule family (CLAUDE.md Section 14); Reporter cannot set this (TM-EVID-002)
+  affectedResource: string;
+  evidenceHash: string;             // binds the EAP evaluated (TM-EVID-013)
+  reporter: `0x${string}` | null;
   outcome: DecisionOutcome;
-  stage: DecisionStage;
-  judge: `0x${string}`;
-  policyHash: string;
-  decidedAt: string;
-  genlayerTx: GenLayerTransactionLifecycle;
+  conditionCode: string;            // rule-specific semantic result, distinct from `outcome`
+  reasonCodes: string[];            // reason-indexed restriction linkage (CLAUDE.md Section 17, TM-REC-001/008)
+  judgeModule: `0x${string}`;
+  judgeVersion: number;
+  decisionStage: DecisionStage;
+  generatedAt: string;
+}
+
+// Product-facing composition only - never the canonical protocol record itself.
+interface DecisionView {
+  record: DecisionRecord;
+  transaction: GenLayerTransactionLifecycle;
 }
 ```
 
 **`DecisionOutcome`/`DecisionStage` are never collapsed into a single `status` field, and are never conflated with
-`GenLayerTransactionLifecycle` or `ExecutionResult` below (CLAUDE.md Section 9, TM-LIFE-003).**
+`GenLayerTransactionLifecycle` or `ExecutionResult` below (CLAUDE.md Section 9, TM-LIFE-003). In particular,
+`GenLayerTransactionLifecycle.rawStatus` can itself be the string `"UNDETERMINED"` (a raw GenLayer protocol
+lifecycle value) - this is a completely different concept from `DecisionOutcome.UNDETERMINED` (a Reclose semantic
+outcome about evidence/rule confidence) and the two must never be rendered or tested as if they were the same
+field. See `tests/frontend-fixtures/decision-view-outcome-undetermined-vs-raw-finalized.json` for a fixture that
+deliberately pairs a Reclose `UNDETERMINED` outcome with a cleanly `FINALIZED`/`MAJORITY_AGREE` transaction to
+make this independence concrete.**
 
 ### 1.7 GenLayer transaction lifecycle, execution result, child transaction state
 
 `schemas/transaction/{GenLayerTransactionLifecycle,ExecutionResult,ChildTransactionState}.schema.json`
 
+**Rebuilt per A0-005.** The previous version invented raw lifecycle values (`FINALIZED_ACCEPTED`,
+`REVERTED_PRE_FINALITY`) that do not exist in the pinned `genlayer-js@2.0.0-rc.1` package. The values below were
+extracted directly from that package's own type definitions (`dist/index-BT1ApAqQ.d.ts` in the published
+`genlayer-js@2.0.0-rc.1` npm tarball, inspected 2026-09-10) and are reproduced verbatim.
+
 ```ts
-type GenLayerLifecycleStatus = "SUBMITTED" | "ACCEPTED" | "FINALIZED_ACCEPTED" | "APPEALED" | "REVERTED_PRE_FINALITY";
-type ConsensusResultName = "MAJORITY_AGREE" | "SPLIT" | "MAJORITY_DISAGREE" | "TIMEOUT" | null;
+// Verbatim genlayer-js@2.0.0-rc.1 TransactionStatus - raw protocol lifecycle state only.
+// FINALIZED is a terminal lifecycle state; it says nothing on its own about whether the retained
+// result was accepted, and nothing about execution success (see ExecutionResult below).
+type RawTransactionStatus =
+  | "UNINITIALIZED" | "PENDING" | "PROPOSING" | "COMMITTING" | "REVEALING"
+  | "ACCEPTED" | "UNDETERMINED" | "FINALIZED" | "CANCELED"
+  | "APPEAL_REVEALING" | "APPEAL_COMMITTING" | "VALIDATORS_TIMEOUT"
+  | "LEADER_TIMEOUT" | "LEADER_REVEALING";
+
+// Verbatim genlayer-js@2.0.0-rc.1 TransactionResult - the retained consensus round result.
+// Never invent values such as "SPLIT"; these 9 are the actual enum members.
+type RawTransactionResult =
+  | "IDLE" | "AGREE" | "DISAGREE" | "TIMEOUT" | "DETERMINISTIC_VIOLATION"
+  | "NO_MAJORITY" | "MAJORITY_AGREE" | "MAJORITY_DISAGREE" | "MAJORITY_TIMEOUT"
+  | null;
+
+// Verbatim genlayer-js@2.0.0-rc.1 consumer-oriented TransactionDecisionOutcome (lowercase/hyphenated
+// in the SDK's own types) - a THIRD distinct concept from both fields above and from Reclose's own
+// DecisionOutcome. Never conflate any of these three.
+type ProtocolDecisionOutcome = "accepted" | "undetermined" | "validators-timeout" | "leader-timeout" | null;
 
 interface GenLayerTransactionLifecycle {
   txId: `0x${string}`;
-  lifecycleStatus: GenLayerLifecycleStatus;
-  consensusResultName: ConsensusResultName;
+  rawStatus: RawTransactionStatus;
+  rawResult?: RawTransactionResult;
+  protocolDecisionOutcome?: ProtocolDecisionOutcome;
   decidedAtBlock?: number | null;
   appealDeadline?: string | null;
+  // Optional UI-convenience label, explicitly derived, never a substitute for the raw fields above.
+  derived?: { displayLabel: string; isFinal: boolean } | null;
 }
 
-// Enum values confirmed live at G0 via `genlayer receipt` (txExecutionResultName field);
+// Enum values confirmed live at G0 via `genlayer receipt` (txExecutionResultName field) and cross-checked
+// against the pinned genlayer-js@2.0.0-rc.1 ExecutionResult enum (identical set, no change needed here);
 // see release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt
 type ExecutionResult = "NOT_VOTED" | "FINISHED_WITH_RETURN" | "FINISHED_WITH_ERROR"
                       | "TIMEOUT" | "NONDET_DISAGREE" | "DETERMINISTIC_VIOLATION";
@@ -213,8 +280,12 @@ interface ChildTransactionState {
 }
 ```
 
-A finalized transaction may still have failed execution (CF-005, G0-verified). **`lifecycleStatus` and
-`executionResult` are always inspected and displayed as two distinct fields, never merged.**
+A finalized transaction may still have failed execution (CF-005, G0-verified; see also
+`tests/frontend-fixtures/child-transaction-failed.json`, where `lifecycle.rawStatus` is `FINALIZED` while
+`executionResult` is `FINISHED_WITH_ERROR`). **`rawStatus`, `rawResult`, `protocolDecisionOutcome` and
+`executionResult` are always inspected and displayed as separate fields, never merged.** The real G0-observed CLI
+display string `"Finalized · Accepted"` is a derived UI label (see `derived.displayLabel` above), not a raw SDK
+enum value - do not reintroduce it as if it were one.
 
 ### 1.8 `ActionEnvelope`, `ExecutionReceipt`
 
@@ -320,6 +391,7 @@ interface RecloseSDK {
   getActivePolicy(targetId: string): Promise<PolicyDetail>;
   getIncident(incidentId: string): Promise<Incident>;
   getDecision(decisionId: string): Promise<DecisionRecord>;
+  getDecisionView(decisionId: string): Promise<DecisionView>; // added F1-v2 (A0-003)
   getEffectiveProviderStatus(targetId: string, resourceId: string): Promise<{
     resourceId: string;
     available: boolean;
@@ -347,23 +419,32 @@ interface RecloseSDK {
 their exact input type is finalized at C1 alongside the Policy contract, but their signatures and role in the
 Policy UX flow (Section 27) are frozen here.
 
+`getDecisionView` was added in F1-v2 (A0-003) as the SDK entry point for the composed product-facing view; it does
+not replace `getDecision`, which returns the canonical protocol-semantic `DecisionRecord` alone.
+
 ---
 
 ## 3. Transaction truth model
 
-Five distinct concepts, never collapsed into one `status` field (CLAUDE.md Section 9):
+At least **six** distinct concepts, never collapsed into one `status` field (CLAUDE.md Section 9). Rebuilt per
+A0-005 to reflect the pinned SDK's actual raw enums instead of invented ones, and to keep the SDK's own
+`protocolDecisionOutcome` concept separate from Reclose's `DecisionOutcome`.
 
 | Concept | Type | Meaning |
 |---|---|---|
-| GenLayer transaction lifecycle | `GenLayerTransactionLifecycle.lifecycleStatus` | protocol consensus lifecycle state |
+| GenLayer raw transaction status | `GenLayerTransactionLifecycle.rawStatus` | verbatim protocol consensus lifecycle state (`FINALIZED` = terminal, says nothing about accepted/undetermined or execution success) |
+| GenLayer raw transaction result | `GenLayerTransactionLifecycle.rawResult` | verbatim retained consensus round result (`MAJORITY_AGREE`, `NO_MAJORITY`, etc.) |
+| GenLayer protocol decision outcome | `GenLayerTransactionLifecycle.protocolDecisionOutcome` | the SDK's own consumer-level accepted/undetermined/timeout classification - NOT Reclose's DecisionOutcome |
 | `DecisionOutcome` | `DecisionRecord.outcome` | Reclose semantic outcome: CONFIRMED / REJECTED / UNDETERMINED |
-| `DecisionStage` | `DecisionRecord.stage` | PROVISIONAL / FINAL |
+| `DecisionStage` | `DecisionRecord.decisionStage` | PROVISIONAL / FINAL |
 | Execution result | `ChildTransactionState.executionResult` | did the transaction's code execute successfully |
 | Child transaction state | `ChildTransactionState` | Judge -> Kernel -> Target as separate async steps |
 | Target post-state | `ExecutionReceipt.observedPostState` / `.postStateMatchesExpected` | did the target actually reach the expected state |
 
-The frontend/SDK must never be more certain than the protocol (CLAUDE.md Section 23): a `FINALIZED_ACCEPTED`
-lifecycle with `executionResult: "FINISHED_WITH_ERROR"` must render as a finalized **failure**, not a success.
+The frontend/SDK must never be more certain than the protocol (CLAUDE.md Section 23): a `FINALIZED` lifecycle with
+`executionResult: "FINISHED_WITH_ERROR"` must render as a finalized **failure**, not a success. A raw
+`rawStatus: "UNDETERMINED"` transaction must never be displayed or tested as if it were a
+`DecisionOutcome.UNDETERMINED` decision - they are unrelated facts that happen to share an English word.
 
 ---
 
@@ -378,23 +459,29 @@ See Section 1.11. High-consequence errors (`AUTHORITY_REVOKED`, `WRONG_NETWORK`,
 
 All F1 fixtures live under `tests/frontend-fixtures/`, indexed by `tests/frontend-fixtures/manifest.json`
 (fixture file -> schema file). Validate with `npm run schema:validate` (`scripts/validate-fixtures.js`, using
-`ajv`). Current coverage (36/36 passing as of freeze):
+`ajv`). Current coverage (40/40 passing as of F1-v2):
 
 ```text
 normal / monitored / restricted / safe-mode / paused / recovery targets
-confirmed / rejected / undetermined / provisional decisions
+confirmed / rejected / undetermined / provisional decisions (DecisionRecord, decision-only)
+DecisionView composition proving raw ACCEPTED != FINALIZED, and raw UNDETERMINED != DecisionOutcome.UNDETERMINED
+  (decision-view-*.json)
 transaction success / failure (execution-receipt-*, child-transaction-*)
-child failure (child-transaction-failed.json, execution-receipt-child-failure.json)
+child failure with a FINALIZED lifecycle but FINISHED_WITH_ERROR execution result (child-transaction-failed.json,
+  execution-receipt-child-failure.json)
 multi-incident (assurance-state-multi-incident.json)
 authority expansion (policy-security-diff-expansion.json)
-wrong-network (tx-lifecycle-wrong-network.json, error-wrong-network.json)
+wrong-network (error-wrong-network.json only - there is no such thing as a "wrong-network" GenLayer transaction
+  lifecycle value; wrong network is a client-side pre-submission check represented via ErrorEnvelope, not a
+  transaction lifecycle fixture, per A0-008 correction)
 ```
 
-Every fixture is clearly synthetic test data, not a claim of live protocol behaviour.
+Every fixture is clearly synthetic test data (fake IDs/hashes such as `0x1111...`, `0x2222...`, never a reused
+real G0 transaction hash) and does not assert live protocol behaviour.
 
 ---
 
-## 6. Known implementation gaps at F1 freeze time
+## 6. Known implementation gaps at F1-v2 freeze time
 
 - No AssuranceKernel, Policy, Judge, Vault, or ReferenceAgentProtocol contract exists yet (C1-C3 scope). All types
   above describe the *intended* shape derived from governance documents, not an already-running system.
@@ -402,9 +489,13 @@ Every fixture is clearly synthetic test data, not a claim of live protocol behav
   contract's canonical manifest format).
 - Fee/gas numeric fields are represented as decimal strings (u256-safe); exact precision/rounding rules for
   frontend display are a D-phase product decision, not frozen here.
-- `EvidenceSource.sourceClass` enum may gain values once the Judge's per-rule source policy (C2) is implemented.
+- `EvidenceSource.sourceType` (the descriptive, non-security-bearing category) may gain values once the product
+  UI's evidence-presentation design (C4) is implemented; `sourceClass` (the ADR-011 governed security
+  classification) does not change without a governance-level ADR-011 revision.
 - Hosted API/indexer response shapes (if any) are explicitly out of scope for this contract - they are convenience
   infrastructure, never a correctness dependency (CLAUDE.md Section 32).
+- `GenLayerTransactionLifecycle.derived` is a UI-convenience field; its exact display-string wording is a D-phase
+  product decision, not frozen here - only its existence and non-authoritative nature are frozen.
 
 ---
 
@@ -422,24 +513,33 @@ After this freeze, any breaking change to a type or SDK signature defined above 
 A non-breaking addition (new optional field, new enum value that doesn't change existing semantics) does not
 require a change-log entry but SHOULD be noted in this document's revision history.
 
+The F1-v1 -> F1-v2 change documented in this file's own Section 1.5/1.6/1.7 is itself an example of this
+procedure being followed: see `docs/execution/Interface Change Log.md` for the corresponding entry.
+
 ---
 
 ## 8. Freeze record
 
 ```text
-Frozen by: Claude Code (F1 phase)
-Frozen at: 2026-09-10
-Schema files: 16 (see schemas/ tree)
-Fixture files: 36 (tests/frontend-fixtures/, all passing npm run schema:validate)
-SDK methods frozen: 13 (getTarget, getAssuranceState, getActivePolicy, getIncident, getDecision,
+Frozen by: Claude Code (F1 phase; F1-v2 revision during A0 remediation)
+Version: F1-v2
+Freeze date: 2026-09-10
+Schema files: 19 (see schemas/ tree; includes DecisionView.schema.json added in F1-v2)
+Fixture files: 40 (tests/frontend-fixtures/, all passing npm run schema:validate)
+SDK methods frozen: 14 (getTarget, getAssuranceState, getActivePolicy, getIncident, getDecision, getDecisionView,
   getEffectiveProviderStatus, buildIncidentReport, buildRecoveryReport, validateAPM, hashAPM, diffAPM,
   trackTransaction, trackActionTrace)
 Governing sources: docs/governance/Research Closure & Architecture Decision Record.md,
   docs/governance/Master Design Package.md, docs/governance/Implementation Specification.md (Sections 9-14, 68),
   docs/governance/Product Requirements Document.md, docs/governance/Requirements Traceability Matrix.md,
-  CLAUDE.md Sections 6, 9, 13, 15, 17, 21-34, 39
-First introduced in commit: fe86a2f (placeholder freeze-reference text at that point)
-Content stabilized in commit: 23fb711 (this exact content first appears here)
-Unchanged through audit target commit: cea1aa2 (verified via `git diff 23fb711 cea1aa2 -- "docs/execution/Frontend Contract v1.md"`, zero output)
-Content hash: see docs/execution/audit-packets/A0/content-hashes.txt
+  CLAUDE.md Sections 6, 9, 13, 15, 17, 21-34, 39; genlayer-js@2.0.0-rc.1 package type definitions (Section 1.7)
+History:
+  F1-v1: content stabilized in commit 23fb711 (superseded - contained a circular self-reference bug, fixed in
+    69204d5, and the A0-003/A0-004/A0-005 defects described throughout this document)
+  F1-v2: this revision, produced during A0 remediation to fix findings A0-003, A0-004, A0-005 and A0-008.
+    Exact commit identity is intentionally not claimed inside this file - see
+    docs/execution/audit-packets/A0/COMMIT.txt for the audit target commit this version is verified against, and
+    docs/execution/Interface Change Log.md for the change entry with its introducing commit.
+Content hash: see docs/execution/audit-packets/A0/content-hashes.txt (computed from an already-existing commit,
+  after that commit exists)
 ```

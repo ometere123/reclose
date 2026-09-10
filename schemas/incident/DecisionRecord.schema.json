@@ -2,19 +2,82 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reclose.internal/schemas/incident/DecisionRecord.schema.json",
   "title": "DecisionRecord",
-  "description": "GenLayer determines the judgment; this record contains semantic codes only, never arbitrary calldata/target/authority payloads (CLAUDE.md Section 6, TM-AUTH-003).",
+  "description": "Canonical Reclose protocol semantic decision record, corrected per external A0 review finding A0-003. GenLayer determines the judgment; this record contains semantic codes only, never arbitrary calldata/target/authority payloads (CLAUDE.md Section 6, TM-AUTH-003). This record is bound to the target/policy/rule/evidence it decided over (MDP/ADR-011 evidence binding) and MUST NOT embed GenLayer transaction lifecycle state - lifecycle belongs only to a separate product-facing composition (see DecisionView.schema.json). Mixing lifecycle into this record was the defect identified in A0-003 and has been removed.",
   "type": "object",
-  "required": ["decisionId", "incidentId", "ruleKind", "outcome", "stage", "judge", "policyHash", "decidedAt", "genlayerTx"],
+  "required": [
+    "schemaVersion",
+    "incidentId",
+    "targetId",
+    "policyHash",
+    "policyVersion",
+    "ruleId",
+    "affectedResource",
+    "evidenceHash",
+    "outcome",
+    "conditionCode",
+    "reasonCodes",
+    "judgeModule",
+    "judgeVersion",
+    "decisionStage",
+    "generatedAt"
+  ],
   "properties": {
-    "decisionId": { "type": "string" },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0",
+      "description": "DecisionRecord schema version, independent of the Frontend Contract freeze version."
+    },
+    "decisionId": {
+      "type": ["string", "null"],
+      "description": "Optional internal indexing identity. Never used as a replacement for incidentId/ruleId/decisionStage identity - purely a lookup convenience."
+    },
     "incidentId": { "type": "string" },
-    "ruleKind": { "type": "string", "enum": ["INCIDENT", "REMEDIATION", "RECOVERY_VALIDATION"] },
+    "targetId": { "type": "string" },
+    "policyHash": {
+      "type": "string",
+      "description": "Canonical hash of the active policy at decision time (RFC 8785 JCS + Keccak, ADR-010; TM-AUTH-011)."
+    },
+    "policyVersion": { "type": "integer", "minimum": 1 },
+    "ruleId": {
+      "type": "string",
+      "enum": ["PROVIDER_COMPROMISE_V1", "SERVICE_FAILURE_V1", "REMEDIATION_CONFIRMED_V1", "RECOVERY_VALIDATED_V1"],
+      "description": "The governed R1 Judge rule family that produced this decision (CLAUDE.md Section 14). Reporter cannot supply an arbitrary rule (TM-EVID-002)."
+    },
+    "affectedResource": {
+      "type": "string",
+      "description": "The protected resource/capability the rule and effect are scoped to (ADR-013 target defense in depth)."
+    },
+    "evidenceHash": {
+      "type": "string",
+      "description": "Canonical hash of the Evidence Artifact Package this decision was evaluated against (TM-EVID-013 binding)."
+    },
+    "reporter": {
+      "type": ["string", "null"],
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Reporter address, if this decision stemmed from a Reporter-submitted incident. Null for decisions with no originating Reporter (e.g. a system-initiated recovery validation check)."
+    },
     "outcome": { "$ref": "https://reclose.internal/schemas/incident/DecisionOutcome.schema.json" },
-    "stage": { "$ref": "https://reclose.internal/schemas/incident/DecisionStage.schema.json" },
-    "judge": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
-    "policyHash": { "type": "string" },
-    "decidedAt": { "type": "string", "format": "date-time" },
-    "genlayerTx": { "$ref": "https://reclose.internal/schemas/transaction/GenLayerTransactionLifecycle.schema.json" }
+    "conditionCode": {
+      "type": "string",
+      "description": "Rule-specific semantic condition code produced by the Judge (e.g. the specific sub-condition of PROVIDER_COMPROMISE_V1 that was found true/false). Distinct from `outcome`: `outcome` is the Reclose-wide CONFIRMED/REJECTED/UNDETERMINED classification; `conditionCode` is the rule's own finer-grained semantic result. Never an executable instruction or arbitrary payload (TM-AUTH-003)."
+    },
+    "reasonCodes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Reason-indexed codes used to drive restriction composition (CLAUDE.md Section 17; TM-REC-001/008). May be empty for a decision that does not create or resolve a restriction."
+    },
+    "judgeModule": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Address/identity of the Judge module that produced this decision (AS-04; TM-AUTH-008)."
+    },
+    "judgeVersion": { "type": "integer", "minimum": 1 },
+    "decisionStage": { "$ref": "https://reclose.internal/schemas/incident/DecisionStage.schema.json" },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this DecisionRecord was generated by the Judge/Kernel. Distinct from GenLayer transaction lifecycle timing, which lives only in DecisionView."
+    }
   },
   "additionalProperties": false
 }

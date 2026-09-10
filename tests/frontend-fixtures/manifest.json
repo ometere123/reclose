@@ -25,12 +25,17 @@
   { "fixture": "decision-final-rejected.json", "schema": "incident/DecisionRecord.schema.json" },
   { "fixture": "decision-final-undetermined.json", "schema": "incident/DecisionRecord.schema.json" },
 
+  { "fixture": "decision-view-final-confirmed.json", "schema": "incident/DecisionView.schema.json" },
+  { "fixture": "decision-view-accepted-not-final.json", "schema": "incident/DecisionView.schema.json" },
+  { "fixture": "decision-view-outcome-undetermined-vs-raw-finalized.json", "schema": "incident/DecisionView.schema.json" },
+
   { "fixture": "evidence-source-available.json", "schema": "evidence/EvidenceSource.schema.json" },
   { "fixture": "evidence-source-unavailable.json", "schema": "evidence/EvidenceSource.schema.json" },
+  { "fixture": "evidence-source-independent-public.json", "schema": "evidence/EvidenceSource.schema.json" },
 
   { "fixture": "tx-lifecycle-accepted.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
   { "fixture": "tx-lifecycle-finalized-success.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
-  { "fixture": "tx-lifecycle-wrong-network.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
+  { "fixture": "tx-lifecycle-raw-undetermined.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
 
   { "fixture": "child-transaction-failed.json", "schema": "transaction/ChildTransactionState.schema.json" },
   { "fixture": "child-transaction-succeeded.json", "schema": "transaction/ChildTransactionState.schema.json" },

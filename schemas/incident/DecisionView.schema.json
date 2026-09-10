@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/incident/DecisionView.schema.json",
+  "title": "DecisionView",
+  "description": "Product-facing composition of the canonical DecisionRecord plus its GenLayer transaction lifecycle, introduced per external A0 review finding A0-003. This type exists so the frontend can show both facts together without the canonical protocol DecisionRecord itself being contaminated with transaction lifecycle state. `record` and `transaction` remain independently meaningful: `record.decisionStage`/`record.outcome` are Reclose application semantics; `transaction.rawStatus`/`transaction.rawResult` are GenLayer protocol transaction facts (CLAUDE.md Section 9 - never collapsed into one field).",
+  "type": "object",
+  "required": ["record", "transaction"],
+  "properties": {
+    "record": { "$ref": "https://reclose.internal/schemas/incident/DecisionRecord.schema.json" },
+    "transaction": { "$ref": "https://reclose.internal/schemas/transaction/GenLayerTransactionLifecycle.schema.json" }
+  },
+  "additionalProperties": false
+}
