@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reclose.internal/schemas/transaction/ActionEnvelope.schema.json",
   "title": "ActionEnvelope",
-  "description": "Canonical bounded Kernel action envelope, rebuilt against the locked Master Design Package formal model (A0-T2, then closed further at A0 final remediation A4: boundedParameters as an open Record<string,unknown> was itself still an unbounded free-form container, so it is replaced with the closed paramU256/paramStr representation already used by PolicyDetail.effects). Carries a typed, finite, bounded action - never arbitrary calldata, selector, destination, method name or LLM-generated payload (CLAUDE.md Section 7 invariants 2-3, TM-AUTH-003/TM-AUTH-009). A narrower adapter/transport projection may be defined separately for a specific Target Adapter; it must not replace this canonical shape.",
+  "description": "Canonical bounded Kernel action envelope, rebuilt against the locked Master Design Package formal model (A0-T2). C1R correction (A0-U01, owner-supplied external finding): the canonical field name is `boundedParameters`, per the locked Master Design Package - it must not be flattened to top-level paramU256/paramStr. boundedParameters remains CLOSED (paramU256/paramStr only, additionalProperties false) so it carries a typed, finite, bounded action - never arbitrary calldata, selector, destination, method name or LLM-generated payload (CLAUDE.md Section 7 invariants 2-3, TM-AUTH-003/TM-AUTH-009). A narrower adapter/transport projection may be defined separately for a specific Target Adapter; it must not replace this canonical shape.",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -14,8 +14,7 @@
     "policyVersion",
     "resourceId",
     "actionType",
-    "paramU256",
-    "paramStr",
+    "boundedParameters",
     "decisionStage",
     "decisionReference",
     "nonce",
@@ -42,15 +41,23 @@
       "enum": ["NO_ACTION", "ALERT", "MONITOR", "RESTRICT", "THROTTLE", "REVOKE_CAPABILITY", "REROUTE", "ENTER_SAFE_MODE", "PAUSE", "ENTER_RECOVERY", "RESTORE"],
       "description": "Finite Kernel-v1 action set (Implementation Specification). Never an arbitrary string chosen by a Reporter/LLM (TM-AUTH-003)."
     },
-    "paramU256": {
-      "type": ["string", "null"],
-      "pattern": "^[0-9]+$",
-      "description": "Closed bounded-parameter representation (A0 final remediation A4; mirrors PolicyDetail.effects' paramU256/paramStr fields). A single unsigned 256-bit integer as a decimal string, or null when this actionType takes no numeric parameter. This is the ONLY numeric-parameter slot - there is no generic key/value map, so an unbounded/free-form parameter object cannot be constructed (TM-AUTH-003/TM-AUTH-009)."
-    },
-    "paramStr": {
-      "type": ["string", "null"],
-      "maxLength": 256,
-      "description": "Closed bounded-parameter representation: a single short string parameter (e.g. a resource sub-identifier), or null when this actionType takes no string parameter. Never calldata, a selector, a method name, or a destination address - those concepts have no field on this envelope at all, so they cannot be smuggled in under a different key."
+    "boundedParameters": {
+      "type": "object",
+      "description": "Canonical closed bounded-parameter container (Master Design Package field name restored, C1R/A0-U01; mirrors PolicyDetail.effects' paramU256/paramStr fields). additionalProperties is false so no other key - calldata, selector, method, destination, payload - can ever be smuggled in under this object (TM-AUTH-003/TM-AUTH-009).",
+      "required": ["paramU256", "paramStr"],
+      "additionalProperties": false,
+      "properties": {
+        "paramU256": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]+$",
+          "description": "A single unsigned 256-bit integer as a decimal string, or null when this actionType takes no numeric parameter. This is the ONLY numeric-parameter slot."
+        },
+        "paramStr": {
+          "type": ["string", "null"],
+          "maxLength": 256,
+          "description": "A single short string parameter (e.g. a resource sub-identifier), or null when this actionType takes no string parameter."
+        }
+      }
     },
     "decisionStage": {
       "type": "string",

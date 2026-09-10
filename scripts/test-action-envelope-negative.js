@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Executable negative tests for ActionEnvelope.schema.json (A0 final remediation A4) and
-// ExecutionReceipt.schema.json (A5): prove arbitrary calldata-shaped keys are rejected, and
-// prove the executionResult/finalStatus/post-state cross-field constraints are enforced.
+// Executable negative tests for ActionEnvelope.schema.json (A0-T2/A4, corrected at C1R/A0-U01
+// to restore the canonical boundedParameters field name) and ExecutionReceipt.schema.json (A5):
+// prove arbitrary calldata-shaped keys are rejected, and prove the executionResult/finalStatus/
+// post-state cross-field constraints are enforced.
 
 const fs = require("fs");
 const path = require("path");
@@ -58,58 +59,91 @@ const validAction = {
   policyVersion: 1,
   resourceId: "provider:A",
   actionType: "RESTRICT",
-  paramU256: null,
-  paramStr: "provider:A:write",
+  boundedParameters: { paramU256: null, paramStr: "provider:A:write" },
   decisionStage: "FINAL",
   decisionReference: "incident-001:PROVIDER_COMPROMISE_V1:FINAL",
   nonce: "1",
   expiry: "2026-09-08T00:00:00Z",
 };
 
-test("a valid ActionEnvelope with closed paramU256/paramStr passes", () => {
+test("a valid ActionEnvelope with closed boundedParameters passes", () => {
   assert.strictEqual(validateAction(validAction), true, JSON.stringify(validateAction.errors));
 });
 
-test("arbitrary 'calldata' key is rejected (closed shape, A0 final remediation A4)", () => {
+test("arbitrary top-level 'calldata' key is rejected (closed shape, A0-T2/A4)", () => {
   const bad = { ...validAction, calldata: "0xdeadbeef" };
   assert.strictEqual(validateAction(bad), false, "expected calldata key to be rejected");
 });
 
-test("arbitrary 'selector' key is rejected", () => {
+test("arbitrary top-level 'selector' key is rejected", () => {
   const bad = { ...validAction, selector: "0x12345678" };
   assert.strictEqual(validateAction(bad), false, "expected selector key to be rejected");
 });
 
-test("arbitrary 'method' key is rejected", () => {
+test("arbitrary top-level 'method' key is rejected", () => {
   const bad = { ...validAction, method: "transfer" };
   assert.strictEqual(validateAction(bad), false, "expected method key to be rejected");
 });
 
-test("arbitrary 'destination' key is rejected", () => {
+test("arbitrary top-level 'destination' key is rejected", () => {
   const bad = { ...validAction, destination: "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef" };
   assert.strictEqual(validateAction(bad), false, "expected destination key to be rejected");
 });
 
-test("a nested free-form execution payload object is rejected", () => {
+test("a nested free-form execution payload object at top level is rejected", () => {
   const bad = { ...validAction, executionPayload: { to: "0x0", data: "0x0", value: "0" } };
   assert.strictEqual(validateAction(bad), false, "expected nested free-form payload to be rejected");
 });
 
-test("an unrecognized/unknown key is rejected (additionalProperties: false)", () => {
+test("an unrecognized/unknown top-level key is rejected (additionalProperties: false)", () => {
   const bad = { ...validAction, someUnknownField: "x" };
   assert.strictEqual(validateAction(bad), false, "expected unknown key to be rejected");
 });
 
-test("missing paramU256/paramStr is rejected (both are required, even if null)", () => {
+test("missing boundedParameters is rejected (required)", () => {
   const bad = { ...validAction };
-  delete bad.paramU256;
-  delete bad.paramStr;
-  assert.strictEqual(validateAction(bad), false, "expected missing paramU256/paramStr to be rejected");
+  delete bad.boundedParameters;
+  assert.strictEqual(validateAction(bad), false, "expected missing boundedParameters to be rejected");
+});
+
+test("missing paramU256/paramStr inside boundedParameters is rejected (both required, even if null)", () => {
+  const bad = { ...validAction, boundedParameters: {} };
+  assert.strictEqual(validateAction(bad), false, "expected missing nested paramU256/paramStr to be rejected");
 });
 
 test("a non-numeric paramU256 string is rejected (must be a decimal u256)", () => {
-  const bad = { ...validAction, paramU256: "not-a-number" };
+  const bad = { ...validAction, boundedParameters: { paramU256: "not-a-number", paramStr: null } };
   assert.strictEqual(validateAction(bad), false, "expected non-numeric paramU256 to be rejected");
+});
+
+test("boundedParameters.calldata is rejected (nested closed shape)", () => {
+  const bad = { ...validAction, boundedParameters: { paramU256: null, paramStr: null, calldata: "0xdeadbeef" } };
+  assert.strictEqual(validateAction(bad), false, "expected boundedParameters.calldata to be rejected");
+});
+
+test("boundedParameters.selector is rejected", () => {
+  const bad = { ...validAction, boundedParameters: { paramU256: null, paramStr: null, selector: "0x12345678" } };
+  assert.strictEqual(validateAction(bad), false, "expected boundedParameters.selector to be rejected");
+});
+
+test("boundedParameters.method is rejected", () => {
+  const bad = { ...validAction, boundedParameters: { paramU256: null, paramStr: null, method: "transfer" } };
+  assert.strictEqual(validateAction(bad), false, "expected boundedParameters.method to be rejected");
+});
+
+test("boundedParameters.destination is rejected", () => {
+  const bad = { ...validAction, boundedParameters: { paramU256: null, paramStr: null, destination: "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef" } };
+  assert.strictEqual(validateAction(bad), false, "expected boundedParameters.destination to be rejected");
+});
+
+test("boundedParameters.payload (nested arbitrary object) is rejected", () => {
+  const bad = { ...validAction, boundedParameters: { paramU256: null, paramStr: null, payload: { to: "0x0", data: "0x0" } } };
+  assert.strictEqual(validateAction(bad), false, "expected boundedParameters.payload to be rejected");
+});
+
+test("boundedParameters with an extra unknown nested field is rejected", () => {
+  const bad = { ...validAction, boundedParameters: { paramU256: null, paramStr: null, extra: "x" } };
+  assert.strictEqual(validateAction(bad), false, "expected extra nested field to be rejected");
 });
 
 // --- ExecutionReceipt (A5) ---

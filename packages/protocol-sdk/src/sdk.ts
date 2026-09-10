@@ -1,11 +1,17 @@
-// Type-only RecloseSDK interface per Frontend Contract v1 (F1-v4) Section 2.
-// No implementation at this phase (A0-T1): SDK/network calls are C1+ scope.
+// Type-only RecloseSDK interface per Frontend Contract v1 (F1-v6) Section 2.
+// No implementation at this phase: SDK/network calls are C1+ scope.
 //
-// A0 final remediation (Part A2): fixed two real drift bugs found by external review -
-// getAssuranceState() was typed to return the bare AssuranceState enum instead of the
-// AssuranceStateSummary object the Frontend Contract actually specifies, and getDecisionView()
-// was missing entirely even though it is one of the 14 frozen methods and getDecision() had
-// silently absorbed its DecisionView return type instead of returning canonical DecisionRecord.
+// C1R correction (A0-U02, owner-supplied external finding): the compiled interface had drifted
+// from the frozen F1 contract in TWO ways at once - (1) several return/input shapes did not match
+// the contract's exact object shapes (getEffectiveProviderStatus, buildIncidentReport,
+// buildRecoveryReport, validateAPM, hashAPM, diffAPM, trackTransaction, trackActionTrace), and
+// (2) every method had been mutated to return `T | ErrorEnvelope` even though the frozen contract
+// (CLAUDE.md Section 22, docs/execution/Frontend Contract v1.md) does not specify that union for
+// most of them. ErrorEnvelope remains a canonical type for product/error-handling code paths, but
+// it is not spliced into a frozen method's return type just because it exists. Every signature
+// below is copied verbatim from the F1-v6 owner instruction and is mechanically checked bidirectionally
+// against an independently-declared ExpectedRecloseSDK contract in
+// src/__typetests__/sdk-parity.ts (A0-U03 fix - see that file for why this is a real parity proof).
 
 import type {
   Target,
@@ -14,36 +20,72 @@ import type {
   Incident,
   DecisionRecord,
   DecisionView,
-  EffectiveCapabilityStatus,
-  ActionEnvelope,
-  ExecutionReceipt,
-  GenLayerTransactionLifecycle,
+  EvidenceSource,
   ErrorEnvelope,
+  ExecutionResult,
+  ExecutionReceipt,
+  FeeTransactionPreview,
+  PolicySecurityDiff,
+  GenLayerTransactionLifecycle,
 } from "./types";
 
-export interface APMDiffResult {
-  changedFields: string[];
-  authorityExpands: boolean;
-}
-
-/** The frozen 14-method SDK boundary (Frontend Contract v1 Section 2). Exactly these methods. */
+/** The frozen 14-method SDK boundary (Frontend Contract v1 F1-v6 Section 2). Exactly these methods. */
 export interface RecloseSDK {
-  getTarget(targetId: string): Promise<Target | ErrorEnvelope>;
-  getAssuranceState(targetId: string): Promise<AssuranceStateSummary | ErrorEnvelope>;
-  getActivePolicy(targetId: string): Promise<PolicyDetail | ErrorEnvelope>;
-  getIncident(incidentId: string): Promise<Incident | ErrorEnvelope>;
+  getTarget(targetId: string): Promise<Target>;
+
+  getAssuranceState(targetId: string): Promise<AssuranceStateSummary>;
+
+  getActivePolicy(targetId: string): Promise<PolicyDetail>;
+
+  getIncident(incidentId: string): Promise<Incident>;
+
   /** Returns the canonical DecisionRecord alone - never the lifecycle-composed DecisionView. */
-  getDecision(incidentId: string): Promise<DecisionRecord | ErrorEnvelope>;
+  getDecision(decisionId: string): Promise<DecisionRecord>;
+
   /** Returns the product-facing composition (DecisionRecord + GenLayerTransactionLifecycle). */
-  getDecisionView(incidentId: string): Promise<DecisionView | ErrorEnvelope>;
-  getEffectiveProviderStatus(targetId: string, resourceId: string): Promise<EffectiveCapabilityStatus | ErrorEnvelope>;
-  buildIncidentReport(input: Record<string, unknown>): Promise<Record<string, unknown> | ErrorEnvelope>;
-  buildRecoveryReport(input: Record<string, unknown>): Promise<Record<string, unknown> | ErrorEnvelope>;
-  validateAPM(apm: Record<string, unknown>): Promise<boolean | ErrorEnvelope>;
-  hashAPM(apm: Record<string, unknown>): Promise<string | ErrorEnvelope>;
-  diffAPM(fromApm: Record<string, unknown>, toApm: Record<string, unknown>): Promise<APMDiffResult | ErrorEnvelope>;
-  trackTransaction(txId: string): Promise<GenLayerTransactionLifecycle | ErrorEnvelope>;
-  trackActionTrace(actionId: string): Promise<{ action: ActionEnvelope; receipt: ExecutionReceipt | null } | ErrorEnvelope>;
+  getDecisionView(decisionId: string): Promise<DecisionView>;
+
+  getEffectiveProviderStatus(
+    targetId: string,
+    resourceId: string
+  ): Promise<{
+    resourceId: string;
+    available: boolean;
+    reason: ErrorEnvelope | null;
+  }>;
+
+  buildIncidentReport(input: {
+    targetId: string;
+    ruleId: string;
+    resourceId: string;
+    evidenceSources: EvidenceSource[];
+  }): Promise<{
+    report: unknown;
+    feePreview: FeeTransactionPreview;
+  }>;
+
+  buildRecoveryReport(input: {
+    incidentId: string;
+    evidenceSources: EvidenceSource[];
+  }): Promise<{
+    report: unknown;
+    feePreview: FeeTransactionPreview;
+  }>;
+
+  validateAPM(apm: unknown): Promise<{
+    valid: boolean;
+    errors: string[];
+  }>;
+
+  hashAPM(apm: unknown): Promise<string>;
+
+  diffAPM(fromApm: unknown, toApm: unknown): Promise<PolicySecurityDiff>;
+
+  trackTransaction(
+    txId: `0x${string}`
+  ): Promise<GenLayerTransactionLifecycle & { executionResult?: ExecutionResult }>;
+
+  trackActionTrace(actionId: string): Promise<ExecutionReceipt>;
 }
 
 /** The exact 14 frozen method names, for automated parity checking (scripts/test-f1-parity.js). */

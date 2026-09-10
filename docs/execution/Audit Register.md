@@ -13,7 +13,8 @@ never invented.
 | 2 | `82b0d7ce50ad3db62aaa34b677bd6d8927dd7b25` | **FAIL** | A0-R1 .. A0-R6 (A0-001, A0-004, A0-007, most of A0-008/A0-009 accepted closed) |
 | 3 | `fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff` | **FAIL** | A0-T1 .. A0-T5 |
 | 4 | `c7ace037f63029dccff708cde1ac52372c3f642d` | **FAIL** (owner-recorded, A10) | F1 compiled-interface/schema drift, incomplete bounded-parameter enforcement, incomplete lifecycle/receipt semantic constraints, and integrity/status overclaims |
-| 5 | see `docs/execution/Current Phase.md` for this submission's audit target SHA | AWAITING EXTERNAL REVIEW (C1 begun under owner execution-schedule override - see note below) | closure of Part A findings A1-A9 claimed; see `docs/execution/audit-packets/A0/` for the closure matrix - not yet independently confirmed |
+| 5 | see `docs/execution/Current Phase.md` for this submission's audit target SHA | **FAIL** (owner-supplied external review, C1R instruction Section 0) | A0-U01 (canonical `ActionEnvelope.boundedParameters` field flattened to top-level paramU256/paramStr), A0-U02 (compiled RecloseSDK did not match all 14 frozen signatures), A0-U03 (`test-f1-parity.js` overclaimed full SDK parity while checking only a subset mechanically) |
+| 6 | see `docs/execution/Current Phase.md` for this submission's audit target SHA | AWAITING EXTERNAL REVIEW | addresses A0-U01/A0-U02/A0-U03 via F1-v6; see `docs/execution/audit-packets/A0-attempt-6/` |
 
 Detail:
 
@@ -58,6 +59,22 @@ Detail:
   See `docs/execution/audit-packets/A0/` for the finding-by-finding closure matrix and evidence. Status remains
   **AWAITING EXTERNAL REVIEW** - Claude does not author a PASS decision.
 
+**Attempt 5 external findings (2026-09-10, owner-supplied via the C1R hardening instruction, Section 0):**
+- **A0-U01**: canonical `ActionEnvelope` field-name drift. The locked Master Design Package specifies
+  `boundedParameters` as the canonical field; the F1-v5 remediation closed its contents correctly but deleted the
+  field name itself, replacing it with top-level `paramU256`/`paramStr`. This is a real external finding, not a
+  self-correction - recorded honestly.
+- **A0-U02**: compiled `RecloseSDK` did not match all 14 frozen Frontend Contract v1 signatures (several
+  return/input shapes drifted; a blanket `| ErrorEnvelope` union was added to methods the contract does not
+  specify it for).
+- **A0-U03**: `scripts/test-f1-parity.js` claimed to prove "full SDK parity" while mechanically checking only
+  method names plus three hand-written regex signatures for the other 11 methods - an overclaim relative to what
+  it actually verified.
+
+Attempt 5 is recorded as **FAIL** for these findings, per the owner's explicit C1R instruction. Attempt 6
+(F1-v6) addresses all three; see `docs/execution/audit-packets/A0-attempt-6/`. Attempt 5's packet
+(`docs/execution/audit-packets/A0/`) is preserved unchanged as historical evidence.
+
 **Owner execution-schedule override (2026-09-10):** the repository owner explicitly authorized proceeding
 directly into C1 implementation after Part A closes, without waiting for an external decision on attempt 5, to
 avoid repeated stop/review/fix cycles. This is an execution-schedule decision only - it does not mean A0 has
@@ -69,16 +86,44 @@ reviewer they designate) supplies an actual external A0 decision on attempt 5.
 
 | Attempt | Audit target commit (full SHA) | Decision | Notes |
 |---|---|---|---|
-| 1 | `82421aab595acfda4351c54f6542a071633152ad` (branch `claude/r1-core`) | AWAITING EXTERNAL REVIEW | C1 implemented under the owner execution-schedule override above; see `docs/execution/audit-packets/A1/` |
+| 1 | `82421aab595acfda4351c54f6542a071633152ad` (branch `claude/r1-core`) | **FAIL** (owner-supplied external review, C1R instruction Section 0) | findings A1-H01..A1-H12 below; see `docs/execution/audit-packets/A1/` for the attempt-1 packet (preserved unchanged) and `docs/execution/audit-packets/A1-attempt-2/` for the closure work |
+| 2 | see `docs/execution/Current Phase.md` for this submission's audit target SHA (branch `claude/r1-core-hardening`) | AWAITING EXTERNAL REVIEW | C1R hardening pass; see `docs/execution/audit-packets/A1-attempt-2/findings-closure.md` for finding-by-finding closure |
 
-C1 (AssuranceKernel, ReferenceAgentProtocol, ProviderStubA/B) implemented, 31/31 Direct Mode tests
-passing (confirmed on real GitHub Actions Linux CI), and live-deployed to Studio-dev (chain 61997) -
-the Master Plan's stated minimum ("at least one real target registration and active-policy flow on
-61997") is proven on-chain with transaction hashes and view-call verification (see
-`docs/execution/audit-packets/A1/deployment-evidence.md`). C2 (IncidentJudge, IncentiveVault,
-Sentinel, frontend) has NOT begun. This packet awaits external review, alongside the still-pending
-A0 decision above - proceeding into C1 does not retroactively supply the A0 decision, and does not
-constitute an A1 PASS either.
+**Attempt 1 findings (2026-09-10, owner-supplied via the C1R hardening instruction, Section 0):**
+
+- **A1-H01** unauthenticated remediation/recovery state changes - `apply_remediation_decision()`/
+  `apply_recovery_validation()` existed as independent public entry points rather than routing through
+  authenticated `receive_decision()`.
+- **A1-H02** caller-controlled security timestamps/timelock bypass - `register_target`/`begin_policy`/the
+  activation lifecycle accepted a caller-supplied `now` parameter instead of using GenLayer's deterministic
+  transaction time, allowing an attacker-controlled security clock.
+- **A1-H03** count-based authority-expansion detection is insufficient - classifying expansion by comparing
+  rule/effect counts allows same-count substitutions (e.g. MONITOR -> PAUSE) to be silently misclassified as
+  reduction/no-change.
+- **A1-H04** `disable_action`/`disable_resource` overlays are not enforced in the execution path - they recorded
+  data without being checked before dispatch.
+- **A1-H05** effects are not bound to a `rule_id` - `_effects_for_rule()` returned every policy effect sharing a
+  release phase, not effects scoped to the specific rule that triggered the decision.
+- **A1-H06** `PolicyRuleRecord.provisional_allowed` is stored but not enforced at the provisional-action gate.
+- **A1-H07** remediation/recovery release semantics and target-state recomputation are incomplete/incorrect -
+  `_set_state_floor()` cannot correctly move state back down as multiple incidents resolve in different orders.
+- **A1-H08** live `receive_decision -> Kernel -> Target` dispatch has not succeeded (`AllocationTreeMalformed`,
+  recorded honestly in the attempt-1 packet, not worked around).
+- **A1-H09** identifier/composite-key hardening is incomplete - no shared validation helper, no canonical
+  collision-safe composite-key encoding.
+- **A1-H10** the `genvm-lint` exception is too broad relative to the single confirmed-stale diagnostic it is
+  meant to waive.
+- **A1-H11** `judge_version`/policy hash/version binding is incomplete in `receive_decision`.
+- **A1-H12** tests prove weaker properties than several security claims imply (e.g. Direct Mode monkeypatched
+  cross-contract proxy is not the same as a real live wire-format proof).
+
+Attempt 1 is recorded as **FAIL** for these findings, per the owner's explicit C1R instruction. This is a real
+external finding set, not a self-correction. C1 (AssuranceKernel, ReferenceAgentProtocol, ProviderStubA/B) had
+been implemented, 31/31 Direct Mode tests passing (confirmed on real GitHub Actions Linux CI), and live-deployed
+to Studio-dev (chain 61997) with a real target registration and active-policy flow proven on-chain - that
+evidence remains valid as a record of what was achieved, but does not constitute an A1 PASS, and the findings
+above must be closed before this audit gate can be considered ready for re-review. C2 (IncidentJudge,
+IncentiveVault, Sentinel, frontend) has NOT begun and remains out of scope for the closure work.
 
 ## Later gates
 

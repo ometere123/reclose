@@ -1,5 +1,52 @@
 # Interface Change Log
 
+## 2026-09-10 - F1-v5 -> F1-v6 (C1R hardening: owner-supplied external findings A0-U01/A0-U02/A0-U03)
+
+**Context:** the repository owner's external review of C1/A1 attempt 1 also re-examined the A0 foundation and
+found F1-v5 (which this session had itself produced) still contained real interface drift. This is recorded
+honestly, not smoothed over: F1-v5's own remediation of the previous drift introduced a new drift.
+
+**A0-U01 - canonical `ActionEnvelope.boundedParameters` field name deleted.** The locked Master Design Package
+specifies `boundedParameters` as the canonical field. F1-v4 correctly used that name (with an open
+`Record<string,unknown>` body, later found insufficient). F1-v5's fix to close the body's contents went further
+than required and *deleted the field name itself*, replacing it with top-level `paramU256`/`paramStr` - a
+convenience that broke MDP field-name parity. **Fix:** `boundedParameters` restored as a nested object,
+`{ paramU256: string|null, paramStr: string|null }`, with `additionalProperties: false` at both the outer
+`ActionEnvelope` level and the inner `boundedParameters` level, so it remains exactly as closed as F1-v5 intended
+while using the correct field name. Changed: `schemas/transaction/ActionEnvelope.schema.json`,
+`packages/protocol-sdk/src/types.ts` (new `BoundedParameters` interface), `docs/execution/Frontend Contract
+v1.md` Section 1.8, `tests/frontend-fixtures/action-envelope-restrict.json`,
+`scripts/test-action-envelope-negative.js` (expanded from 17 to 24 cases: every calldata/selector/method/
+destination/payload/unknown-key rejection is now proven both at the top level and nested inside
+`boundedParameters`), `scripts/test-f1-parity.js`.
+
+**A0-U02 - compiled RecloseSDK did not match all 14 frozen Frontend Contract v1 signatures.** Several methods'
+return/input shapes had drifted from the frozen contract text (`getEffectiveProviderStatus`,
+`buildIncidentReport`, `buildRecoveryReport`, `validateAPM`, `hashAPM`, `diffAPM`, `trackTransaction`,
+`trackActionTrace`), and separately every method had been given a blanket `| ErrorEnvelope` return-type union that
+the frozen contract does not specify for most of them. **Fix:** `packages/protocol-sdk/src/sdk.ts` rewritten so
+all 14 methods match the frozen signatures in CLAUDE.md/Frontend Contract v1 Section 2 verbatim - object-shaped
+inputs/outputs restored exactly (e.g. `buildIncidentReport` takes `{targetId, ruleId, resourceId,
+evidenceSources}` and returns `{report, feePreview}`; `trackTransaction` returns
+`GenLayerTransactionLifecycle & {executionResult?: ExecutionResult}`), and the erroneous blanket `ErrorEnvelope`
+union removed. `ErrorEnvelope` remains a canonical type for product/error-handling code, just not spliced into
+every frozen signature.
+
+**A0-U03 - `test-f1-parity.js` overclaimed full SDK parity.** The script's own test name said "full SDK parity"
+while mechanically checking only the 14 method NAMES plus three hand-written regex signatures - a real gap
+between the claim and the proof. **Fix:** added `packages/protocol-sdk/src/__typetests__/sdk-parity.ts`, a
+compile-time-only file that independently re-declares the frozen contract as `ExpectedRecloseSDK` (importing only
+plain data types, not `RecloseSDK` itself) and asserts BIDIRECTIONAL structural assignability against the real
+`RecloseSDK` interface. This fails `npm run typecheck` (part of `npm run verify`) if any of the 14 signatures
+drift in either direction. `scripts/test-f1-parity.js`'s method-name check is now explicitly documented as a fast
+secondary check, not the primary parity proof.
+
+**Frontend Contract v1.md → F1-v6.** Not labeled in a way that implies the previous version passed external
+audit - F1-v5 did not, and F1-v6 does not either; both await the external A0 decision.
+
+**Tests:** `npm run verify:js` full pass (typecheck, build, f1-parity:test, action-envelope:test 24/24,
+schema:validate 43/43) confirmed locally before commit.
+
 ## 2026-09-10 - F1-v4 -> F1-v5 (A0 final remediation Parts A1-A9: F1 compiled-interface/schema parity)
 
 **Change:** a further external review found that `docs/execution/Frontend Contract v1.md` (this document) and

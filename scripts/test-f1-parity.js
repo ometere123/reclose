@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// Deterministic F1 parity check: catches JSON Schema <-> TypeScript drift (A0 final remediation
-// Part A3). This is what should have caught the Target/PolicyDetail/Incident/EvidenceSource
-// drift found by external review before it shipped. Runs by loading the compiled
-// packages/protocol-sdk/dist output and diffing field sets against schemas/**/*.schema.json.
-//
-// Coverage: field names, required/optional, enum membership, SDK method presence. Return/input
-// type shape parity is additionally proven by the compile-time fixtures in
-// packages/protocol-sdk/src/__typetests__/, which this script does not duplicate.
+// Deterministic F1 parity check: catches JSON Schema <-> TypeScript field-name/required drift
+// (A0-T2 area). This script covers field NAMES and required/optional only - it does NOT prove
+// full method-signature parity (return/input shape, nested structure). That was A0-U03 (owner
+// external finding): a prior version of this file called itself "full SDK parity" while
+// mechanically checking only method NAMES plus three hand-written regex signatures, which is
+// not what it claimed. The actual full-signature parity proof for all 14 frozen SDK methods is
+// packages/protocol-sdk/src/__typetests__/sdk-parity.ts, a compile-time bidirectional
+// assignability check enforced by `npm run typecheck` (part of `npm run verify`). This script
+// remains a fast secondary check for schema/type field-set drift; treat sdk-parity.ts as the
+// primary SDK-signature proof, not this file's method-name check below.
 
 const fs = require("fs");
 const path = require("path");
@@ -140,15 +142,19 @@ test("FeeTransactionPreview: TypeScript matches schemas/transaction/FeeTransacti
   checkInterfaceMatchesSchema("FeeTransactionPreview", "transaction/FeeTransactionPreview.schema.json");
 });
 
-test("ActionEnvelope.paramU256/paramStr are the closed bounded-parameter representation, not an open map", () => {
+test("ActionEnvelope.boundedParameters is the canonical closed bounded-parameter container (C1R/A0-U01)", () => {
   const schema = loadSchema("transaction/ActionEnvelope.schema.json");
-  assert(schema.properties.paramU256, "paramU256 missing from ActionEnvelope schema");
-  assert(schema.properties.paramStr, "paramStr missing from ActionEnvelope schema");
-  assert(!schema.properties.boundedParameters, "boundedParameters (open map) must not still exist on ActionEnvelope");
+  assert(schema.properties.boundedParameters, "canonical boundedParameters field missing from ActionEnvelope schema");
+  assert(!schema.properties.paramU256, "paramU256 must not exist as a top-level ActionEnvelope field (A0-U01)");
+  assert(!schema.properties.paramStr, "paramStr must not exist as a top-level ActionEnvelope field (A0-U01)");
+  const bp = schema.properties.boundedParameters;
+  assert(bp.properties.paramU256, "boundedParameters.paramU256 missing");
+  assert(bp.properties.paramStr, "boundedParameters.paramStr missing");
+  assert(bp.additionalProperties === false, "boundedParameters must be closed (additionalProperties: false)");
   assert(schema.additionalProperties === false, "ActionEnvelope must not allow additionalProperties (closed shape)");
 });
 
-test("RecloseSDK: compiled interface contains exactly the 14 frozen method names", () => {
+test("RecloseSDK: compiled interface contains exactly the 14 frozen method names (fast secondary check - see __typetests__/sdk-parity.ts for the real signature proof)", () => {
   const sdkSource = fs.readFileSync(path.join(REPO_ROOT, "packages/protocol-sdk/src/sdk.ts"), "utf8");
   const namesMatch = sdkSource.match(/RECLOSE_SDK_METHOD_NAMES\s*=\s*\[([\s\S]*?)\]/);
   assert(namesMatch, "RECLOSE_SDK_METHOD_NAMES constant not found in sdk.ts");
@@ -163,20 +169,15 @@ test("RecloseSDK: compiled interface contains exactly the 14 frozen method names
   const extra = names.filter((n) => !expected.includes(n));
   assert(missing.length === 0, `missing frozen SDK methods: ${missing.join(", ")}`);
   assert(extra.length === 0, `unexpected extra SDK methods: ${extra.join(", ")}`);
+});
 
-  const interfaceBody = sdkSource.match(/export interface RecloseSDK\s*\{([\s\S]*?)\n\}/)[1];
-  assert(
-    /getDecision\(incidentId: string\): Promise<DecisionRecord \| ErrorEnvelope>/.test(interfaceBody),
-    "getDecision() must return DecisionRecord, not DecisionView or a generic record"
-  );
-  assert(
-    /getDecisionView\(incidentId: string\): Promise<DecisionView \| ErrorEnvelope>/.test(interfaceBody),
-    "getDecisionView() must return DecisionView"
-  );
-  assert(
-    /getAssuranceState\(targetId: string\): Promise<AssuranceStateSummary \| ErrorEnvelope>/.test(interfaceBody),
-    "getAssuranceState() must return AssuranceStateSummary, not the bare AssuranceState enum"
-  );
+test("__typetests__/sdk-parity.ts exists and declares the bidirectional ExpectedRecloseSDK contract", () => {
+  const parityTestPath = path.join(REPO_ROOT, "packages/protocol-sdk/src/__typetests__/sdk-parity.ts");
+  assert(fs.existsSync(parityTestPath), "sdk-parity.ts compile-time parity test is missing");
+  const src = fs.readFileSync(parityTestPath, "utf8");
+  assert(/interface ExpectedRecloseSDK/.test(src), "ExpectedRecloseSDK contract not declared");
+  assert(/_expectedIsAssignableToReal/.test(src) && /_realIsAssignableToExpected/.test(src),
+    "bidirectional assignability assertions not present - one-way checks are not full parity");
 });
 
 console.log(`\n${failures === 0 ? "ALL PASS" : failures + " FAILURE(S)"}`);

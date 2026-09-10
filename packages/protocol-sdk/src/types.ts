@@ -364,6 +364,18 @@ export interface DecisionView {
 // ActionEnvelope / ExecutionReceipt (A0-T2, closed further at A0 final remediation A4/A5)
 // ---------------------------------------------------------------------------
 
+/**
+ * Closed bounded-parameter container (canonical Master Design Package field name restored,
+ * C1R/A0-U01 - a prior remediation flattened this to top-level paramU256/paramStr, which the
+ * owner's external review correctly flagged as a drift from the locked MDP). Still closed:
+ * no other key can exist on this object, so calldata/selector/method/destination cannot be
+ * smuggled in under a different name (TM-AUTH-003/TM-AUTH-009).
+ */
+export interface BoundedParameters {
+  paramU256: string | null;
+  paramStr: string | null;
+}
+
 export interface ActionEnvelope {
   schemaVersion: "1.0.0";
   actionId: string;
@@ -374,14 +386,7 @@ export interface ActionEnvelope {
   policyVersion: number;
   resourceId: string;
   actionType: ActionType;
-  /**
-   * Closed bounded-parameter representation (A0 final remediation A4). An open
-   * `Record<string, unknown>` was itself still an unbounded container and was rejected by
-   * external review - this mirrors PolicyDetail.effects' own paramU256/paramStr fields exactly,
-   * so there is no key namespace in which calldata/selector/method/destination could be smuggled.
-   */
-  paramU256: string | null;
-  paramStr: string | null;
+  boundedParameters: BoundedParameters;
   decisionStage: CanonicalDecisionStage;
   decisionReference: string;
   nonce: string;

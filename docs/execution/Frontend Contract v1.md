@@ -1,13 +1,16 @@
 # Frontend Contract v1
 
 **Status:** FROZEN
-**Version:** F1-v5 (F1-v1 superseded by F1-v2 per external A0 review findings A0-003/A0-004/A0-005/A0-008;
+**Version:** F1-v6 (F1-v1 superseded by F1-v2 per external A0 review findings A0-003/A0-004/A0-005/A0-008;
 F1-v2 superseded by F1-v3 per external A0 re-audit finding A0-R3; F1-v3 superseded by F1-v4 per A0-T1/A0-T2/A0-T3;
 F1-v4 superseded by F1-v5 after a further external review found that THIS document had always been correct, but
-`packages/protocol-sdk/src/types.ts`/`sdk.ts` had drifted from it - see Part A1/A2 of the A0 final remediation
-instruction and the Interface Change Log entry below for the exact drift found and fixed, plus the new
-`scripts/test-f1-parity.js` deterministic drift check now wired into `npm run verify`)
-**Freeze verification:** this document identifies itself by a stable human version label (`F1-v5`) and a freeze
+`packages/protocol-sdk/src/types.ts`/`sdk.ts` had drifted from it; F1-v5 superseded by F1-v6 per the owner-supplied
+external C1R findings A0-U01/A0-U02/A0-U03: `ActionEnvelope` had itself drifted from the locked Master Design
+Package by flattening the canonical `boundedParameters` field into top-level `paramU256`/`paramStr`, the compiled
+SDK did not match all 14 frozen signatures, and the parity test overclaimed full coverage while checking only a
+subset mechanically - all three fixed in this revision, with the parity check rewritten to a compile-time
+bidirectional signature proof, see the Interface Change Log entry below for the exact drift found and fixed)
+**Freeze verification:** this document identifies itself by a stable human version label (`F1-v6`) and a freeze
 date, not by any commit hash - including its own containing commit's hash, which cannot be known from inside the
 file that would record it. Content-unchanged-ness between any two points in time is verified externally, by
 running `git diff <commit-a> <commit-b> -- "docs/execution/Frontend Contract v1.md"` between two already-existing
@@ -306,21 +309,31 @@ A finalized transaction may still have failed execution (CF-005, G0-verified; se
 display string `"Finalized · Accepted"` is a derived UI label (see `derived.displayLabel` above), not a raw SDK
 enum value - do not reintroduce it as if it were one.
 
-### 1.8 `ActionEnvelope`, `ExecutionReceipt` (rebuilt F1-v4, A0-T2; closed further at F1-v5, A0 final remediation A4/A5)
+### 1.8 `ActionEnvelope`, `ExecutionReceipt` (rebuilt F1-v4, A0-T2; closed further at F1-v5/A4-A5; field name
+restored at F1-v6, A0-U01)
 
 `schemas/transaction/{ActionEnvelope,ExecutionReceipt}.schema.json`, rebuilt against the locked Master Design
 Package formal model per external A0-T2 finding: the prior F1-v3 shape was a reduced/incomplete projection
 (`actionId/incidentId/policyHash/actionType/resourceId/boundedParam/nonce/expiry`) that dropped canonical target
 identity and used a single scalar `boundedParam`. The F1-v4 fix replaced it with `boundedParameters: Record<string,
-unknown>`, which external review correctly identified as still an unbounded, free-form container - an open map
-can carry arbitrary keys just as easily as a single scalar could. **F1-v5 closes this properly**: `paramU256`/
-`paramStr` are the ONLY parameter slots, mirroring `PolicyDetail.effects`' own representation exactly, so there is
-no key namespace in which calldata/a selector/a method name/a destination could be smuggled in - proven by
-`scripts/test-action-envelope-negative.js` (17/17: calldata/selector/method/destination/nested-payload/unknown-key
-all rejected). Mirrored 1:1 in `@reclose/protocol-sdk`'s compiled `ActionEnvelope`/`ExecutionReceipt` TypeScript
-types.
+unknown>`, which external review correctly identified as still an unbounded, free-form container. F1-v5 closed the
+*contents* but did so by flattening `paramU256`/`paramStr` to the top level and deleting the canonical
+`boundedParameters` field name entirely - the owner's external C1R review (**A0-U01**) correctly identified this
+as a drift from the locked Master Design Package, which specifies `boundedParameters` as the canonical field.
+**F1-v6 restores the canonical field name while keeping it closed**: `boundedParameters: { paramU256, paramStr }`
+is a nested object with `additionalProperties: false`, so `paramU256`/`paramStr` remain the ONLY parameter slots
+(mirroring `PolicyDetail.effects`' own representation) and no key namespace - at either the top level or nested
+inside `boundedParameters` - can smuggle in calldata/a selector/a method name/a destination. Proven by
+`scripts/test-action-envelope-negative.js` (now 24/24: top-level AND nested calldata/selector/method/destination/
+payload/unknown-key all rejected, plus missing-container and missing-nested-field cases). Mirrored 1:1 in
+`@reclose/protocol-sdk`'s compiled `ActionEnvelope`/`ExecutionReceipt` TypeScript types.
 
 ```ts
+interface BoundedParameters {
+  paramU256: string | null; // closed bounded-parameter slot - decimal u256 string, or null
+  paramStr: string | null;  // closed bounded-parameter slot - short string, or null
+}
+
 interface ActionEnvelope {
   schemaVersion: "1.0.0";
   actionId: string;
@@ -331,8 +344,7 @@ interface ActionEnvelope {
   policyVersion: number;
   resourceId: string;
   actionType: ActionTypeEnum;
-  paramU256: string | null; // closed bounded-parameter slot - decimal u256 string, or null
-  paramStr: string | null;  // closed bounded-parameter slot - short string, or null
+  boundedParameters: BoundedParameters; // canonical MDP field name; closed nested shape
   decisionStage: "PROVISIONAL" | "FINAL";
   decisionReference: string;
   nonce: string;
@@ -578,13 +590,14 @@ procedure being followed: see `docs/execution/Interface Change Log.md` for the c
 ## 8. Freeze record
 
 ```text
-Frozen by: Claude Code (F1 phase; F1-v5 revision during A0 final remediation)
-Version: F1-v5
+Frozen by: Claude Code (F1 phase; F1-v6 revision during C1R hardening)
+Version: F1-v6
 Freeze date: 2026-09-10
 Schema files: 19 (see schemas/ tree; includes DecisionView.schema.json added in F1-v2)
 Fixture files: 43 (tests/frontend-fixtures/, all passing npm run schema:validate)
 Compiled TypeScript package: packages/protocol-sdk (real, compiling; npm run typecheck / npm run build both pass;
-  npm run f1-parity:test deterministically proves it matches this document and schemas/ field-by-field)
+  npm run f1-parity:test proves field-name/required parity; packages/protocol-sdk/src/__typetests__/sdk-parity.ts
+  proves full bidirectional 14-method signature parity at compile time, per A0-U03)
 SDK methods frozen: 14 (getTarget, getAssuranceState, getActivePolicy, getIncident, getDecision, getDecisionView,
   getEffectiveProviderStatus, buildIncidentReport, buildRecoveryReport, validateAPM, hashAPM, diffAPM,
   trackTransaction, trackActionTrace)
@@ -616,6 +629,17 @@ History:
     Exact commit identity is intentionally not claimed inside this file - see
     docs/execution/audit-packets/A0/commit.txt for the audit target commit this version is verified against, and
     docs/execution/Interface Change Log.md for all change entries with their introducing commits.
+  F1-v6: produced during C1R hardening to fix three owner-supplied external findings from the C1/A1 review:
+    A0-U01 (ActionEnvelope's canonical `boundedParameters` field name had been deleted in F1-v5's fix and replaced
+    with top-level paramU256/paramStr, drifting from the locked Master Design Package - restored as a closed
+    nested object `boundedParameters: { paramU256, paramStr }`, Section 1.8), A0-U02 (the compiled RecloseSDK had
+    drifted from several of the 14 frozen signatures - getEffectiveProviderStatus/buildIncidentReport/
+    buildRecoveryReport/validateAPM/hashAPM/diffAPM/trackTransaction/trackActionTrace return/input shapes
+    corrected, and the blanket `| ErrorEnvelope` union removed from methods the frozen contract does not specify
+    it for), and A0-U03 (scripts/test-f1-parity.js claimed "full SDK parity" while mechanically checking only
+    method names plus three regex signatures - replaced with a real compile-time bidirectional parity proof at
+    packages/protocol-sdk/src/__typetests__/sdk-parity.ts). See docs/execution/Interface Change Log.md for the
+    full entry.
 Content hash: see docs/execution/audit-packets/A0/content-hashes.txt (computed from an already-existing commit,
   after that commit exists)
 ```
