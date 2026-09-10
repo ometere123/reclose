@@ -1,0 +1,121 @@
+.env.example
+.github/workflows/ci.yml
+.gitignore
+CLAUDE.md
+Makefile
+Repository Build Master Plan.md
+benchmark/README.md
+contracts/README.md
+deploy/README.md
+deployment/manifest.schema.json
+docs/design/Reclose UI Direction.md
+docs/execution/Architecture Deviations.md
+docs/execution/Audit Register.md
+docs/execution/Current Phase.md
+docs/execution/Frontend Contract v1.md
+docs/execution/Interface Change Log.md
+docs/execution/Open Blockers.md
+docs/execution/Phase Log.md
+docs/execution/Requirements Status.csv
+docs/execution/Studio-dev Toolchain & Network Compatibility Record.md
+docs/governance/Implementation Specification.md
+docs/governance/Master Design Package.md
+docs/governance/Naming & Brand Decision Record.md
+docs/governance/Product Requirements Document.md
+docs/governance/Requirements Traceability Matrix.md
+docs/governance/Research Closure & Architecture Decision Record.md
+docs/security/Security Findings.md
+docs/security/Threat Model & Security Assurance Plan.md
+docs/security/Threat Status.csv
+evidence/README.md
+frontend/README.md
+integrations/README.md
+package-lock.json
+package.json
+packages/README.md
+policies/README.md
+release-evidence/r1/g0/compatibility-evidence-index.md
+release-evidence/r1/g0/deploy-success-pinned/fee-profile.json
+release-evidence/r1/g0/deploy-success-pinned/smoke-contract-pinned.py
+release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt
+release-evidence/r1/g0/deploy-success-pinned/smoke-write-receipt.txt
+release-evidence/r1/g0/deploy-success-pinned/test_direct_smoke.py
+release-evidence/r1/g0/deploy-success/fee-profile.json
+release-evidence/r1/g0/deploy-success/smoke-contract-deployed.py
+release-evidence/r1/g0/deploy-success/smoke-deployment-receipt.txt
+release-evidence/r1/g0/deploy-success/smoke-write-receipt.txt
+release-evidence/r1/g0/deploy_reverted_history_note.md
+release-evidence/r1/g0/direct-mode-report.md
+release-evidence/r1/g0/direct-mode-test-output.txt
+release-evidence/r1/g0/install-log.txt
+release-evidence/r1/g0/network-verification.json
+release-evidence/r1/g0/preflight.md
+release-evidence/r1/g0/smoke-contract.py
+release-evidence/r1/g0/smoke-deployment.json
+release-evidence/r1/g0/smoke-receipt.json
+release-evidence/r1/g0/smoke-schema.json
+release-evidence/r1/g0/smoke-test-report.txt
+release-evidence/r1/g0/version-report.txt
+requirements.txt
+schemas/core/AssuranceState.schema.json
+schemas/core/ErrorEnvelope.schema.json
+schemas/core/Target.schema.json
+schemas/evidence/EvidenceSource.schema.json
+schemas/incident/DecisionOutcome.schema.json
+schemas/incident/DecisionRecord.schema.json
+schemas/incident/DecisionStage.schema.json
+schemas/incident/Incident.schema.json
+schemas/policy/PolicyDetail.schema.json
+schemas/policy/PolicySecurityDiff.schema.json
+schemas/policy/PolicySummary.schema.json
+schemas/recovery/RecoveryState.schema.json
+schemas/transaction/ActionEnvelope.schema.json
+schemas/transaction/ChildTransactionState.schema.json
+schemas/transaction/ExecutionReceipt.schema.json
+schemas/transaction/ExecutionResult.schema.json
+schemas/transaction/FeeTransactionPreview.schema.json
+schemas/transaction/GenLayerTransactionLifecycle.schema.json
+scripts/list-deployable-contracts.js
+scripts/validate-fixtures.js
+sentinel/README.md
+tests/README.md
+tests/frontend-fixtures/action-envelope-restrict.json
+tests/frontend-fixtures/assurance-state-multi-incident.json
+tests/frontend-fixtures/assurance-state-restricted.json
+tests/frontend-fixtures/child-transaction-failed.json
+tests/frontend-fixtures/child-transaction-succeeded.json
+tests/frontend-fixtures/decision-final-confirmed.json
+tests/frontend-fixtures/decision-final-rejected.json
+tests/frontend-fixtures/decision-final-undetermined.json
+tests/frontend-fixtures/decision-provisional-confirmed.json
+tests/frontend-fixtures/error-fees-distribution-missing.json
+tests/frontend-fixtures/error-wrong-network.json
+tests/frontend-fixtures/evidence-source-available.json
+tests/frontend-fixtures/evidence-source-unavailable.json
+tests/frontend-fixtures/execution-receipt-child-failure.json
+tests/frontend-fixtures/execution-receipt-success.json
+tests/frontend-fixtures/fee-preview-deploy.json
+tests/frontend-fixtures/incident-final-confirmed.json
+tests/frontend-fixtures/incident-final-rejected.json
+tests/frontend-fixtures/incident-final-undetermined.json
+tests/frontend-fixtures/incident-open.json
+tests/frontend-fixtures/incident-recovery.json
+tests/frontend-fixtures/manifest.json
+tests/frontend-fixtures/policy-detail-active.json
+tests/frontend-fixtures/policy-security-diff-expansion.json
+tests/frontend-fixtures/policy-security-diff-reduction.json
+tests/frontend-fixtures/policy-summary-active.json
+tests/frontend-fixtures/recovery-state-pending-remediation.json
+tests/frontend-fixtures/recovery-state-validated.json
+tests/frontend-fixtures/target-monitored.json
+tests/frontend-fixtures/target-normal.json
+tests/frontend-fixtures/target-paused.json
+tests/frontend-fixtures/target-recovery.json
+tests/frontend-fixtures/target-restricted.json
+tests/frontend-fixtures/target-safe-mode.json
+tests/frontend-fixtures/tx-lifecycle-accepted.json
+tests/frontend-fixtures/tx-lifecycle-finalized-success.json
+tests/frontend-fixtures/tx-lifecycle-wrong-network.json
+toolchain/network.lock.json
+toolchain/runner.lock
+toolchain/versions.lock

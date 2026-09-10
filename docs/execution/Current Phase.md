@@ -1,14 +1,15 @@
-Current phase: G0 - Toolchain Conformance
-Phase status: G0 VERIFIED EXECUTION BASELINE. All G0 verification targets (G0-NET-*, G0-TOOL-*, G0-RUN-*,
-  G0-LINT-*, G0-TEST-01, G0-DEP-*, G0-FEE-*) PASS with real, reproducible evidence. No unresolved C2 contradiction.
-  Only remaining open item (OB-003, git repository initialization) is explicitly deferred to F0 by the Master Plan.
-Authorized scope: G0 only, plus the minimum repository foundation required to evidence G0 (docs/execution/,
-  toolchain/, release-evidence/r1/g0/). F0 has NOT begun.
-Blocked/dependent phases: F0 (Repository Foundation) may begin once the repository owner reviews this report.
-Required gate to advance: repository owner review and acceptance of this G0 report.
-Latest accepted audit: none (A0 has not occurred; A0 happens after F0/F1)
-Current branch: none (no git repository initialized in this working directory yet - OB-003)
-Current commit: none
-Updated at: 2026-09-10 (external-review closure session: G0-TEST-01 corrected to PASS via GenLayer Test Direct
-  Mode; runner-hash discrepancy CF-010 resolved and toolchain/runner.lock corrected; pinned-hash contract
-  redeployed and verified live on 61997)
+Current phase: A0 - External Foundation Audit (preparation)
+Phase status: F0, F1, and S0 all objectively passed their internal criteria (see Phase Log.md for each phase's
+  checks). A0 packet prepared at docs/execution/audit-packets/A0/. AWAITING EXTERNAL REVIEW - no PASS authored by
+  Claude. C1 has NOT begun.
+Authorized scope: F0 -> F1 -> S0 -> prepare A0 packet, per repository-owner authorization following G0's external
+  acceptance. Stop at A0.
+Blocked/dependent phases: C1 (AssuranceKernel + Policy + Reference Target) may not begin until the repository
+  owner supplies an external A0 audit decision.
+Required gate to advance: external A0 audit decision (PASS / PASS WITH CONDITIONS / FAIL) from the repository
+  owner, per CLAUDE.md Section 41-42.
+Latest accepted audit: G0 (externally reviewed and accepted by the repository owner, per their explicit
+  instruction beginning this F0-A0 tranche)
+Current branch: claude/r1-foundation
+Current commit: (see docs/execution/audit-packets/A0/COMMIT.txt for the exact commit submitted for review)
+Updated at: 2026-09-10

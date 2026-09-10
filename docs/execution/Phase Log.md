@@ -159,3 +159,125 @@ Work deliberately not attempted because out of scope: F0 repository foundation, 
   product feature, SDK package implementation, Sentinel implementation, frontend implementation, starting a local
   Docker/Studio-Mode simulator (not required once Direct Mode was correctly identified as the applicable local
   test mode)
+
+## 2026-09-10 - F0 Repository Foundation to F1 Internal Frontend Contract Freeze to S0 Security Threat Baseline to A0 packet preparation
+
+Authorized phase: F0 to F1 to S0 to prepare A0 External Foundation Audit packet, per repository-owner
+authorization following G0's external acceptance. Explicitly stopping at A0; C1/AssuranceKernel/production
+contracts NOT begun.
+Phase status: F0 PASS, F1 PASS (frozen), S0 PASS (baseline operationalized), A0 packet prepared and
+AWAITING EXTERNAL REVIEW.
+Branch: claude/r1-foundation (created from main at commit fe86a2f7ae8f113956cc4815410b79dd26df3f2d).
+Commit(s): fe86a2f7ae8f113956cc4815410b79dd26df3f2d (R0 seed + G0 baseline + F0 scaffolding + F1 freeze, on main);
+  subsequent commits on claude/r1-foundation for S0 and the A0 packet (see git log).
+
+### F0 - Repository Foundation
+
+Checks performed:
+  - git init; repository now under version control (OB-003 closed)
+  - directory structure created per Master Plan Section 6: contracts/, schemas/, policies/, evidence/, packages/,
+    sentinel/, frontend/, tests/, benchmark/, deploy/, deployment/, integrations/, docs/execution/audit-packets/A0..A4/,
+    release-evidence/r1/contracts,transactions,frontend,sentinel,benchmark,fees,security,deployment,demo/
+  - npm workspace root (package.json) plus package-lock.json; Python requirements.txt pinned to the exact
+    G0-verified versions (genlayer-py==0.19.0rc2, genlayer-test==0.30.0rc2, genvm-linter==0.11.1rc2)
+  - toolchain/versions.lock, runner.lock, network.lock.json preserved unchanged from G0's accepted values
+  - .gitignore (excludes node_modules, venv, .env, keystore/key/pem files, build artifacts)
+  - .env.example (placeholders only; verified via secret scan)
+  - lint/typecheck/test commands: npm run lint|typecheck|test|verify|schema:validate; Makefile py-lint/py-test
+    targets; both run successfully (schema:validate: 36/36 fixtures pass; contract-discovery lint: 0 violations)
+  - CI skeleton: .github/workflows/ci.yml (js-verify + py-verify jobs)
+  - contract-discovery boundary enforced by scripts/list-deployable-contracts.js, documented in
+    contracts/README.md; verified to correctly detect 0 candidates and 0 violations against an empty contracts/
+  - deployment/manifest.schema.json establishes the deployment-manifest structure (TM-INF-010)
+  - release-evidence/r1/ structure established per Master Plan Section 6
+  - root verification: npm run verify and Makefile documented and runnable
+  - repository-wide secret scan: clean (no private keys, passwords, or seed material in tracked content)
+  - docs/execution/Requirements Status.csv updated with F0-* rows (all VERIFIED)
+
+No major Reclose product feature was implemented merely because its directory now exists - contracts/, policies/,
+evidence/, sentinel/, frontend/, packages/ all contain only README.md placeholders describing scope and phase gate.
+
+### F1 - Internal Frontend Contract Freeze
+
+docs/execution/Frontend Contract v1.md created and frozen at commit fe86a2f7ae8f113956cc4815410b79dd26df3f2d.
+
+Canonical types defined (Section 1): Target, AssuranceState summary, PolicySummary/PolicyDetail/
+PolicySecurityDiff, Incident, EvidenceSource, DecisionRecord/DecisionOutcome/DecisionStage,
+GenLayerTransactionLifecycle/ExecutionResult/ChildTransactionState, ActionEnvelope, ExecutionReceipt,
+RecoveryState, ErrorEnvelope, FeeTransactionPreview - 16 JSON Schema files under schemas/, with a TypeScript
+projection in the contract document.
+
+SDK-facing interfaces frozen (Section 2, signatures only, no implementation yet): getTarget, getAssuranceState,
+getActivePolicy, getIncident, getDecision, getEffectiveProviderStatus, buildIncidentReport, buildRecoveryReport,
+validateAPM, hashAPM, diffAPM, trackTransaction, trackActionTrace.
+
+Transaction truth model (Section 3) keeps GenLayer transaction lifecycle, DecisionOutcome, DecisionStage,
+execution result, child transaction state, and target post-state as six distinct concepts, never collapsed into
+one status field, per CLAUDE.md Section 9.
+
+Fixtures: 36 synthetic fixtures created under tests/frontend-fixtures/, covering normal/monitored/restricted/
+safe-mode/paused/recovery targets; confirmed/rejected/undetermined/provisional decisions; transaction success and
+failure; child failure; multi-incident; authority expansion; wrong-network. All 36/36 pass schema validation
+(npm run schema:validate, scripts/validate-fixtures.js using ajv). No fake protocol behaviour was implemented to
+satisfy the fixtures - they are static JSON illustrating the frozen shapes only.
+
+Known implementation gaps recorded explicitly in the contract document (Section 6): no Kernel/Policy/Judge/Vault/
+ReferenceAgentProtocol contract exists yet; APM exact shape pending C1; fee-display precision is a D-phase
+decision; EvidenceSource.sourceClass may grow at C2.
+
+docs/execution/Interface Change Log.md created with the initial freeze entry.
+
+### S0 - Security Threat Baseline
+
+docs/security/Threat Status.csv created: all 82 TM-* threats from docs/security/Threat Model & Security Assurance
+Plan.md Section 11 (TM-AUTH 12, TM-EVID 14, TM-LIFE 12, TM-REC 8, TM-ECON 8, TM-INF 12, TM-UX 10, TM-REL 6) given
+an explicit baseline status, affected asset, trust boundary, attack precondition, required mitigation,
+implementation owner/domain, required verification, audit gate, and residual-risk state.
+
+Status summary: 4 threats MITIGATED / VERIFIED (TM-INF-001, TM-INF-003, TM-INF-006, all with concrete G0/F0
+evidence cited); 2 CONTROL IN PLACE - VERIFICATION PARTIAL (TM-INF-004, TM-INF-011); 76
+OPEN - VERIFY DURING IMPLEMENTATION (baseline, correctly unimplemented since no product code exists yet). No
+threat was marked MITIGATED merely because a future control is described in documentation.
+
+docs/security/Security Findings.md created, documenting the three concrete findings with evidence (network
+identity, runner-hash pin, secret scan) and confirming no architecture contradiction was identified in any threat.
+
+No CRITICAL threat is accepted as residual risk; all CRITICAL threats remain OPEN pending C1+ implementation, as
+required.
+
+### A0 - packet preparation
+
+docs/execution/audit-packets/A0/ populated per the Master Plan's required content (see the packet's own README
+for the full index). docs/execution/Current Phase.md updated to A0, status AWAITING EXTERNAL REVIEW. No PASS
+authored by Claude. docs/execution/Audit Register.md shows A0 as awaiting review.
+
+Requirements addressed: F0-GIT-01, F0-STRUCT-01, F0-DEPS-01, F0-LOCKS-01, F0-GITIGNORE-01, F0-ENVEXAMPLE-01,
+F0-LINT-01, F0-CI-01, F0-DISCOVERY-01, F0-MANIFEST-01, F0-EVIDENCE-01, F0-SECRETS-01, F1-TYPES-01, F1-SDK-01,
+F1-FIXTURES-01, F1-TRUTHMODEL-01, F1-FREEZE-01.
+Requirements moved to VERIFIED: all of the above except F1-SDK-01 (IMPLEMENTED / UNVERIFIED - signatures only, no
+implementation exists yet, correctly not claimed VERIFIED).
+Tests/checks run: npm install, npm audit (0 vulnerabilities after pinning ajv 8.20.0), npm run schema:validate
+(36/36 pass), node scripts/list-deployable-contracts.js (0 violations), repository-wide secret scan (clean).
+Evidence produced: schemas/ (16 files), tests/frontend-fixtures/ (36 fixtures + manifest), docs/execution/Frontend
+Contract v1.md, docs/execution/Interface Change Log.md, docs/security/Threat Status.csv (82 rows),
+docs/security/Security Findings.md, docs/execution/audit-packets/A0/*.
+Compatibility record/findings: none new this session - G0's CF-001 through CF-013 carried forward unchanged and
+preserved.
+Security/invariant findings: three concrete S0 findings (F-INF-001, F-INF-003, F-INF-006) - see Security
+Findings.md. No architecture contradiction identified.
+Threat IDs addressed/reopened: baseline established for all 82; 4 moved to MITIGATED/VERIFIED, 2 to CONTROL IN
+PLACE - VERIFICATION PARTIAL, per real evidence.
+Threat status changes: see docs/security/Threat Status.csv (initial baseline - all changes are from "no baseline"
+to an explicit tracked status).
+Residual-risk decisions: none accepted for any CRITICAL or HIGH threat; TM-INF-004 and TM-INF-011 have an
+explicitly OPEN residual note (not accepted, just partially controlled).
+Architecture deviations: none (docs/execution/Architecture Deviations.md created, empty).
+Known limitations: F1 SDK method implementations do not exist yet (signatures only); CI skeleton has not yet run
+on a remote; automated dependency/secret-scanning CI gate not yet built (tracked under TM-INF-004).
+Blockers: none blocking A0 packet preparation. OB-003 (git repo) is now resolved by this session's git init.
+External audit required next?: yes - A0 is exactly this gate. Awaiting the repository owner's external decision.
+Exact next phase authorized if gate passes: C1 - Kernel + Policy + Reference Target. NOT started in this session.
+Work deliberately not attempted because out of scope: any AssuranceKernel/Policy/Judge/Vault/ReferenceAgentProtocol
+contract implementation, any frontend UI implementation, any SDK method implementation beyond frozen signatures,
+starting a local Docker/Studio-Mode simulator, benchmark scenarios (H1 scope).
+
