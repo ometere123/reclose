@@ -53,12 +53,12 @@ Direct Mode, and redeployed live to Studio-dev 61997 with a full read/write/post
 rationale, and `release-evidence/r1/g0/deploy-success-pinned/` for the evidence.
 **Owner:** Claude Code (closed in-session).
 
-## OB-003 - No git repository initialized [OPEN]
+## OB-003 - No git repository initialized [RESOLVED 2026-09-10]
 
 **Opened:** 2026-09-10
-**Phase:** G0 (identified during G0; resolution belongs to F0)
-**Blocks:** commit discipline (CLAUDE.md Section 44), `source_commit` field in `toolchain/versions.lock`, and
-audit-packet commit freezing at future gates.
-**Description:** The working directory `C:\Users\USER\Downloads\Reclose` is not a git repository.
-**Needed to close:** initialize git at F0 per the Master Plan's repository-foundation checklist.
-**Owner:** Claude Code, at F0.
+**Resolved:** 2026-09-10 (F0)
+**Phase:** G0 (identified during G0; resolved at F0 as planned)
+**Resolution:** `git init` performed; initial commit `fe86a2f7ae8f113956cc4815410b79dd26df3f2d` on `main` contains
+the R0 seed, the full G0 evidence pack, and F0/F1 scaffolding. Branch `claude/r1-foundation` created from that
+commit for the audited F0-A0 tranche.
+**Owner:** Claude Code.

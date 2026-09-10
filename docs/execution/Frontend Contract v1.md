@@ -1,7 +1,7 @@
 # Frontend Contract v1
 
 **Status:** FROZEN
-**Frozen at commit:** (see `docs/execution/Interface Change Log.md` for the exact commit hash recorded at freeze time)
+**Frozen at commit:** `fe86a2f7ae8f113956cc4815410b79dd26df3f2d` (branch `claude/r1-foundation`)
 **Owner and consumer:** Claude Code (both protocol and frontend sides)
 **Governs:** the interface boundary between Reclose protocol/SDK semantics and all future product/frontend
 implementation (D1+), per CLAUDE.md Section 22 and Repository Build Master Plan Section 13.
@@ -433,5 +433,5 @@ Governing sources: docs/governance/Research Closure & Architecture Decision Reco
   docs/governance/Master Design Package.md, docs/governance/Implementation Specification.md (Sections 9-14, 68),
   docs/governance/Product Requirements Document.md, docs/governance/Requirements Traceability Matrix.md,
   CLAUDE.md Sections 6, 9, 13, 15, 17, 21-34, 39
-Commit at freeze: see docs/execution/Interface Change Log.md initial entry
+Commit at freeze: fe86a2f7ae8f113956cc4815410b79dd26df3f2d
 ```
