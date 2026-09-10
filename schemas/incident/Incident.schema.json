@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/incident/Incident.schema.json",
+  "title": "Incident",
+  "type": "object",
+  "required": ["incidentId", "targetId", "policyKey", "ruleId", "resourceId", "reporter", "judge", "evidenceHash", "conditionCode", "status", "createdAt"],
+  "properties": {
+    "incidentId": { "type": "string" },
+    "targetId": { "type": "string" },
+    "policyKey": { "type": "string" },
+    "ruleId": { "type": "string" },
+    "resourceId": { "type": "string" },
+    "reporter": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "judge": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "evidenceHash": { "type": "string" },
+    "conditionCode": { "type": "string", "maxLength": 64 },
+    "status": { "type": "string", "enum": ["OPEN", "PROVISIONAL_APPLIED", "FINAL_CONFIRMED", "FINAL_REJECTED", "FINAL_UNDETERMINED", "REMEDIATION_PENDING", "RECOVERY", "CLOSED"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "closedAt": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "additionalProperties": false
+}

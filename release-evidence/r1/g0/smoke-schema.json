@@ -1,0 +1,1 @@
+{"ok":true,"schema":{"ctor":{"params":[],"kwparams":{}},"methods":{"get_counter":{"params":[],"kwparams":{},"readonly":true,"ret":"int"},"increment":{"params":[],"kwparams":{},"readonly":false,"ret":"null","payable":false}}}}

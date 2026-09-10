@@ -1,0 +1,12 @@
+{
+  "summary": {"policyKey":"policy-003-v2","targetId":"target-003","version":2,"manifestHash":"0xabc123","creator":"0x3333333333333333333333333333333333333333","createdAt":"2026-08-01T00:00:00Z","activationNotBefore":"2026-08-02T00:00:00Z","activatedAt":"2026-08-02T00:00:00Z","sealed":true,"active":true,"superseded":false,"ruleCount":2,"resourceCount":2,"effectCount":3,"humanOverrideEnabled":false},
+  "rules": [
+    {"ruleId":"rule-provider-compromise","judge":"0x4444444444444444444444444444444444444444","ruleKind":"INCIDENT","provisionalAllowed":true,"reportBond":"1000000000000000000","confirmedBounty":"500000000000000000","enabled":true},
+    {"ruleId":"rule-remediation-confirmed","judge":"0x4444444444444444444444444444444444444444","ruleKind":"REMEDIATION","provisionalAllowed":false,"reportBond":"0","confirmedBounty":"0","enabled":true}
+  ],
+  "effects": [
+    {"actionType":"RESTRICT","resourceId":"provider:A","paramU256":null,"paramStr":null,"releasePhase":"PROVISIONAL","enabled":true},
+    {"actionType":"ENTER_SAFE_MODE","resourceId":"provider:A","paramU256":null,"paramStr":null,"releasePhase":"PROVISIONAL","enabled":true},
+    {"actionType":"RESTORE","resourceId":"provider:A","paramU256":null,"paramStr":null,"releasePhase":"RECOVERY_VALIDATED","enabled":true}
+  ]
+}

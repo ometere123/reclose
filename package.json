@@ -1,0 +1,25 @@
+{
+  "name": "reclose",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Reclose R1 - runtime assurance for autonomous economic systems",
+  "workspaces": [
+    "packages/*",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run schema:validate",
+    "schema:validate": "node scripts/validate-fixtures.js",
+    "contracts:lint": "node scripts/list-deployable-contracts.js"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
+  }
+}

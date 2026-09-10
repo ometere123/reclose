@@ -1,0 +1,8 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+rootdir: /tmp/reclose_g0
+plugins: genlayer-test-0.30.0rc2
+collecting ... collected 1 item
+
+test_direct_smoke.py::test_direct_smoke_deploy_and_increment PASSED      [100%]
+[exited with code 0]

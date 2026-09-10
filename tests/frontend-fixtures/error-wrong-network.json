@@ -1,0 +1,1 @@
+{"code":"WRONG_NETWORK","message":"Connected wallet is on chain 61999 (studionet), but Reclose R1 requires chain 61997 (studio-dev).","nextSteps":"Switch your wallet network to Studio-dev (chain 61997) and try again.","sourceTxId":null}

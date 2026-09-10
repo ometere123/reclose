@@ -1,0 +1,50 @@
+runner_name: py-genlayer
+runner_hash: 5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng
+multi_runner_hash: faykzar6hr5ehfm07jatm69erx6nv96wmz1ab1dszjthbcgre3m0
+stdlib_runner_name: py-lib-genlayer-std
+stdlib_hash: kzr02ndm9et4qkmbqpq5djjt5sme2yt76n7sz1qbzax0knt6mam0
+optional_embeddings_runner_hash: hqpree1t3470fnac2aeee1y5c2205k22bgk1p98sg8m3s1ndmxbg
+cpython_runner_hash: 3t4hs1eyrs8rb0qf538cbc227jskqeke9pfys0vaftapv91xn9v0
+softfloat_runner_hash: v6s4797q2d2x800nhbrwbmsx6v3xe4gfzcdqk3t9s3dkvppvhg20
+cloudpickle_runner_hash: 9kem275vsxfhtjf6q49xjw051ybdvzmpmtmsd52aby20g1359sqg
+protobuf_runner_hash: g626etbaad7a3zqdp7wqd7d5k0ywdphjkdxk9rg8abhx2ggmv8e0
+
+registry_source: genlayerlabs/genvm-manager GitHub releases v0.6.0-rc3 and v0.6.0-rc4 (Consensus v0.6 RC family
+  matching Studio v0.123.0-rc.6), cross-verified against the runner header exposed by Studio-dev's own live
+  built-in contract templates (https://studio-dev.genlayer.com "storage.py" example) and against the local
+  gltest-direct runner cache (C:\Users\USER\.cache\gltest-direct\trees-v2\v0.6.0-rc4).
+verified_at: 2026-09-10T00:00:00Z (funded follow-up session; superseded values from a prior 2026-09-10T00:00:00Z
+  entry sourced from sdk.genlayer.com/main - see docs/execution/Studio-dev Toolchain & Network Compatibility
+  Record.md CF-010 for why that source was rejected)
+verification_method: |
+  1. Read the exact runner dependency header shown in Studio-dev's own live, built-in "storage.py" example
+     contract via the in-app browser (v0.123.0-rc.6): py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng
+  2. Confirmed genvm-lint (0.11.1rc2) can locally resolve and validate a contract pinned to this exact hash
+     (`genvm-lint check` -> PASS) using its downloaded genlayerlabs/genvm-manager v0.6.0-rc4 bundle.
+  3. Confirmed the SAME hash is the only current-layout ("runners/") py-genlayer entry present in BOTH cached
+     genvm-manager release bundles (v0.6.0-rc3 and v0.6.0-rc4) - i.e. it is stable across at least two point
+     releases of the Consensus v0.6 RC family, not a one-off.
+  4. Attempted the same validation with the previously-recorded S10 (sdk.genlayer.com/main) snapshot hash
+     (9b8kjyda2ycxyq4ea6g4yfpnydxhd52gqba5rb8dw7krkh5mn9p0): genvm-lint FAILED with
+     "runner py-genlayer:9b8k... not found" against the same v0.6.0-rc4 bundle - proving that hash does not exist
+     in the actual Consensus v0.6 RC runner family Studio-dev/v0.123.0-rc.6 ships, and must not be used as the
+     Reclose R1 pinned baseline.
+  5. Read runner.json inside the extracted py-genlayer:5jycge... runner to recover its exact stdlib/cpython/
+     cloudpickle dependency hashes (all recorded above).
+  6. Independently confirmed the identical py-genlayer hash is present in gltest's own separate Direct Mode
+     runner cache (gltest-direct/trees-v2/v0.6.0-rc4/runners/py-genlayer/), a third, independent code path.
+  7. Deployed a contract pinned to this exact hash to live Studio-dev chain 61997 and successfully ran
+     deploy + write + read against it (see release-evidence/r1/g0/deploy-success-pinned/).
+selection_rationale: |
+  Two candidate sources disagreed: sdk.genlayer.com/main (S10, tracks the "main"/HEAD SDK branch) reported hash
+  9b8kjyda2... as "current"; Studio-dev's own live v0.123.0-rc.6 environment and its bundled genvm-manager
+  v0.6.0-rc3/rc4 release family both expose and only support hash 5jycge4q.... The S10 hash was proven NOT to
+  exist/resolve anywhere in the genvm-manager v0.6.0-rc3/rc4 runner family (see step 4 above) - it belongs to a
+  newer or differently-versioned runner set on the "main" branch that has not (yet) been shipped to the specific
+  Studio-dev RC deployment Reclose targets. Per this record's own authority rule (Section 2.1): "verified live
+  Studio-dev / chain 61997 behaviour with the exact pinned compatible RC stack outranks stale examples,
+  remembered package versions and unverified notes." sdk.genlayer.com/main is, relative to this specific pinned
+  RC family, exactly such an ahead-of-baseline / not-yet-verified source. The hash was NOT chosen because it is
+  newer - it was chosen because it is the only one that is proven resolvable, stable across two release points,
+  and independently corroborated by three separate tools/caches (genvm-linter, gltest-direct, and Studio-dev's
+  own live template) against the exact RC family Studio-dev v0.123.0-rc.6 ships.

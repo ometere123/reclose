@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/policy/PolicySummary.schema.json",
+  "title": "PolicySummary",
+  "type": "object",
+  "required": ["policyKey", "targetId", "version", "manifestHash", "sealed", "active", "superseded", "ruleCount", "resourceCount", "effectCount", "humanOverrideEnabled"],
+  "properties": {
+    "policyKey": { "type": "string" },
+    "targetId": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "manifestHash": { "type": "string" },
+    "creator": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "activationNotBefore": { "type": "string", "format": "date-time" },
+    "activatedAt": { "type": ["string", "null"], "format": "date-time" },
+    "sealed": { "type": "boolean" },
+    "active": { "type": "boolean" },
+    "superseded": { "type": "boolean" },
+    "ruleCount": { "type": "integer", "minimum": 0 },
+    "resourceCount": { "type": "integer", "minimum": 0 },
+    "effectCount": { "type": "integer", "minimum": 0, "description": "total effects defined in the policy; any single decision's applied effects are separately bounded by MAX_EFFECTS_PER_DECISION=4 (Kernel-v1 hard safety bound)" },
+    "humanOverrideEnabled": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}

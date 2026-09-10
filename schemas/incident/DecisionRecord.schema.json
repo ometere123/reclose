@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/incident/DecisionRecord.schema.json",
+  "title": "DecisionRecord",
+  "description": "GenLayer determines the judgment; this record contains semantic codes only, never arbitrary calldata/target/authority payloads (CLAUDE.md Section 6, TM-AUTH-003).",
+  "type": "object",
+  "required": ["decisionId", "incidentId", "ruleKind", "outcome", "stage", "judge", "policyHash", "decidedAt", "genlayerTx"],
+  "properties": {
+    "decisionId": { "type": "string" },
+    "incidentId": { "type": "string" },
+    "ruleKind": { "type": "string", "enum": ["INCIDENT", "REMEDIATION", "RECOVERY_VALIDATION"] },
+    "outcome": { "$ref": "https://reclose.internal/schemas/incident/DecisionOutcome.schema.json" },
+    "stage": { "$ref": "https://reclose.internal/schemas/incident/DecisionStage.schema.json" },
+    "judge": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "policyHash": { "type": "string" },
+    "decidedAt": { "type": "string", "format": "date-time" },
+    "genlayerTx": { "$ref": "https://reclose.internal/schemas/transaction/GenLayerTransactionLifecycle.schema.json" }
+  },
+  "additionalProperties": false
+}

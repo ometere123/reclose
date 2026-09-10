@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/transaction/FeeTransactionPreview.schema.json",
+  "title": "FeeTransactionPreview",
+  "description": "A live estimate, never a hard-coded constant (CLAUDE.md Section 34/9.4-9.5). Derived only via the SDK's own estimateTransactionFees path, G0-proven at CF-011.",
+  "type": "object",
+  "required": ["network", "chainId", "estimatedFeeValueWei", "isEstimate"],
+  "properties": {
+    "network": { "type": "string", "enum": ["studio-dev"] },
+    "chainId": { "type": "integer", "enum": [61997] },
+    "estimatedFeeValueWei": { "type": "string" },
+    "isEstimate": { "const": true },
+    "bondWei": { "type": ["string", "null"], "description": "Reporter bond, economically separate from network fee estimation (CLAUDE.md Section 34)" },
+    "distributionSummary": {
+      "type": ["object", "null"],
+      "properties": {
+        "leaderTimeunitsAllocation": { "type": "string" },
+        "validatorTimeunitsAllocation": { "type": "string" },
+        "appealRounds": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

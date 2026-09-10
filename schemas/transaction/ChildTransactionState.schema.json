@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/transaction/ChildTransactionState.schema.json",
+  "title": "ChildTransactionState",
+  "description": "Judge, Kernel and Target may be separate asynchronous transaction steps (CLAUDE.md Section 9.5). Parent/child causality must be preserved (TM-UX-009, TM-LIFE-006).",
+  "type": "object",
+  "required": ["txId", "parentTxId", "role", "lifecycle"],
+  "properties": {
+    "txId": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64,}$" },
+    "parentTxId": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64,}$" },
+    "role": { "type": "string", "enum": ["JUDGE_DECISION", "KERNEL_EFFECT", "TARGET_ACTION"] },
+    "lifecycle": { "$ref": "https://reclose.internal/schemas/transaction/GenLayerTransactionLifecycle.schema.json" },
+    "executionResult": { "$ref": "https://reclose.internal/schemas/transaction/ExecutionResult.schema.json" }
+  },
+  "additionalProperties": false
+}

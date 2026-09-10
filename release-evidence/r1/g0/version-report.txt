@@ -1,0 +1,8 @@
+v24.16.0
+11.13.0
+Python 3.14.4
+genlayer CLI: 0.40.0-rc.3
+genlayer-js: 2.0.0-rc.1
+genlayer-py: 0.19.0rc2
+genlayer-test/gltest: 0.30.0rc2
+genvm-linter: 0.11.1rc2

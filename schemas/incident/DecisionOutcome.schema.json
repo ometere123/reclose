@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/incident/DecisionOutcome.schema.json",
+  "title": "DecisionOutcome",
+  "description": "The Reclose semantic decision outcome (CLAUDE.md Section 9.2 / Implementation Specification Section 10). Distinct from GenLayer transaction lifecycle status - never collapse into one field named 'status'.",
+  "type": "string",
+  "enum": ["NONE", "CONFIRMED", "REJECTED", "UNDETERMINED"]
+}

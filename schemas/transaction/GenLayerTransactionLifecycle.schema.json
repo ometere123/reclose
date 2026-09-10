@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/transaction/GenLayerTransactionLifecycle.schema.json",
+  "title": "GenLayerTransactionLifecycle",
+  "description": "Protocol transaction lifecycle state only (CLAUDE.md Section 9.1). This is NOT DecisionOutcome/DecisionStage and NOT execution result - a transaction can reach a consensus-final lifecycle state while execution failed (Section 9.4/CF-005, G0-verified live). Status strings are taken from real G0 evidence: 'Accepted' (in-flight/pending finality) and 'Finalized · Accepted' (observed via `genlayer receipt`, release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt).",
+  "type": "object",
+  "required": ["txId", "lifecycleStatus", "consensusResultName"],
+  "properties": {
+    "txId": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64,}$" },
+    "lifecycleStatus": { "type": "string", "enum": ["SUBMITTED", "ACCEPTED", "FINALIZED_ACCEPTED", "APPEALED", "REVERTED_PRE_FINALITY"] },
+    "consensusResultName": { "type": ["string", "null"], "enum": [null, "MAJORITY_AGREE", "SPLIT", "MAJORITY_DISAGREE", "TIMEOUT"] },
+    "decidedAtBlock": { "type": ["integer", "null"] },
+    "appealDeadline": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "additionalProperties": false
+}

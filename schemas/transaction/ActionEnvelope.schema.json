@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/transaction/ActionEnvelope.schema.json",
+  "title": "ActionEnvelope",
+  "description": "Generic external action envelope per Implementation Specification Section 68: action ID, incident ID, policy hash, typed action, resource, bounded parameter, nonce and expiry. No arbitrary calldata (TM-AUTH-003/TM-AUTH-009).",
+  "type": "object",
+  "required": ["actionId", "incidentId", "policyHash", "actionType", "resourceId", "nonce", "expiry"],
+  "properties": {
+    "actionId": { "type": "string" },
+    "incidentId": { "type": "string" },
+    "policyHash": { "type": "string" },
+    "actionType": { "type": "string", "enum": ["NO_ACTION", "ALERT", "MONITOR", "RESTRICT", "THROTTLE", "REVOKE_CAPABILITY", "REROUTE", "ENTER_SAFE_MODE", "PAUSE", "ENTER_RECOVERY", "RESTORE"] },
+    "resourceId": { "type": "string" },
+    "boundedParam": { "type": ["string", "null"], "description": "typed, bounded parameter value only - never arbitrary calldata" },
+    "nonce": { "type": "string" },
+    "expiry": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

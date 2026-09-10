@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/recovery/RecoveryState.schema.json",
+  "title": "RecoveryState",
+  "description": "CLAUDE.md Section 18/30. A timer alone is never recovery proof (TM-REC-004). Must show remaining restrictions and recovery requirements explicitly.",
+  "type": "object",
+  "required": ["incidentId", "targetId", "remainingRestrictions", "remediationRequired", "remediationSubmitted", "recoveryValidationRequired", "recoveryValidated"],
+  "properties": {
+    "incidentId": { "type": "string" },
+    "targetId": { "type": "string" },
+    "remainingRestrictions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["incidentId", "actionType", "resourceId"],
+        "properties": {
+          "incidentId": { "type": "string" },
+          "actionType": { "type": "string" },
+          "resourceId": { "type": "string" }
+        }
+      }
+    },
+    "remediationRequired": { "type": "boolean" },
+    "remediationSubmitted": { "type": "boolean" },
+    "remediationDecision": { "$ref": "https://reclose.internal/schemas/incident/DecisionOutcome.schema.json" },
+    "recoveryValidationRequired": { "type": "boolean" },
+    "recoveryValidated": { "type": "boolean" },
+    "restorationAvailable": { "type": "boolean" },
+    "restorationExecuted": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}

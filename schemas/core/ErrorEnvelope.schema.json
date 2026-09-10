@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/core/ErrorEnvelope.schema.json",
+  "title": "ErrorEnvelope",
+  "description": "Stable protocol error codes mapped to human explanations, per CLAUDE.md Section 39. Codes must never be swallowed.",
+  "type": "object",
+  "required": ["code", "message"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "enum": [
+        "UNAUTHORIZED_CALLER",
+        "INACTIVE_POLICY",
+        "STALE_POLICY",
+        "INVALID_EVIDENCE",
+        "WRONG_JUDGE",
+        "TRANSACTION_EXECUTION_ERROR",
+        "CHILD_TRANSACTION_FAILED",
+        "AUTHORITY_REVOKED",
+        "WRONG_NETWORK",
+        "FEE_VALUE_MUST_BE_NONZERO",
+        "FEES_DISTRIBUTION_MISSING",
+        "UNKNOWN"
+      ]
+    },
+    "message": { "type": "string" },
+    "nextSteps": { "type": ["string", "null"] },
+    "sourceTxId": { "type": ["string", "null"], "pattern": "^0x[a-fA-F0-9]{64,}$" }
+  },
+  "additionalProperties": false
+}

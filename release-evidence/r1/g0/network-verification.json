@@ -1,0 +1,47 @@
+{
+  "raw_rpc_eth_chainId": {
+    "command": "curl -X POST https://studio-dev.genlayer.com/api -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}'",
+    "response": {"jsonrpc": "2.0", "result": "0xf22d", "id": 1},
+    "decoded_chain_id": 61997
+  },
+  "cli_network_info": {
+    "command": "genlayer network info",
+    "cli_version": "0.40.0-rc.3",
+    "result": {
+      "alias": "studio-dev",
+      "type": "built-in",
+      "name": "GenLayer Studio Devnet",
+      "chainId": "61997",
+      "rpc": "https://studio-dev.genlayer.com/api",
+      "consensusMain": "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575",
+      "consensusData": "0x88B0F18613Db92Bf970FfE264E02496e20a74D16",
+      "staking": "not set",
+      "feeManager": "not set",
+      "roundsStorage": "not set",
+      "appeals": "not set"
+    }
+  },
+  "js_sdk_studioDevnet": {
+    "package": "genlayer-js@2.0.0-rc.1",
+    "id": 61997,
+    "isStudio": true,
+    "consensusMainContract_address": "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575",
+    "consensusDataContract_address": "0x88B0F18613Db92Bf970FfE264E02496e20a74D16"
+  },
+  "python_sdk_studio_devnet": {
+    "package": "genlayer-py==0.19.0rc2",
+    "id": 61997,
+    "name": "GenLayer Studio Devnet",
+    "rpc": "https://studio-dev.genlayer.com/api",
+    "consensus_main_contract_address": "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575"
+  },
+  "browser_ui_corroboration": {
+    "source": "https://studio-dev.genlayer.com (in-app browser)",
+    "displayed_version": "v0.123.0-rc.6",
+    "displayed_account": "0x96...3BE6",
+    "displayed_balance": "0 GEN",
+    "note": "0 GEN balance corroborates the G0-DEP/G0-FEE external blocker: no funded credential was available in this session."
+  },
+  "cross_source_agreement": "PASS - all four independent sources (raw RPC, CLI, JS SDK, Python SDK) report chainId 61997 and identical consensus contract addresses",
+  "verified_at": "2026-09-10"
+}

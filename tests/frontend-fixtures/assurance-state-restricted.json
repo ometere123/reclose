@@ -1,0 +1,1 @@
+{"targetId":"target-003","state":"RESTRICTED","activeRestrictions":[{"incidentId":"incident-001","actionType":"RESTRICT","resourceId":"provider:A"}],"effectiveCapabilities":["provider:B"],"asOfBlock":120345}

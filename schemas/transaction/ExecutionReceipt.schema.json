@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/transaction/ExecutionReceipt.schema.json",
+  "title": "ExecutionReceipt",
+  "description": "What actually executed, whether it succeeded, and (where required) the resulting target post-state - kept separate from lifecycle/DecisionOutcome/DecisionStage (CLAUDE.md Section 9).",
+  "type": "object",
+  "required": ["actionId", "childTx", "expectedPostStateRequired"],
+  "properties": {
+    "actionId": { "type": "string" },
+    "childTx": { "$ref": "https://reclose.internal/schemas/transaction/ChildTransactionState.schema.json" },
+    "expectedPostStateRequired": { "type": "boolean" },
+    "observedPostState": { "type": ["object", "null"] },
+    "postStateMatchesExpected": { "type": ["boolean", "null"] },
+    "feeAccounting": {
+      "type": ["object", "null"],
+      "properties": {
+        "paidFeeValueWei": { "type": "string" },
+        "totalRefundedWei": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

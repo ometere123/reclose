@@ -1,0 +1,22 @@
+{
+  "network": "studio-dev",
+  "chainId": 61997,
+  "rpc": "https://studio-dev.genlayer.com/api",
+  "deployer_account_name": "reclose-deployer",
+  "deployer_address": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+  "deployer_balance_before_deploy_tx": "100 GEN",
+  "deployer_balance_after_deploy_tx_pre_finalization": "99.774999999999936871 GEN",
+  "deployer_balance_after_both_txs_finalized": "99.999842738999998354 GEN",
+  "deployment_tx_hash": "0xe1a7f8afb21a543bab63ad6432912f9f8c4329c194320e8270e42380106d4ff5",
+  "deployed_contract_address": "0x90292B488f1d60388686c11025cf66A1Bade28F2",
+  "fee_deposit_wei": "225000000000063129",
+  "fee_deposit_gen_approx": "0.225000000000063129",
+  "fee_derivation_method": "CLI `genlayer deploy --fee-profile fee-profile.json`, which calls genlayer-js client.estimateTransactionFees() against Studio-dev's live sim_getFeeConfig policy. No FeesDistribution or fee value was hand-derived or fabricated.",
+  "lifecycle_status": "Finalized · Accepted",
+  "consensus_result_name": "MAJORITY_AGREE",
+  "txExecutionResult": 1,
+  "txExecutionResultName": "FINISHED_WITH_RETURN",
+  "total_fee_refunded_wei": "verified in write receipt; see smoke-write-receipt.txt (deploy receipt shows analogous refund fields)",
+  "command": "genlayer deploy --contract smoke_contract.py --fee-profile fee-profile.json",
+  "preceding_reverted_attempt_preserved_at": "release-evidence/r1/g0/smoke-test-report.txt (original G0 session, tx 0x90140b97d71bd1904ad263085399c6b494fae259680a22f4f054dd59a33b9d2a, FeesDistributionMissing) and release-evidence/r1/g0/deploy_reverted_history_note.md"
+}

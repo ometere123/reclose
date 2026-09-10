@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/core/AssuranceState.schema.json",
+  "title": "AssuranceStateSummary",
+  "description": "The frontend-facing summary of a target's current AssuranceState plus what is actually restricted right now - not just the enum label. Never more certain than the protocol (CLAUDE.md Section 23).",
+  "type": "object",
+  "required": ["targetId", "state", "activeRestrictions", "effectiveCapabilities", "asOfBlock"],
+  "properties": {
+    "targetId": { "type": "string" },
+    "state": { "type": "string", "enum": ["NORMAL", "MONITORED", "RESTRICTED", "SAFE_MODE", "PAUSED", "RECOVERY"] },
+    "activeRestrictions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["incidentId", "actionType", "resourceId"],
+        "properties": {
+          "incidentId": { "type": "string" },
+          "actionType": { "type": "string", "enum": ["MONITOR", "RESTRICT", "THROTTLE", "REVOKE_CAPABILITY", "REROUTE", "ENTER_SAFE_MODE", "PAUSE"] },
+          "resourceId": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "effectiveCapabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "resource/capability identifiers currently usable given all active restrictions composed together (CLAUDE.md Section 17)"
+    },
+    "asOfBlock": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

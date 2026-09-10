@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/evidence/EvidenceSource.schema.json",
+  "title": "EvidenceSource",
+  "description": "A single source within an Evidence Artifact Package. Evidence is always hostile/untrusted data (CLAUDE.md Section 15) - this type never carries executable instructions, only provenance and fetched content metadata.",
+  "type": "object",
+  "required": ["sourceId", "url", "sourceClass", "fetchedAt", "availability"],
+  "properties": {
+    "sourceId": { "type": "string" },
+    "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "sourceClass": { "type": "string", "enum": ["OFFICIAL_STATUS_PAGE", "PROVIDER_API", "NEWS", "SOCIAL", "THIRD_PARTY_MONITOR", "OTHER"] },
+    "fetchedAt": { "type": "string", "format": "date-time" },
+    "observedAt": { "type": ["string", "null"], "format": "date-time" },
+    "contentHash": { "type": ["string", "null"] },
+    "availability": { "type": "string", "enum": ["AVAILABLE", "UNAVAILABLE", "VARIANT_CONTENT", "REJECTED_BY_POLICY"] },
+    "rejectionReason": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

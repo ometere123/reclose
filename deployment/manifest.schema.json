@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/deployment-manifest.schema.json",
+  "title": "ReclosDeploymentManifest",
+  "type": "object",
+  "required": [
+    "network",
+    "chainId",
+    "contractName",
+    "contractAddress",
+    "deploymentTxId",
+    "deployerAddress",
+    "sourceCommit",
+    "constructorArgs",
+    "deployedAt"
+  ],
+  "properties": {
+    "network": { "type": "string", "enum": ["studio-dev"] },
+    "chainId": { "type": "integer", "enum": [61997] },
+    "contractName": { "type": "string" },
+    "contractAddress": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "deploymentTxId": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64,}$" },
+    "deployerAddress": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "sourceCommit": { "type": "string" },
+    "runnerDependency": { "type": "string", "description": "exact py-genlayer:<hash> header used" },
+    "constructorArgs": { "type": "array" },
+    "policyVersion": { "type": ["string", "null"] },
+    "feeDepositWei": { "type": ["string", "null"] },
+    "deployedAt": { "type": "string", "format": "date-time" },
+    "lifecycleStatus": { "type": "string" },
+    "executionResult": { "type": "string" }
+  },
+  "additionalProperties": false
+}

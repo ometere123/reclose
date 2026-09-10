@@ -1,0 +1,1 @@
+{"incidentId":"incident-011","targetId":"target-003","remainingRestrictions":[{"incidentId":"incident-011","actionType":"ENTER_SAFE_MODE","resourceId":"provider:A"}],"remediationRequired":true,"remediationSubmitted":false,"remediationDecision":"NONE","recoveryValidationRequired":true,"recoveryValidated":false,"restorationAvailable":false,"restorationExecuted":false}

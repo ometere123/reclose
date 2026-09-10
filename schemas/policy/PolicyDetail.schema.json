@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/policy/PolicyDetail.schema.json",
+  "title": "PolicyDetail",
+  "type": "object",
+  "required": ["summary", "rules", "effects"],
+  "properties": {
+    "summary": { "$ref": "https://reclose.internal/schemas/policy/PolicySummary.schema.json" },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ruleId", "judge", "ruleKind", "provisionalAllowed", "reportBond", "confirmedBounty", "enabled"],
+        "properties": {
+          "ruleId": { "type": "string" },
+          "judge": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+          "ruleKind": { "type": "string", "enum": ["INCIDENT", "REMEDIATION", "RECOVERY_VALIDATION"] },
+          "provisionalAllowed": { "type": "boolean" },
+          "reportBond": { "type": "string", "description": "u256 as decimal string" },
+          "confirmedBounty": { "type": "string", "description": "u256 as decimal string" },
+          "enabled": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["actionType", "resourceId", "releasePhase", "enabled"],
+        "properties": {
+          "actionType": { "type": "string", "enum": ["NO_ACTION", "ALERT", "MONITOR", "RESTRICT", "THROTTLE", "REVOKE_CAPABILITY", "REROUTE", "ENTER_SAFE_MODE", "PAUSE", "ENTER_RECOVERY", "RESTORE"] },
+          "resourceId": { "type": "string" },
+          "paramU256": { "type": ["string", "null"] },
+          "paramStr": { "type": ["string", "null"] },
+          "releasePhase": { "type": "string", "enum": ["PROVISIONAL", "REMEDIATION_CONFIRMED", "RECOVERY_VALIDATED"] },
+          "enabled": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

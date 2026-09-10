@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/transaction/ExecutionResult.schema.json",
+  "title": "ExecutionResult",
+  "description": "CLAUDE.md Section 9.4: a finalized transaction may still have execution failure. Enum values match genlayer-js's own ExecutionResult surface, confirmed live at G0 (release-evidence/r1/g0/deploy-success-pinned/smoke-deployment-receipt.txt: txExecutionResultName 'FINISHED_WITH_RETURN').",
+  "type": "string",
+  "enum": ["NOT_VOTED", "FINISHED_WITH_RETURN", "FINISHED_WITH_ERROR", "TIMEOUT", "NONDET_DISAGREE", "DETERMINISTIC_VIOLATION"]
+}

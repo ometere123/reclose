@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+*.keystore.json
+*.pem
+*.key
+
+# build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
+
+# local scratch (never commit ad-hoc local test scaffolding)
+/scratch/
+/tmp/

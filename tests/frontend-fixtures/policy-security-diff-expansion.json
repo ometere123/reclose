@@ -1,0 +1,1 @@
+{"fromVersion":2,"toVersion":3,"authorityExpands":true,"activationDelaySeconds":259200,"changes":[{"kind":"RESOURCE_ADDED","description":"adds provider:C as a controllable resource","isExpansion":true},{"kind":"ACTION_ADDED","description":"adds REROUTE action for provider:A","isExpansion":true}]}

@@ -1,0 +1,50 @@
+[
+  { "fixture": "target-normal.json", "schema": "core/Target.schema.json" },
+  { "fixture": "target-monitored.json", "schema": "core/Target.schema.json" },
+  { "fixture": "target-restricted.json", "schema": "core/Target.schema.json" },
+  { "fixture": "target-safe-mode.json", "schema": "core/Target.schema.json" },
+  { "fixture": "target-paused.json", "schema": "core/Target.schema.json" },
+  { "fixture": "target-recovery.json", "schema": "core/Target.schema.json" },
+
+  { "fixture": "assurance-state-restricted.json", "schema": "core/AssuranceState.schema.json" },
+  { "fixture": "assurance-state-multi-incident.json", "schema": "core/AssuranceState.schema.json" },
+
+  { "fixture": "policy-summary-active.json", "schema": "policy/PolicySummary.schema.json" },
+  { "fixture": "policy-detail-active.json", "schema": "policy/PolicyDetail.schema.json" },
+  { "fixture": "policy-security-diff-expansion.json", "schema": "policy/PolicySecurityDiff.schema.json" },
+  { "fixture": "policy-security-diff-reduction.json", "schema": "policy/PolicySecurityDiff.schema.json" },
+
+  { "fixture": "incident-open.json", "schema": "incident/Incident.schema.json" },
+  { "fixture": "incident-final-confirmed.json", "schema": "incident/Incident.schema.json" },
+  { "fixture": "incident-final-rejected.json", "schema": "incident/Incident.schema.json" },
+  { "fixture": "incident-final-undetermined.json", "schema": "incident/Incident.schema.json" },
+  { "fixture": "incident-recovery.json", "schema": "incident/Incident.schema.json" },
+
+  { "fixture": "decision-provisional-confirmed.json", "schema": "incident/DecisionRecord.schema.json" },
+  { "fixture": "decision-final-confirmed.json", "schema": "incident/DecisionRecord.schema.json" },
+  { "fixture": "decision-final-rejected.json", "schema": "incident/DecisionRecord.schema.json" },
+  { "fixture": "decision-final-undetermined.json", "schema": "incident/DecisionRecord.schema.json" },
+
+  { "fixture": "evidence-source-available.json", "schema": "evidence/EvidenceSource.schema.json" },
+  { "fixture": "evidence-source-unavailable.json", "schema": "evidence/EvidenceSource.schema.json" },
+
+  { "fixture": "tx-lifecycle-accepted.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
+  { "fixture": "tx-lifecycle-finalized-success.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
+  { "fixture": "tx-lifecycle-wrong-network.json", "schema": "transaction/GenLayerTransactionLifecycle.schema.json" },
+
+  { "fixture": "child-transaction-failed.json", "schema": "transaction/ChildTransactionState.schema.json" },
+  { "fixture": "child-transaction-succeeded.json", "schema": "transaction/ChildTransactionState.schema.json" },
+
+  { "fixture": "action-envelope-restrict.json", "schema": "transaction/ActionEnvelope.schema.json" },
+
+  { "fixture": "execution-receipt-success.json", "schema": "transaction/ExecutionReceipt.schema.json" },
+  { "fixture": "execution-receipt-child-failure.json", "schema": "transaction/ExecutionReceipt.schema.json" },
+
+  { "fixture": "recovery-state-pending-remediation.json", "schema": "recovery/RecoveryState.schema.json" },
+  { "fixture": "recovery-state-validated.json", "schema": "recovery/RecoveryState.schema.json" },
+
+  { "fixture": "error-wrong-network.json", "schema": "core/ErrorEnvelope.schema.json" },
+  { "fixture": "error-fees-distribution-missing.json", "schema": "core/ErrorEnvelope.schema.json" },
+
+  { "fixture": "fee-preview-deploy.json", "schema": "transaction/FeeTransactionPreview.schema.json" }
+]

@@ -1,0 +1,28 @@
+{
+  "deploy_tx": {
+    "hash": "0xe1a7f8afb21a543bab63ad6432912f9f8c4329c194320e8270e42380106d4ff5",
+    "lifecycle_status": "Finalized · Accepted",
+    "txExecutionResult": 1,
+    "txExecutionResultName": "FINISHED_WITH_RETURN",
+    "contract_address": "0x90292B488f1d60388686c11025cf66A1Bade28F2",
+    "paid_fee_value_wei": "225000000000063129",
+    "note": "lifecycle (Finalized/Accepted) and execution result (FINISHED_WITH_RETURN) were inspected as two distinct fields, per the compatibility record's finality-!=-success rule"
+  },
+  "write_tx": {
+    "hash": "0xa4fdd0a932408458083f39d312609f73279929c7c719021b2f70a92d88c96d7b",
+    "method": "increment",
+    "lifecycle_status": "Finalized · Accepted",
+    "txExecutionResult": 1,
+    "txExecutionResultName": "FINISHED_WITH_RETURN",
+    "consensus_result_name": "MAJORITY_AGREE",
+    "paid_fee_value_wei": "225000000000063129",
+    "total_refunded_wei": "224921371750062306",
+    "refund_reason": "finalized",
+    "note": "the large refund on finalization (deposit ~0.225 GEN, actual net cost ~0.0000786 GEN) corroborates the compatibility record's CF-004/9.7 fee and refund rules: the deposit is a conservative worst-case budget, not the real charge, and refund status must be read from the receipt, not assumed."
+  },
+  "post_state_verification": {
+    "before_write": {"method": "get_counter", "result": 0},
+    "after_write": {"method": "get_counter", "result": 1},
+    "conclusion": "deployed contract is live and functioning: state changed exactly as the write method specifies"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/policy/PolicySecurityDiff.schema.json",
+  "title": "PolicySecurityDiff",
+  "description": "What Policy UX must show before an authority-bearing signature (CLAUDE.md Section 27). Authority expansion must never be hidden behind generic 'settings changed' copy.",
+  "type": "object",
+  "required": ["fromVersion", "toVersion", "authorityExpands", "changes"],
+  "properties": {
+    "fromVersion": { "type": ["integer", "null"] },
+    "toVersion": { "type": "integer" },
+    "authorityExpands": { "type": "boolean" },
+    "activationDelaySeconds": { "type": ["integer", "null"], "description": "non-null when authorityExpands is true - expansion is always delayed, never immediate (TM-AUTH-004)" },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "description"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["ACTION_ADDED", "ACTION_REMOVED", "RESOURCE_ADDED", "RESOURCE_REMOVED", "BOUND_WIDENED", "BOUND_NARROWED", "JUDGE_CHANGED", "HUMAN_OVERRIDE_CHANGED"] },
+          "description": { "type": "string" },
+          "isExpansion": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

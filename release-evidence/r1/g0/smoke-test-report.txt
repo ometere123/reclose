@@ -1,0 +1,111 @@
+G0 Smoke Contract Verification Report
+======================================
+
+Contract: release-evidence/r1/g0/smoke-contract.py (SmokeContract)
+Runner surface: py-genlayer (verified via genvm-linter 0.11.1rc2, py-lib-genlayer-std hash dgvs4q4v3k1ac3vw6xq9h5d5gsttxe8semg9c6txcbn4r5e4b4f0)
+
+1. Lint (genvm-lint lint / check)
+   Command: genvm-lint check smoke_contract.py  (PYTHONUTF8=1 PYTHONIOENCODING=utf-8 required, see CF-006)
+   Result: PASS - "Lint passed (3 checks)"
+
+2. Semantic validation (genvm-lint check / validate)
+   Result: PASS - "Validation passed. Contract: SmokeContract. Methods: 2 (1 view, 1 write)"
+
+3. Schema extraction (genvm-lint schema --json)
+   Result: PASS
+   Output: {"ok":true,"schema":{"ctor":{"params":[],"kwparams":{}},"methods":{"get_counter":{"params":[],"kwparams":{},"readonly":true,"ret":"int"},"increment":{"params":[],"kwparams":{},"readonly":false,"ret":"null","payable":false}}}}
+
+4. Type checking (genvm-lint typecheck --json, pyright-based)
+   Result: PATH ESTABLISHED / 2 FALSE-POSITIVE DIAGNOSTICS
+   pyright flags `gl.u256(0)` and the return-type annotation `gl.u256` as "Object of type Annotated is not callable"
+   because gl.u256 is defined as a typing.Annotated alias in the SDK's static stub surface, which Pyright cannot
+   resolve as a callable constructor even though it is valid at GenVM runtime. See CF-007.
+   The typecheck command itself executes correctly once pyright is resolved from the active venv's Scripts dir on PATH.
+
+5. Direct/local test execution (gltest)
+   Command: gltest test_smoke.py --config gltest.config.yaml (network: studio_devnet, live Studio-dev RPC; no local
+   `localnet` simulator/Docker container was available in this session, see G0-TEST-01 note below)
+   Result: PARTIAL - gltest correctly resolved fixtures, built and submitted a real deployment transaction
+   (tx hash 0x90140b97d71bd1904ad263085399c6b494fae259680a22f4f054dd59a33b9d2a) to the live consensus contract
+   0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575 on chain 61997, which the network reverted with reason
+   `FeesDistributionMissing`. This proves genlayer-test/gltest 0.30.0rc2 correctly wires calldata, account
+   resolution and transaction submission against the verified studio_devnet network object end-to-end; it stopped
+   at the fee-distribution step because no funded/fee-configured account was available in this session
+   (active Studio-dev account showed 0 GEN balance, corroborated via in-app browser).
+   Classified as PARTIAL / EXTERNAL BLOCKER (no funded account / FeesDistribution not proven), not FAIL and not PASS.
+
+G0-TEST-01 (direct/local smoke test): PARTIAL / EXTERNAL BLOCKER
+  - True offline "localnet" execution requires a local GenLayer Studio simulator (Docker), which was not
+    available/authorized to start in this session. The gltest wiring itself was proven end-to-end against the
+    live studio_devnet network up to the fee/funding boundary.
+
+=======================================================================
+SESSION 2 (2026-09-10, follow-up): funded deployment and write
+=======================================================================
+
+The Studio-dev account remained unfunded when the above was written. In a follow-up within the same G0 phase, the
+repository owner funded a newly created, Reclose-dedicated CLI account (`reclose-deployer`,
+0x24fAe7cD031Ed702Be63BDeA8912141805B996bd) with 100 GEN. All CLI/SDK tooling verified above was reused unchanged.
+The original reverted transaction above is preserved as-is (not deleted or rewritten) and remains valid evidence
+of the fee-enforcement boundary; see also `deploy_reverted_history_note.md`.
+
+6. Fee-funded deployment (genlayer deploy, CLI 0.40.0-rc.3 / genlayer-js 2.0.0-rc.1)
+   Pre-submission checks: network=studio-dev, chainId=61997 (genlayer network info), active account=reclose-deployer,
+   balance=100 GEN (genlayer account show).
+   First attempt without --fees/--fee-profile: `genlayer deploy --contract smoke_contract.py`
+     -> reverted `FeeValueMustBeNonZero(1)` (tx 0x9163c00e1a21d7eb8f0a5c79e2d9fb2f403f4cad6bd3e8cf7694d5741bb8cc48).
+     This is a DIFFERENT revert reason than the unfunded attempt's `FeesDistributionMissing` - see CF-011.
+   Second attempt with a hand-written --fees distribution (leader/validator allocations from CLI help example) but
+   no fee value: `genlayer deploy --contract smoke_contract.py --fees '{"distribution":{...}}'`
+     -> reverted `FeeValueMustBeNonZero(3)` (tx 0xe53348a68b86790d1477ff104402b5c84122661b2ae80532a44ac040c24483b4).
+     Confirms a distribution object alone is insufficient; a real fee VALUE must also be derived.
+   Correct path: `genlayer deploy --contract smoke_contract.py --fee-profile fee-profile.json`, where
+   fee-profile.json = {"deploy": {}, "methods": {"increment": {}}}. This makes the CLI call
+   genlayer-js's own `client.estimateTransactionFees()`, which queries Studio-dev's live `sim_getFeeConfig` policy
+   and derives both the FeesDistribution and a non-zero feeValue automatically. No fee value or distribution was
+   hand-derived by Claude.
+   Result: SUCCESS.
+     Fee deposit: 225000000000063129 wei (~0.225 GEN)
+     Deployment tx hash: 0xe1a7f8afb21a543bab63ad6432912f9f8c4329c194320e8270e42380106d4ff5
+     Deployed contract address: 0x90292B488f1d60388686c11025cf66A1Bade28F2
+     Lifecycle: Finalized . Accepted (confirmed via `genlayer receipt <hash>`)
+     Execution result: txExecutionResult=1 / FINISHED_WITH_RETURN (checked as a field distinct from lifecycle status)
+     Full receipt: release-evidence/r1/g0/deploy-success/smoke-deployment-receipt.txt
+
+7. Post-deploy state read (genlayer call)
+   Command: genlayer call 0x90292B488f1d60388686c11025cf66A1Bade28F2 get_counter
+   Result: 0 (matches constructor default) - proves the deployed contract is live and responds correctly.
+
+8. Fee-funded write (genlayer write)
+   Command: genlayer write 0x90292B488f1d60388686c11025cf66A1Bade28F2 increment --fee-profile fee-profile.json
+   Result: SUCCESS.
+     Write tx hash: 0xa4fdd0a932408458083f39d312609f73279929c7c719021b2f70a92d88c96d7b
+     Fee deposit: 225000000000063129 wei; total_refunded (on finalization) 224921371750062306 wei
+       (net actual cost ~78628300807 wei, ~0.0000000786 GEN) - see CF-012.
+     Lifecycle: Finalized . Accepted; consensus result_name MAJORITY_AGREE
+     Execution result: txExecutionResult=1 / FINISHED_WITH_RETURN
+     Full receipt: release-evidence/r1/g0/deploy-success/smoke-write-receipt.txt
+
+9. Post-write state verification (genlayer call)
+   Command: genlayer call 0x90292B488f1d60388686c11025cf66A1Bade28F2 get_counter
+   Result: 1 (was 0 before the write) - proves the write's state change actually persisted on-chain, not merely
+   that the transaction was accepted.
+
+10. Deployer balance trail (independent corroboration of fee accounting)
+    Before any tx: 100 GEN
+    After deploy tx (pre-finalization refund): 99.774999999999936871 GEN (-0.225000000000063129 GEN, exact match
+      to the quoted fee deposit)
+    After both deploy and write finalized (refunds applied): 99.999842738999998354 GEN
+    This independently corroborates the fee_accounting refund fields in the receipts using a completely different
+    observation (account balance) than the receipt JSON itself.
+
+G0-DEP-01 smoke deploy submitted to 61997:        PASS (successful deploy, see above; the earlier PARTIAL revert
+                                                    remains as separate historical evidence, not overwritten)
+G0-DEP-04 execution result verified separately
+  from lifecycle:                                 PASS (FINISHED_WITH_RETURN checked distinctly from
+                                                    "Finalized . Accepted" lifecycle status, for both txs)
+G0-DEP-05 deployed state/read verified:            PASS (get_counter read before and after the write)
+G0-FEE-01 deploy fee path proven:                  PASS (SDK-derived fee-profile -> estimateTransactionFees path;
+                                                    no hand-derived FeesDistribution)
+G0-FEE-02 representative write fee path proven:    PASS (increment write, same SDK-derived fee path, refund
+                                                    evidence captured)

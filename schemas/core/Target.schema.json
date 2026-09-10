@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reclose.internal/schemas/core/Target.schema.json",
+  "title": "Target",
+  "type": "object",
+  "required": ["targetId", "targetAddress", "assuranceState", "activePolicyKey", "policyGeneration", "authorityRevoked", "humanOverrideEnabled", "registeredAt"],
+  "properties": {
+    "targetId": { "type": "string" },
+    "targetAddress": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "cachedOwner": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "assuranceState": { "$ref": "#/definitions/AssuranceState" },
+    "activePolicyKey": { "type": "string" },
+    "policyGeneration": { "type": "integer", "minimum": 0 },
+    "authorityRevoked": { "type": "boolean" },
+    "humanOverrideEnabled": { "type": "boolean" },
+    "registeredAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "AssuranceState": {
+      "type": "string",
+      "enum": ["NORMAL", "MONITORED", "RESTRICTED", "SAFE_MODE", "PAUSED", "RECOVERY"],
+      "description": "Implementation Specification Section 10 enum, in governance order 0-5."
+    }
+  }
+}

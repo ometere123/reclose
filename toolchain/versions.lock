@@ -1,0 +1,13 @@
+studio_family: v0.123.0-rc.6
+consensus_family: v0.6 RC family (exact hosted node build not independently queryable via public JSON-RPC in this session; corroborated by Studio UI displaying v0.123.0-rc.6)
+cli: 0.40.0-rc.3
+genlayer_js: 2.0.0-rc.1
+genlayer_py: 0.19.0rc2
+genlayer_test: 0.30.0rc2
+genvm_linter: 0.11.1rc2
+genvm_linter_install_source: PyPI (pip install genvm-linter==0.11.1rc2) - resolves CF-003 option A, public package install succeeds
+python: 3.14.4
+node: v24.16.0
+package_manager: npm 11.13.0
+verification_timestamp: 2026-09-10T00:00:00Z
+source_commit: (no git repository initialized yet in this working directory as of G0)

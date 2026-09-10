@@ -1,0 +1,1 @@
+{"fromVersion":2,"toVersion":3,"authorityExpands":false,"activationDelaySeconds":null,"changes":[{"kind":"BOUND_NARROWED","description":"lowers safe-mode spend ceiling for provider:A","isExpansion":false}]}
