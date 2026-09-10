@@ -12,6 +12,13 @@ __pycache__/
 *.keystore.json
 *.pem
 *.key
+# gltest.config.yaml holds raw deployer private keys when generating a fee profile
+# (gltest_cli's PRECONFIGURED_NETWORKS accounts field expects hex private keys, not a keystore
+# reference) - never commit a real one. .env.example/this comment document the shape instead.
+gltest.config.yaml
+
+# generated artifacts directory (contract addresses/schemas gltest writes on deploy)
+artifacts/
 
 # build artifacts
 dist/
