@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reclose.internal/schemas/incident/DecisionRecord.schema.json",
   "title": "DecisionRecord",
-  "description": "Canonical Reclose protocol semantic decision record, corrected per external A0 review finding A0-003. GenLayer determines the judgment; this record contains semantic codes only, never arbitrary calldata/target/authority payloads (CLAUDE.md Section 6, TM-AUTH-003). This record is bound to the target/policy/rule/evidence it decided over (MDP/ADR-011 evidence binding) and MUST NOT embed GenLayer transaction lifecycle state - lifecycle belongs only to a separate product-facing composition (see DecisionView.schema.json). Mixing lifecycle into this record was the defect identified in A0-003 and has been removed.",
+  "description": "Canonical Reclose protocol semantic decision record, corrected per external A0 review findings A0-003 and A0-R3. GenLayer determines the judgment; this record contains semantic codes only, never arbitrary calldata/target/authority payloads (CLAUDE.md Section 6, TM-AUTH-003). This record is bound to the target/policy/rule/evidence it decided over (MDP/ADR-011 evidence binding) and MUST NOT embed GenLayer transaction lifecycle state - lifecycle belongs only to a separate product-facing composition (see DecisionView.schema.json). Mixing lifecycle into this record was the defect identified in A0-003 and has been removed. `reporter` is a required canonical field per Master Design Package Section 21's DecisionRecord field list, which names it as a plain field with no null/optional annotation and no documented system-initiated exception - see A0-R3.",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -13,6 +13,7 @@
     "ruleId",
     "affectedResource",
     "evidenceHash",
+    "reporter",
     "outcome",
     "conditionCode",
     "reasonCodes",
@@ -52,9 +53,9 @@
       "description": "Canonical hash of the Evidence Artifact Package this decision was evaluated against (TM-EVID-013 binding)."
     },
     "reporter": {
-      "type": ["string", "null"],
+      "type": "string",
       "pattern": "^0x[a-fA-F0-9]{40}$",
-      "description": "Reporter address, if this decision stemmed from a Reporter-submitted incident. Null for decisions with no originating Reporter (e.g. a system-initiated recovery validation check)."
+      "description": "Reporter address (required canonical field per Master Design Package Section 21). Every governed R1 rule family, including RECOVERY_VALIDATED_V1, is submitted by an identified Reporter address (which MAY be the target owner/operator acting as their own Reporter for a remediation/recovery submission) - there is no locked governance decision authorizing a reporter-less DecisionRecord, so this field is never null (A0-R3)."
     },
     "outcome": { "$ref": "https://reclose.internal/schemas/incident/DecisionOutcome.schema.json" },
     "conditionCode": {

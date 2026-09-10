@@ -7,30 +7,28 @@ on:
     branches: ["main"]
 
 jobs:
-  js-verify:
+  # Single canonical verification job (A0-R5): `npm run verify` is the ONE command this repository
+  # considers "verification passed" - it runs lint/typecheck/test/schema-validate/truth-model-tests/
+  # contract-discovery(+selftest) AND the conditional Python gate (scripts/py-verify.sh) in one
+  # invocation, so CI cannot silently skip the Python half the way the prior two-job split risked.
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: npm install
-      - run: npm run lint --if-present
-      - run: npm run typecheck --if-present
-      - run: npm run schema:validate
-      - run: node scripts/list-deployable-contracts.js
-
-  py-verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
+          cache: "npm"
+      # Python version matches the G0-pinned toolchain baseline exactly (toolchain/versions.lock:
+      # python: 3.14.4) - do not silently substitute a different minor version. If GenLayer package
+      # compatibility ever requires a different CI Python version than the G0 runtime baseline, that
+      # must be recorded as an explicit, proven compatibility-matrix decision in
+      # docs/execution/Studio-dev Toolchain & Network Compatibility Record.md, not a quiet CI drift.
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14.4"
+      # `npm ci` (not `npm install`) - reproducible install strictly from package-lock.json, fails
+      # if the lockfile and package.json have drifted (A0-R5).
+      - run: npm ci
       - run: pip install -r requirements.txt
-      # Conditional gate (A0-006): SKIPPED while no contracts/Python tests exist yet, but FAILS
-      # THE BUILD the moment either appears and reports an error. Never reintroduce `|| true` here.
-      - run: bash scripts/py-verify.sh
+      - run: npm run verify

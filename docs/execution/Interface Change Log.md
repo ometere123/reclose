@@ -1,5 +1,27 @@
 # Interface Change Log
 
+## 2026-09-10 - F1-v2 -> F1-v3 (A0 re-audit remediation: A0-R3)
+
+**Change:** `DecisionRecord.reporter` changed from optional/nullable (`` `0x${string}` | null ``) to a required,
+non-null field (`` `0x${string}` ``).
+
+**Rationale:** the external A0 re-audit (finding A0-R3) identified that the locked Master Design Package Section
+21 lists `reporter` as a plain field in the canonical DecisionRecord field list, with no null/optional annotation
+and no documented exception for a system-initiated decision. The F1-v2 schema had made it nullable "for
+convenience" (a system-initiated recovery-validation check was assumed to have no Reporter) without citing any
+governance authorization for that exception - which the reviewer correctly identified as an invented exception,
+not a governed one. No such authorization exists, so the field is now required and non-null: every governed R1
+decision, including `RECOVERY_VALIDATED_V1`, is treated as submitted by an identified Reporter address (which may
+be the target owner/operator acting as their own Reporter).
+
+**Schema files touched:** `schemas/incident/DecisionRecord.schema.json` (`reporter` moved into `required`, type
+narrowed from `["string","null"]` to `"string"`).
+**Fixtures touched:** none required changes - all four `decision-*.json` fixtures and all three
+`decision-view-*.json` fixtures already used a non-null `reporter` value; re-validated with
+`npm run schema:validate` after the schema tightened.
+**Frontend Contract updated:** `docs/execution/Frontend Contract v1.md` Section 1.6 (now F1-v3).
+**Commit:** see `docs/execution/audit-packets/A0/COMMIT.txt` for the audit target commit introducing this change.
+
 ## 2026-09-10 - F1-v1 -> F1-v2 (A0 remediation: A0-003, A0-004, A0-005, A0-008)
 
 **Change:** breaking revision of three canonical types plus their fixtures, following external A0 review.

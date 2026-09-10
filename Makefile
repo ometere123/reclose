@@ -17,5 +17,8 @@ py-test:
 js-verify:
 	npm run verify
 
-verify: js-verify py-lint
+# `npm run verify` (invoked by js-verify) already includes the Python conditional gate
+# (scripts/py-verify.sh via the `verify:py` npm script), so `verify` here is just an alias -
+# there is exactly one canonical verification path, per A0-R5.
+verify: js-verify
 	@echo "Reclose root verification complete."

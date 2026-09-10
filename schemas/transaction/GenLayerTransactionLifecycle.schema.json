@@ -67,5 +67,45 @@
       "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "description": "Schema-level enforcement (A0-R6) that derived.isFinal cannot contradict rawStatus: terminal states are exactly FINALIZED and CANCELED.",
+      "if": {
+        "required": ["rawStatus"],
+        "properties": { "rawStatus": { "enum": ["FINALIZED", "CANCELED"] } }
+      },
+      "then": {
+        "properties": {
+          "derived": {
+            "type": ["object", "null"],
+            "properties": { "isFinal": { "const": true } }
+          }
+        }
+      }
+    },
+    {
+      "description": "Schema-level enforcement (A0-R6) that a non-terminal rawStatus can never claim derived.isFinal === true.",
+      "if": {
+        "required": ["rawStatus"],
+        "properties": {
+          "rawStatus": {
+            "enum": [
+              "UNINITIALIZED", "PENDING", "PROPOSING", "COMMITTING", "REVEALING",
+              "ACCEPTED", "UNDETERMINED", "APPEAL_REVEALING", "APPEAL_COMMITTING",
+              "VALIDATORS_TIMEOUT", "LEADER_TIMEOUT", "LEADER_REVEALING"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "derived": {
+            "type": ["object", "null"],
+            "properties": { "isFinal": { "const": false } }
+          }
+        }
+      }
+    }
+  ]
 }

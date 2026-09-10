@@ -1,9 +1,10 @@
 # Frontend Contract v1
 
 **Status:** FROZEN
-**Version:** F1-v2 (superseded F1-v1 per external A0 review findings A0-003/A0-004/A0-005/A0-008; see
-`docs/execution/Interface Change Log.md` for the F1-v1 -> F1-v2 change entry)
-**Freeze verification:** this document identifies itself by a stable human version label (`F1-v2`) and a freeze
+**Version:** F1-v3 (F1-v1 superseded by F1-v2 per external A0 review findings A0-003/A0-004/A0-005/A0-008;
+F1-v2 superseded by F1-v3 per external A0 re-audit finding A0-R3; see
+`docs/execution/Interface Change Log.md` for both change entries)
+**Freeze verification:** this document identifies itself by a stable human version label (`F1-v3`) and a freeze
 date, not by any commit hash - including its own containing commit's hash, which cannot be known from inside the
 file that would record it. Content-unchanged-ness between any two points in time is verified externally, by
 running `git diff <commit-a> <commit-b> -- "docs/execution/Frontend Contract v1.md"` between two already-existing
@@ -176,11 +177,16 @@ interface EvidenceSource {
 
 ### 1.6 `DecisionRecord`, `DecisionView`, `DecisionOutcome`, `DecisionStage` - `schemas/incident/*.schema.json`
 
-**Rebuilt per A0-003.** The canonical `DecisionRecord` carries the governed Reclose semantic identity and
-never embeds GenLayer transaction lifecycle state (that was the A0-003 defect: the previous version centred
-`decisionId`/`ruleKind`/`judge`/`decidedAt`/`genlayerTx` and was missing consensus/policy/evidence binding
-fields). A separate product-facing `DecisionView` composes the canonical record with its transaction lifecycle for
-UI convenience, without contaminating the protocol-semantic record itself.
+**Rebuilt per A0-003, corrected further per A0-R3.** The canonical `DecisionRecord` carries the governed Reclose
+semantic identity and never embeds GenLayer transaction lifecycle state (that was the A0-003 defect: the previous
+version centred `decisionId`/`ruleKind`/`judge`/`decidedAt`/`genlayerTx` and was missing consensus/policy/evidence
+binding fields). A separate product-facing `DecisionView` composes the canonical record with its transaction
+lifecycle for UI convenience, without contaminating the protocol-semantic record itself. `reporter` is a
+**required** field (not optional/nullable): Master Design Package Section 21 lists it as a plain field in the
+canonical DecisionRecord with no null/optional annotation and no documented system-initiated exception, so every
+DecisionRecord - including a `RECOVERY_VALIDATED_V1` decision - carries the address that submitted it (the target
+owner/operator MAY act as their own Reporter for a remediation/recovery submission, but the field is never
+absent).
 
 ```ts
 type DecisionOutcome = "NONE" | "CONFIRMED" | "REJECTED" | "UNDETERMINED";
@@ -197,7 +203,7 @@ interface DecisionRecord {
   ruleId: RuleId;                   // the governed Judge rule family (CLAUDE.md Section 14); Reporter cannot set this (TM-EVID-002)
   affectedResource: string;
   evidenceHash: string;             // binds the EAP evaluated (TM-EVID-013)
-  reporter: `0x${string}` | null;
+  reporter: `0x${string}`;          // required canonical field (MDP Section 21); no null - see A0-R3
   outcome: DecisionOutcome;
   conditionCode: string;            // rule-specific semantic result, distinct from `outcome`
   reasonCodes: string[];            // reason-indexed restriction linkage (CLAUDE.md Section 17, TM-REC-001/008)
@@ -459,7 +465,7 @@ See Section 1.11. High-consequence errors (`AUTHORITY_REVOKED`, `WRONG_NETWORK`,
 
 All F1 fixtures live under `tests/frontend-fixtures/`, indexed by `tests/frontend-fixtures/manifest.json`
 (fixture file -> schema file). Validate with `npm run schema:validate` (`scripts/validate-fixtures.js`, using
-`ajv`). Current coverage (40/40 passing as of F1-v2):
+`ajv`). Current coverage (40/40 passing as of F1-v3):
 
 ```text
 normal / monitored / restricted / safe-mode / paused / recovery targets
@@ -479,9 +485,20 @@ wrong-network (error-wrong-network.json only - there is no such thing as a "wron
 Every fixture is clearly synthetic test data (fake IDs/hashes such as `0x1111...`, `0x2222...`, never a reused
 real G0 transaction hash) and does not assert live protocol behaviour.
 
+**Executable semantic tests (A0-R6):** schema validation alone proves each fixture has the right shape, not that
+the cross-field truth-model relationships in Section 3 actually hold. `scripts/test-transaction-truth-model.js`
+(run via `npm run truth-model:test`, part of the canonical `npm run verify`) asserts against the real fixtures
+above that: `ACCEPTED` is never final; `FINALIZED` is final but does not by itself imply execution success;
+`FINALIZED` + `FINISHED_WITH_RETURN` is a genuine success while `FINALIZED` + `FINISHED_WITH_ERROR` is a failure;
+raw `UNDETERMINED` is distinct from `DecisionOutcome.UNDETERMINED`; `derived.isFinal` never contradicts
+`rawStatus`; and a `derived.displayLabel` never substitutes for the raw fields. The `isFinal`-vs-`rawStatus`
+relationship is additionally enforced at the JSON Schema level itself via `allOf`/`if`/`then` conditionals in
+`schemas/transaction/GenLayerTransactionLifecycle.schema.json`, so a fixture with a self-contradictory `derived`
+object fails `npm run schema:validate` directly, not only the semantic test script.
+
 ---
 
-## 6. Known implementation gaps at F1-v2 freeze time
+## 6. Known implementation gaps at F1-v3 freeze time
 
 - No AssuranceKernel, Policy, Judge, Vault, or ReferenceAgentProtocol contract exists yet (C1-C3 scope). All types
   above describe the *intended* shape derived from governance documents, not an already-running system.
@@ -521,8 +538,8 @@ procedure being followed: see `docs/execution/Interface Change Log.md` for the c
 ## 8. Freeze record
 
 ```text
-Frozen by: Claude Code (F1 phase; F1-v2 revision during A0 remediation)
-Version: F1-v2
+Frozen by: Claude Code (F1 phase; F1-v3 revision during A0 re-audit remediation)
+Version: F1-v3
 Freeze date: 2026-09-10
 Schema files: 19 (see schemas/ tree; includes DecisionView.schema.json added in F1-v2)
 Fixture files: 40 (tests/frontend-fixtures/, all passing npm run schema:validate)
@@ -530,16 +547,19 @@ SDK methods frozen: 14 (getTarget, getAssuranceState, getActivePolicy, getIncide
   getEffectiveProviderStatus, buildIncidentReport, buildRecoveryReport, validateAPM, hashAPM, diffAPM,
   trackTransaction, trackActionTrace)
 Governing sources: docs/governance/Research Closure & Architecture Decision Record.md,
-  docs/governance/Master Design Package.md, docs/governance/Implementation Specification.md (Sections 9-14, 68),
+  docs/governance/Master Design Package.md (Section 21 DecisionRecord field list),
+  docs/governance/Implementation Specification.md (Sections 9-14, 68),
   docs/governance/Product Requirements Document.md, docs/governance/Requirements Traceability Matrix.md,
   CLAUDE.md Sections 6, 9, 13, 15, 17, 21-34, 39; genlayer-js@2.0.0-rc.1 package type definitions (Section 1.7)
 History:
   F1-v1: content stabilized in commit 23fb711 (superseded - contained a circular self-reference bug, fixed in
     69204d5, and the A0-003/A0-004/A0-005 defects described throughout this document)
-  F1-v2: this revision, produced during A0 remediation to fix findings A0-003, A0-004, A0-005 and A0-008.
+  F1-v2: produced during the first A0 remediation pass to fix findings A0-003, A0-004, A0-005 and A0-008.
+  F1-v3: this revision, produced during A0 re-audit remediation to fix finding A0-R3 (DecisionRecord.reporter
+    made required/non-null, matching Master Design Package Section 21 exactly).
     Exact commit identity is intentionally not claimed inside this file - see
     docs/execution/audit-packets/A0/COMMIT.txt for the audit target commit this version is verified against, and
-    docs/execution/Interface Change Log.md for the change entry with its introducing commit.
+    docs/execution/Interface Change Log.md for both change entries with their introducing commits.
 Content hash: see docs/execution/audit-packets/A0/content-hashes.txt (computed from an already-existing commit,
   after that commit exists)
 ```

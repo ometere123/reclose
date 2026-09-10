@@ -4,34 +4,27 @@ This document operationalizes `docs/security/Threat Model & Security Assurance P
 Section 11-ish security baseline requirement, CLAUDE.md Section 7A). It records concrete findings, evidence, and
 residual-risk state - it does not weaken or reinterpret the locked threat catalogue.
 
-**Revision note (A0 remediation, 2026-09-10):** this document was corrected after external A0 review (finding
-A0-002) identified that the original catalogue-severity summary below was wrong (it stated 33 CRITICAL where the
-actual locked catalogue contains 25 CRITICAL / 47 HIGH / 10 MEDIUM = 82 total) and that it claimed 4 concrete
-`MITIGATED / VERIFIED` findings while only describing 3. Both are fixed below. `docs/security/Threat Status.csv`
-was independently regenerated from the locked catalogue and its severity counts are authoritative; this document's
-counts are cross-checked against it and must always agree.
+**Revision note (A0 re-audit remediation, 2026-09-10, finding A0-R2):** the external A0 re-audit rejected
+tracking `TM-INF-001`'s missing runtime-guard control under a `residual_risk` footnote while still marking the
+threat itself `MITIGATED / VERIFIED`. `TM-INF-001` is corrected below to `IN PROGRESS`. This document now reflects
+**2** concrete `MITIGATED / VERIFIED` findings (`TM-INF-003`, `TM-INF-006`), not 3. Catalogue severity totals
+(25 CRITICAL / 47 HIGH / 10 MEDIUM = 82 total) were already corrected in the prior remediation pass (finding
+A0-002) and remain unchanged and correct.
 
-## S0 summary (corrected 2026-09-10)
+## S0 summary (corrected 2026-09-10, A0-R2)
 
 - **Total threats catalogued:** 82 (`TM-AUTH-*` 12, `TM-EVID-*` 14, `TM-LIFE-*` 12, `TM-REC-*` 8, `TM-ECON-*` 8,
   `TM-INF-*` 12, `TM-UX-*` 10, `TM-REL-*` 6).
-- **Catalogue severity totals (verified against `docs/security/Threat Model & Security Assurance Plan.md` Section
-  11 and cross-checked by regenerating `Threat Status.csv` directly from that section): CRITICAL = 25, HIGH = 47,
-  MEDIUM = 10.** (The previous version of this document incorrectly stated 33 CRITICAL; that number did not match
-  the catalogue and has been removed.)
-- **MITIGATED / VERIFIED (concrete evidence exists now):** 3 - `TM-INF-001`, `TM-INF-003`, `TM-INF-006`, all
-  `TM-INF-*` (infrastructure/toolchain), because G0 and F0 produced real, checkable evidence for exactly these
-  threats before any product code exists. (The previous version of this document said "4" but only described 3
-  findings below; this was an internal inconsistency, now fixed - see F-INF-001, F-INF-003, F-INF-006 below, and
-  no fourth finding.) Note also that `TM-INF-001`'s `MITIGATED / VERIFIED` status covers only the
-  toolchain/deployment-layer half of its required control (network lock); the SDK/frontend runtime-guard half of
-  the same control does not exist yet and remains tracked as open work under `TM-UX-002`.
+- **Catalogue severity totals:** CRITICAL = 25, HIGH = 47, MEDIUM = 10 (verified against
+  `docs/security/Threat Model & Security Assurance Plan.md` Section 11 and cross-checked against
+  `docs/security/Threat Status.csv`, which is regenerated directly from that section).
+- **MITIGATED / VERIFIED (concrete evidence exists now):** 2 - `TM-INF-003`, `TM-INF-006`. Both are `TM-INF-*`
+  (infrastructure/toolchain) threats whose full required control is genuinely implemented and evidenced.
+- **IN PROGRESS (partial control, correctly not claimed as mitigated):** 1 - `TM-INF-001`. Its required control
+  has two parts ("network lock + runtime guard" per `docs/security/Threat Model & Security Assurance Plan.md`
+  Section 11.6); only the network-lock half exists. See F-INF-001 below.
 - **MITIGATED / UNVERIFIED (a control exists but is not yet fully automated/tested):** 2 (`TM-INF-004`,
-  `TM-INF-011`) - corrected from the previously used non-enum status value
-  `CONTROL IN PLACE - VERIFICATION PARTIAL`, which is not one of the seven statuses allowed by
-  `docs/security/Threat Model & Security Assurance Plan.md` Section 15
-  (`OPEN`, `IN PROGRESS`, `MITIGATED / UNVERIFIED`, `MITIGATED / VERIFIED`, `ACCEPTED RESIDUAL RISK`,
-  `REMOVED FROM SCOPE`, `BLOCKED`).
+  `TM-INF-011`).
 - **OPEN (baseline, unimplemented):** 77 - the overwhelming majority, because no AssuranceKernel, Policy, Judge,
   Evidence pipeline, Vault, or frontend implementation exists yet (C1-D4 scope). Per CLAUDE.md Section 7A rule 1,
   none of these may be marked `MITIGATED` merely because a future control is *described* in documentation - and
@@ -41,22 +34,32 @@ counts are cross-checked against it and must always agree.
   `ACCEPTED RESIDUAL RISK` for R1** - every one must reach `MITIGATED / VERIFIED` (or, if a feature is genuinely
   removed from R1 scope, `REMOVED FROM SCOPE`) before its respective audit gate (mostly A1/A2, per
   `docs/security/Threat Status.csv`'s `audit_gate` column).
+- **Implementation/test traceability (finding A0-R1):** every one of the 72 CRITICAL/HIGH threats now has a
+  non-empty `implementation_refs` and `test_refs` in `Threat Status.csv`, citing the exact PLANNED file/module
+  under the Implementation Specification's canonical repository structure (`contracts/assurance_kernel.py`,
+  `contracts/incident_judge_v1.py`, `contracts/incentive_vault.py`, `contracts/reference_agent_protocol.py`,
+  `packages/*`) and a planned test path. These are planned locations, not claims that the code or tests exist -
+  the `status` column (overwhelmingly `OPEN`) remains the authoritative statement of what is actually built.
 
 ## Findings with concrete evidence (S0-verified)
 
-### F-INF-001 - Network/chain identity threat (TM-INF-001) is partially mitigated with reproducible evidence
+### F-INF-001 - Network/chain identity threat (TM-INF-001) is only partially mitigated - status corrected to IN PROGRESS
 
 Studio-dev chain identity (61997, distinct from stable studionet's 61999) was independently verified via four
 sources at G0 (raw JSON-RPC, CLI, `genlayer-js`, `genlayer-py`) and is pinned in `toolchain/network.lock.json`.
-See `release-evidence/r1/g0/network-verification.json`.
+See `release-evidence/r1/g0/network-verification.json`. This half of the control is real and verified.
 
-**Correction (A0-002):** the required control for `TM-INF-001` is "network lock **+ runtime guard**" (two parts).
-Only the network lock exists. No runtime guard code exists yet to *enforce* this at the SDK/frontend layer (that
-is C3+/D-phase scope) - the current mitigation covers only the toolchain/deployment layer, not a running-application
-guard. This finding's status column in `Threat Status.csv` is `MITIGATED / VERIFIED` for the lock half only, with
-an explicit `residual_risk` note recording that the runtime-guard half is still open and is tracked under
-`TM-UX-002` (frontend wrong-network detection), which remains fully `OPEN`. Do not treat this finding as covering
-the eventual frontend "wrong network" UX.
+**Correction (A0-R2, supersedes the A0-002 correction):** the required control for `TM-INF-001` is "network lock
+**+ runtime guard**" (two parts). Only the network lock exists; no SDK/frontend code has been written at all, so
+there is no runtime guard to enforce this at the application layer. A prior remediation pass kept this threat's
+status as `MITIGATED / VERIFIED` and recorded the gap only in a `residual_risk` footnote - the external reviewer
+correctly rejected this as insufficient: a threat whose own required control is half-missing is not
+`MITIGATED / VERIFIED`, regardless of how clearly the gap is footnoted. `Threat Status.csv`'s `TM-INF-001` row is
+now `IN PROGRESS`, with `control_refs` explicitly marking the lock half DONE and the guard half NOT DONE, and a
+planned `implementation_refs`/`test_refs` entry for the still-missing runtime guard
+(`packages/protocol-sdk/` / `tests/frontend/test_network_guard.py`, tracked jointly with `TM-UX-002`, which
+remains fully `OPEN`). This threat will move to `MITIGATED / VERIFIED` only once both halves of its control are
+implemented and tested.
 
 ### F-INF-003 - Runner-hash drift threat (TM-INF-003) is mitigated with reproducible, sourced evidence
 
@@ -64,17 +67,18 @@ The G0 external-review closure investigated and resolved a real runner-hash disc
 CF-010): the S10 "current" registry snapshot hash was proven unresolvable in the actual `genvm-manager`
 v0.6.0-rc3/rc4 release family Studio-dev ships, while the Studio-dev template hash was proven correct via three
 independent tools. `toolchain/runner.lock` now records the exact hash plus full sourcing/rationale, directly
-satisfying this threat's required control ("runner.lock + change trigger").
+satisfying this threat's required control ("runner.lock + change trigger") in full - both halves of this
+threat's control are complete, unlike `TM-INF-001` above.
 
 ### F-INF-006 - Secret-exposure threat (TM-INF-006) checked, none found
 
 An explicit repository-wide grep for private-key patterns, the generated keystore password, and generic
 password/secret patterns was performed at the end of G0, again after F0's repository-structure work, and again
-during this A0 remediation pass. Result: clean - no secret material found in any tracked file. `.gitignore`
-excludes `*.keystore.json`, `*.pem`, `*.key`, `.env`; `.env.example` contains placeholders only. This is a
-point-in-time finding, not a permanent guarantee - CI should add an automated secret scanner (e.g. gitleaks)
-before C1, tracked as a residual item under `TM-INF-004`'s `MITIGATED / UNVERIFIED` status (dependency/CI
-hardening is bundled with that threat's remaining gap).
+during every A0 remediation pass since. Result: clean - no secret material found in any tracked file.
+`.gitignore` excludes `*.keystore.json`, `*.pem`, `*.key`, `.env`; `.env.example` contains placeholders only.
+This is a point-in-time finding, not a permanent guarantee - CI should add an automated secret scanner (e.g.
+gitleaks) before C1, tracked as a residual item under `TM-INF-004`'s `MITIGATED / UNVERIFIED` status (dependency/
+CI hardening is bundled with that threat's remaining gap).
 
 ## Architecture contradictions identified
 
@@ -85,19 +89,21 @@ address - they require correct implementation, which is C1+ scope.
 
 ## Rules this document must keep following (restated from CLAUDE.md Section 7A)
 
-1. Every CRITICAL/HIGH threat must have a planned control and verification path before C1. (Satisfied: the
-   catalogue itself, inherited unchanged from the locked Threat Model document, already specifies a control and
-   verification path for every threat; `Threat Status.csv` now also carries an explicit `requirement_refs` mapping
-   from every threat to at least one locked RTM/PRD ID, per A0-002.)
+1. Every CRITICAL/HIGH threat must have a planned control and verification path before C1. (Satisfied: every one
+   of the 72 CRITICAL/HIGH threats in `Threat Status.csv` now has a non-empty `requirement_refs`,
+   `implementation_refs`, and `test_refs`, per finding A0-R1.)
 2. CRITICAL threats cannot be accepted as residual risk for R1. (No CRITICAL threat has been marked as accepted
-   residual risk here; all 25 remain `OPEN`, or `MITIGATED / VERIFIED` with real evidence for the 3 above.)
+   residual risk here; all 25 remain `OPEN`.)
 3. HIGH threats that violate a P0 requirement or locked invariant cannot be accepted. (None have been accepted.)
-4. `MITIGATED / VERIFIED` requires concrete tests/evidence. (All 3 current `MITIGATED / VERIFIED` rows cite
-   specific evidence files; none are marked from documentation alone.)
+4. `MITIGATED / VERIFIED` requires concrete tests/evidence for the ENTIRE required control, not part of it.
+   (Corrected per A0-R2: `TM-INF-001` no longer claims full mitigation for a half-satisfied control. The 2
+   current `MITIGATED / VERIFIED` rows, `TM-INF-003`/`TM-INF-006`, cite specific evidence files covering their
+   complete required control.)
 5. New attack paths discovered during implementation receive new threat IDs, never hidden in prose/commits. (None
    discovered yet at F0/S0/A0; this rule will be exercised starting at C1.)
 6. Security-related commits/tests SHOULD cite applicable `TM-*` IDs. (Followed in `Requirements Status.csv`'s and
-   `Gate Verification Status.csv`'s `threat_ref` columns.)
+   `Gate Verification Status.csv`'s `threat_ref` columns; `Requirements Status.csv` also now carries the reverse
+   mapping - 70 requirement rows, including all `NFR-SEC-*` rows, list every threat that maps to them.)
 7. Benchmark adversarial cases MUST map to threat IDs by H1. (Not yet applicable - benchmark is H1 scope.)
 8. Audit packets at A0-A4 include threat-status deltas and security findings. (This document plus
    `Threat Status.csv` form exactly that content for the A0 packet - see `docs/execution/audit-packets/A0/`.)
