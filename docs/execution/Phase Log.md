@@ -370,3 +370,61 @@ via `requirement_refs`, still `OPEN`).
 Blockers: none. Architecture deviations: none.
 Status: A0, AWAITING EXTERNAL REVIEW (resubmission). C1 not started.
 
+## 2026-09-10 - Second A0 resubmission after second external FAIL decision (findings A0-R1 through A0-R6)
+
+The external reviewer returned **FAIL** again on the `82b0d7c` A0 submission, this time accepting findings
+A0-001, A0-004, and A0-007 as closed (and most of A0-008/A0-009 as correct) but identifying six remaining
+defects (A0-R1 through A0-R6). Fixed as genuine implementation content across two commits, per the
+repository owner's explicit remediation instructions. No content accepted as closed in the second review
+was reopened or altered.
+
+- **A0-R1 (threat implementation/test traceability):** 68 of 72 CRITICAL/HIGH threats in
+  `docs/security/Threat Status.csv` had blank `implementation_refs`/`test_refs`. All 72 now have both
+  fields populated with PLANNED locations under the Implementation Specification's canonical repository
+  structure (`contracts/assurance_kernel.py`, `contracts/incident_judge_v1.py`,
+  `contracts/incentive_vault.py`, `contracts/reference_agent_protocol.py`, `packages/*`) and a planned
+  test path. `docs/execution/Requirements Status.csv`'s `threat_ref` column now carries the reverse
+  mapping for 70 requirement rows, including all `NFR-SEC-*` rows.
+- **A0-R2 (TM-INF-001 status correction):** corrected from an overstated `MITIGATED / VERIFIED` (with the
+  missing runtime-guard half only footnoted) to `IN PROGRESS`, since its required control
+  ("network lock + runtime guard") is genuinely only half-implemented.
+  `docs/security/Security Findings.md` updated to match (2 concrete `MITIGATED / VERIFIED` findings, not 3).
+- **A0-R3 (DecisionRecord.reporter):** changed from optional/nullable to required/non-null, matching
+  Master Design Package Section 21's canonical field list exactly - the prior nullable treatment was an
+  invented convenience with no governance authorization. Frontend Contract v1.md bumped to F1-v3.
+- **A0-R4 (Gate Verification Status.csv refresh):** re-audited every F0/F1 gate row touched by the
+  remediation and pointed each at the commit that actually contains the verified fix (F0-CI-01,
+  F0-DISCOVERY-01, F1-TYPES-01, F1-SDK-01, F1-FIXTURES-01, F1-TRUTHMODEL-01, F1-FREEZE-01); fixture/schema
+  counts corrected to the actual 40/19. This was done in a separate, later commit so the ledger could
+  reference the already-existing implementation-fix commit's real hash rather than its own.
+- **A0-R5 (CI/root verification hardening):** `.github/workflows/ci.yml` now uses `npm ci` (not
+  `npm install`) and pins Python `3.14.4` (matching `toolchain/versions.lock`'s G0-verified baseline
+  exactly, was silently `3.12`); CI collapsed into one canonical `verify` job running the single
+  `npm run verify` command, which now includes the Python conditional gate via a new `verify:py` script.
+  `F0-CI-01` remains `IMPLEMENTED / UNVERIFIED` until a real remote CI run succeeds.
+- **A0-R6 (executable transaction-truth semantic tests):** new `scripts/test-transaction-truth-model.js`
+  (7 tests, wired into `npm run verify` via `truth-model:test`) proves ACCEPTED is not final; FINALIZED is
+  final but not by itself success; FINALIZED+FINISHED_WITH_ERROR is failure while
+  FINALIZED+FINISHED_WITH_RETURN is success; raw UNDETERMINED != DecisionOutcome.UNDETERMINED;
+  `derived.isFinal` never contradicts `rawStatus`; and a derived display label never substitutes for the
+  raw fields. The `isFinal`/`rawStatus` relationship is additionally enforced at the JSON Schema level via
+  `allOf`/`if`/`then` conditionals in `GenLayerTransactionLifecycle.schema.json`.
+- **Packet cleanup:** `COMMIT.txt` renamed to `commit.txt` via a Git-safe case-only rename (intermediate
+  temp name, to work around the case-insensitive filesystem); the A0 packet rebuilt for this third
+  submission with a new `gate-verification-status-snapshot.csv`.
+
+Verified at the new audit target commit (`fef26f2`), in an isolated `git worktree`, never the ambient
+working directory: `npm ci` + `npm run verify` passes (40/40 fixtures valid across 19 schema files; 7/7
+executable transaction-truth semantic tests; 0 contract-discovery violations; 8/8 discovery-boundary
+self-tests; Python conditional gate SKIPPED both halves as expected); `npm audit` 0 vulnerabilities;
+secret scan clean; `docs/governance/`, `CLAUDE.md`, `Repository Build Master Plan.md` and `toolchain/`
+remain byte-identical to the G0-accepted baseline.
+
+Requirements addressed: none newly VERIFIED (this is foundation/ledger/schema/CI remediation, not C1+
+feature work). Gate Verification Status.csv rows F0-CI-01/F0-DISCOVERY-01/F1-TYPES-01/F1-SDK-01/
+F1-FIXTURES-01/F1-TRUTHMODEL-01/F1-FREEZE-01 refreshed to current-truth commit references.
+Threat IDs touched: TM-INF-001 (status corrected from overstated to accurate), all 72 CRITICAL/HIGH
+threats (implementation_refs/test_refs added), TM-LIFE-001/002/003 (executable test coverage added).
+Blockers: none. Architecture deviations: none.
+Status: A0, AWAITING EXTERNAL REVIEW (third submission). C1 not started.
+

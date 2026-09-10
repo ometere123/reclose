@@ -1,45 +1,31 @@
 M	.github/workflows/ci.yml
 M	Makefile
-M	contracts/README.md
-M	deployment/manifest.schema.json
 M	docs/execution/Current Phase.md
 M	docs/execution/Frontend Contract v1.md
-A	docs/execution/Gate Verification Status.csv
+M	docs/execution/Gate Verification Status.csv
 M	docs/execution/Interface Change Log.md
 M	docs/execution/Phase Log.md
 M	docs/execution/Requirements Status.csv
 M	docs/execution/audit-packets/A0/COMMIT.txt
 M	docs/execution/audit-packets/A0/README.md
-A	docs/execution/audit-packets/A0/content-hashes.txt
-A	docs/execution/audit-packets/A0/verification-results.txt
+A	docs/execution/audit-packets/A0/commands-and-results.md
+A	docs/execution/audit-packets/A0/compatibility-findings.md
+M	docs/execution/audit-packets/A0/content-hashes.txt
+A	docs/execution/audit-packets/A0/evidence-index.md
+M	docs/execution/audit-packets/A0/file-manifest.txt
+A	docs/execution/audit-packets/A0/files-changed.txt
+A	docs/execution/audit-packets/A0/frontend-contract-review.md
+A	docs/execution/audit-packets/A0/known-limitations.md
+M	docs/execution/audit-packets/A0/requirements-status-snapshot.csv
+A	docs/execution/audit-packets/A0/requirements.csv
+A	docs/execution/audit-packets/A0/scope.md
+A	docs/execution/audit-packets/A0/threat-model-review.md
+M	docs/execution/audit-packets/A0/threat-status-snapshot.csv
+A	docs/execution/audit-packets/A0/threat-status.csv
+M	docs/execution/audit-packets/A0/verification-results.txt
 M	docs/security/Security Findings.md
 M	docs/security/Threat Status.csv
 M	package.json
-M	schemas/evidence/EvidenceSource.schema.json
 M	schemas/incident/DecisionRecord.schema.json
-A	schemas/incident/DecisionView.schema.json
 M	schemas/transaction/GenLayerTransactionLifecycle.schema.json
-M	scripts/list-deployable-contracts.js
-A	scripts/py-verify.sh
-A	scripts/test-list-deployable-contracts.js
-M	tests/frontend-fixtures/child-transaction-failed.json
-M	tests/frontend-fixtures/child-transaction-succeeded.json
-M	tests/frontend-fixtures/decision-final-confirmed.json
-M	tests/frontend-fixtures/decision-final-rejected.json
-M	tests/frontend-fixtures/decision-final-undetermined.json
-M	tests/frontend-fixtures/decision-provisional-confirmed.json
-A	tests/frontend-fixtures/decision-view-accepted-not-final.json
-A	tests/frontend-fixtures/decision-view-final-confirmed.json
-A	tests/frontend-fixtures/decision-view-outcome-undetermined-vs-raw-finalized.json
-M	tests/frontend-fixtures/error-fees-distribution-missing.json
-M	tests/frontend-fixtures/evidence-source-available.json
-A	tests/frontend-fixtures/evidence-source-independent-public.json
-M	tests/frontend-fixtures/evidence-source-unavailable.json
-M	tests/frontend-fixtures/execution-receipt-child-failure.json
-M	tests/frontend-fixtures/execution-receipt-success.json
-M	tests/frontend-fixtures/fee-preview-deploy.json
-M	tests/frontend-fixtures/manifest.json
-M	tests/frontend-fixtures/tx-lifecycle-accepted.json
-M	tests/frontend-fixtures/tx-lifecycle-finalized-success.json
-A	tests/frontend-fixtures/tx-lifecycle-raw-undetermined.json
-D	tests/frontend-fixtures/tx-lifecycle-wrong-network.json
+A	scripts/test-transaction-truth-model.js

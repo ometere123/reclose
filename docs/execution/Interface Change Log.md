@@ -20,7 +20,7 @@ narrowed from `["string","null"]` to `"string"`).
 `decision-view-*.json` fixtures already used a non-null `reporter` value; re-validated with
 `npm run schema:validate` after the schema tightened.
 **Frontend Contract updated:** `docs/execution/Frontend Contract v1.md` Section 1.6 (now F1-v3).
-**Commit:** see `docs/execution/audit-packets/A0/COMMIT.txt` for the audit target commit introducing this change.
+**Commit:** see `docs/execution/audit-packets/A0/commit.txt` for the audit target commit introducing this change.
 
 ## 2026-09-10 - F1-v1 -> F1-v2 (A0 remediation: A0-003, A0-004, A0-005, A0-008)
 
@@ -66,7 +66,7 @@ types materially misrepresented governed Reclose/GenLayer semantics, not merely 
 concepts. Fixed as new implementation content per the reviewer's explicit instruction not to alter F0/F1/S0
 content merely to make the audit packet look cleaner - these are genuine corrections, re-verified by re-running
 `npm run schema:validate` (40/40 pass) after the change.
-**Commit:** see `docs/execution/audit-packets/A0/COMMIT.txt` for the audit target commit introducing this change.
+**Commit:** see `docs/execution/audit-packets/A0/commit.txt` for the audit target commit introducing this change.
 
 ## 2026-09-10 - F1 initial freeze
 

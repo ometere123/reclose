@@ -558,7 +558,7 @@ History:
   F1-v3: this revision, produced during A0 re-audit remediation to fix finding A0-R3 (DecisionRecord.reporter
     made required/non-null, matching Master Design Package Section 21 exactly).
     Exact commit identity is intentionally not claimed inside this file - see
-    docs/execution/audit-packets/A0/COMMIT.txt for the audit target commit this version is verified against, and
+    docs/execution/audit-packets/A0/commit.txt for the audit target commit this version is verified against, and
     docs/execution/Interface Change Log.md for both change entries with their introducing commits.
 Content hash: see docs/execution/audit-packets/A0/content-hashes.txt (computed from an already-existing commit,
   after that commit exists)

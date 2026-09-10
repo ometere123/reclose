@@ -1,15 +1,21 @@
-Captured in an isolated `git worktree add /c/a0-verify-wt HEAD` checked out at audit target commit
-82b0d7ce50ad3db62aaa34b677bd6d8927dd7b25 (branch claude/r1-foundation), never from the ambient working
-directory, so this output reflects exactly that commit's tree. The worktree was removed after capture.
+Captured in an isolated git worktree checked out at audit target commit
+fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff (branch claude/r1-foundation), never from the ambient
+working directory, so this output reflects exactly that commit's tree. The worktree was removed
+after capture.
 
-=== npm install ===
+=== npm ci ===
 
-up to date in 1s
+added 6 packages, and audited 7 packages in 16s
+
+2 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
 
 === npm run verify ===
 
 > reclose@0.1.0 verify
-> npm run lint && npm run typecheck && npm run test && npm run schema:validate && npm run contracts:lint && npm run contracts:lint:selftest
+> npm run lint && npm run typecheck && npm run test && npm run schema:validate && npm run truth-model:test && npm run contracts:lint && npm run contracts:lint:selftest && npm run verify:py
 
 
 > reclose@0.1.0 lint
@@ -73,6 +79,19 @@ PASS  fee-preview-deploy.json  (transaction/FeeTransactionPreview.schema.json)
 
 40/40 fixtures valid.
 
+> reclose@0.1.0 truth-model:test
+> node scripts/test-transaction-truth-model.js
+
+PASS  rawStatus ACCEPTED is never treated as final
+PASS  rawStatus FINALIZED is a terminal lifecycle state but says nothing about execution success on its own
+PASS  FINALIZED lifecycle with FINISHED_WITH_ERROR execution result is a failure, not a success (TM-LIFE-002)
+PASS  FINALIZED lifecycle with FINISHED_WITH_RETURN execution result is a genuine success (control case)
+PASS  raw GenLayer TransactionStatus.UNDETERMINED is distinct from Reclose DecisionOutcome.UNDETERMINED (TM-LIFE-003)
+PASS  derived.isFinal never contradicts rawStatus across all lifecycle-bearing fixtures
+PASS  derived.displayLabel is always accompanied by, and never a substitute for, the raw fields
+
+All transaction-truth-model semantic tests passed.
+
 > reclose@0.1.0 contracts:lint
 > node scripts/list-deployable-contracts.js
 
@@ -93,7 +112,9 @@ PASS  an empty/nonexistent contracts/ directory produces zero candidates and zer
 
 All contract-discovery boundary tests passed.
 
-=== bash scripts/py-verify.sh ===
+> reclose@0.1.0 verify:py
+> bash scripts/py-verify.sh
+
 === genvm-lint gate ===
 contracts/ contains 0 deployable-contract candidate file(s):
 No test/helper files found under contracts/. Boundary OK.
@@ -108,7 +129,7 @@ py-verify: PASS (see SKIPPED notes above for anything not yet applicable).
 found 0 vulnerabilities
 
 === secret scan ===
-./docs/execution/audit-packets/A0/README.md
+./docs/execution/audit-packets/A0/commands-and-results.md
 (scan complete - any lines above are hits)
 
 === git-tracked secret-shaped files ===

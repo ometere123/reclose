@@ -2,28 +2,31 @@
 
 ## What this packet audits
 
-F0 (Repository Foundation), F1 (Internal Frontend Contract Freeze), and S0 (Security Threat Baseline),
-building on the already-externally-accepted G0 (Toolchain Conformance) baseline, **as remediated**
-after a first external A0 review returned a FAIL decision citing findings A0-001 through A0-009.
+F0 (Repository Foundation), F1 (Internal Frontend Contract Freeze, now version F1-v3), and S0
+(Security Threat Baseline), building on the already-externally-accepted G0 (Toolchain Conformance)
+baseline, **as remediated after two prior external A0 review cycles both returned FAIL**.
 
 ## Audit target
 
-`82b0d7ce50ad3db62aaa34b677bd6d8927dd7b25` on branch `claude/r1-foundation`. See `commit.txt`.
+`fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff` on branch `claude/r1-foundation`. See `commit.txt`.
 
-## What changed since the first (FAILED) A0 submission
+## Audit history
 
-The first A0 submission (audit target `69204d5bb3db0f9b6381f1ebeb7fc304f20a7433`) was reviewed and
-returned FAIL with nine findings (A0-001 through A0-009). This packet's audit target commit
-(`82b0d7c`) fixes findings A0-001 through A0-007 as genuine implementation content, and partially
-fixes A0-008 (deployment manifest title typo, synthetic-fixture hygiene, non-circular Frontend
-Contract freeze identification, schema-file-count correction). A0-008's remaining item (schema-count
-statement) and A0-009 (packet rebuild itself) are addressed by this packet.
+1. **First submission** (audit target `69204d5`) - FAIL, findings A0-001 through A0-009.
+2. **Second submission** (audit target `82b0d7c`, fixing A0-001 through A0-007 + part of A0-008) -
+   FAIL again. The reviewer explicitly accepted A0-001, A0-004, A0-007 as closed and most of
+   A0-008/A0-009 as correct, and found six remaining defects: A0-R1 through A0-R6.
+3. **This (third) submission** (audit target `fef26f2`) fixes A0-R1 through A0-R6, across two commits:
+   - `1f78b37` - A0-R1 (threat implementation/test traceability), A0-R2 (TM-INF-001 status
+     correction), A0-R3 (DecisionRecord.reporter made required), A0-R5 (CI hardening: `npm ci`,
+     Python 3.14.4, single canonical `verify` command), A0-R6 (executable transaction-truth semantic
+     tests + schema-level enforcement).
+   - `fef26f2` - A0-R4 (Gate Verification Status.csv refreshed to point at the commits that actually
+     contain each fix).
 
-Per the reviewer's explicit instruction, no F0/F1/S0 implementation was altered merely to make the
-packet look cleaner - every change under `schemas/`, `tests/frontend-fixtures/`, `scripts/`, `.github/`,
-`Makefile`, `contracts/README.md`, and `docs/security/`/`docs/execution/*.csv` is a genuine fix for a
-real correctness defect the reviewer identified, re-verified by rerunning `npm run verify` after each
-change (see `verification-results.txt`).
+Per the reviewer's standing instruction, nothing accepted as closed in the second review (A0-001,
+A0-004, A0-007, most of A0-008/A0-009) was touched again in this pass unless a later finding required
+it (e.g. fixture/schema counts in Frontend Contract v1.md were already correct and remain so).
 
 ## What did NOT change
 
@@ -31,17 +34,20 @@ change (see `verification-results.txt`).
   `Repository Build Master Plan.md` (`git diff main -- docs/governance/ CLAUDE.md
   "Repository Build Master Plan.md"` = 0 lines, re-verified at the audit target commit).
 - `toolchain/versions.lock`, `toolchain/runner.lock`, `toolchain/network.lock.json` (byte-identical to
-  the G0-externally-accepted baseline; `git diff main -- toolchain/` = 0 lines).
+  the G0-externally-accepted baseline; `git diff main -- toolchain/` = 0 lines). CI now uses the exact
+  G0-locked Python version (3.14.4) rather than silently substituting 3.12.
 - The underlying G0 evidence under `release-evidence/r1/g0/` (untouched by this remediation).
 
 ## What independent reviews this packet contains
 
-- `frontend-contract-review.md` - independent cross-check of F1 semantics versus governance
-  (A0-003/A0-004/A0-005/A0-008).
-- `threat-model-review.md` - independent cross-check of threat traceability (A0-002).
-- `compatibility-findings.md` - confirmation that G0 locks are unchanged and the one real
-  compatibility-sensitive event (CF-010) is correctly reflected.
+- `frontend-contract-review.md` - independent cross-check of F1-v3 semantics versus governance,
+  including the A0-R3 reporter fix.
+- `threat-model-review.md` - independent cross-check of threat traceability completeness (A0-R1) and
+  the TM-INF-001 status correction (A0-R2).
+- `compatibility-findings.md` - confirmation that G0 locks are unchanged and CI's Python version now
+  matches them exactly.
 - `commands-and-results.md` + `verification-results.txt` - the exact commands run and their output,
-  captured in an isolated `git worktree` at the audit target commit.
+  captured in an isolated `git worktree` at the audit target commit, including the new
+  `truth-model:test` and `verify:py` steps (A0-R5/A0-R6).
 - `known-limitations.md` - an honest list of what remains unverified or out of scope.
 - `evidence-index.md` - a map of every evidence artifact referenced by this packet.

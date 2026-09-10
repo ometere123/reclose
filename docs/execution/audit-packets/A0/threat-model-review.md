@@ -1,57 +1,58 @@
-# Threat Model Review (A0)
+# Threat Model Review (A0, second remediation pass)
 
 Independent cross-check of `docs/security/Threat Status.csv` and `docs/security/Security Findings.md`
-against `docs/security/Threat Model & Security Assurance Plan.md`, addressing finding A0-002.
+addressing findings A0-R1 and A0-R2 (A0-002's column/enum/severity-count work from the first
+remediation pass was accepted as closed and is not re-litigated here).
 
-## Column completeness
+## A0-R1: implementation/test traceability completeness
 
-`Threat Status.csv` now carries every column the Master Plan requires
-(`threat_id, status, severity, control_refs, requirement_refs, implementation_refs, test_refs,
-evidence_refs, residual_risk, owner, commit, last_updated`) plus the permitted extras
-(`affected_asset, trust_boundary, attack_precondition, audit_gate, notes`). The prior version was
-missing `requirement_refs`, `control_refs`, `implementation_refs`, `test_refs`, `evidence_refs` as
-distinct columns and used non-enum status strings.
+At the second submission, `Threat Status.csv` had correct IDs and `requirement_refs` mappings, but 68
+of the 72 CRITICAL/HIGH threats had blank `implementation_refs` and `test_refs`. The Master Plan
+requires every CRITICAL/HIGH threat to have a planned control, implementation location, verification
+path, audit gate, and requirement mapping - "planned" explicitly meaning these are S0-stage plans, not
+claims that code or tests exist yet.
 
-## Status enum compliance
+**Fix:** every one of the 72 CRITICAL/HIGH threats now has both fields populated, citing:
 
-All 82 rows use only the seven allowed values (`OPEN`, `IN PROGRESS`, `MITIGATED / UNVERIFIED`,
-`MITIGATED / VERIFIED`, `ACCEPTED RESIDUAL RISK`, `REMOVED FROM SCOPE`, `BLOCKED`). Verified
-programmatically (0 rows outside the enum) - see `commands-and-results.md` item 11.
+- an `implementation_refs` location under the Implementation Specification's canonical repository
+  structure (Section 7: `contracts/assurance_kernel.py`, `contracts/incident_judge_v1.py`,
+  `contracts/incentive_vault.py`, `contracts/reference_agent_protocol.py`, `packages/policy-compiler/`,
+  `packages/evidence-builder/`, `packages/protocol-sdk/`, `packages/transaction-tracker/`, or - for
+  already-G0-verified infrastructure threats - the actual existing `toolchain/`/`.github/` files);
+- a `test_refs` planned path under a consistent test-tree convention (`tests/kernel/`, `tests/judge/`,
+  `tests/vault/`, `tests/lifecycle/`, `tests/recovery/`, `tests/economics/`, `tests/infra/`,
+  `tests/frontend/`) - this convention is Claude's own reasonable choice, since the Implementation
+  Specification names `contracts/` modules but does not itself enumerate `tests/` subdirectories; it is
+  consistent with the test categories CLAUDE.md Section 36 requires.
 
-## Requirement mapping
+Verified programmatically: 72/72 CRITICAL/HIGH threats have non-empty `implementation_refs` AND
+`test_refs` (0 missing) - see `commands-and-results.md` item 9.
 
-Every one of the 72 CRITICAL/HIGH threats now has a non-empty `requirement_refs` field mapping it to
-at least one locked RTM/PRD ID (verified programmatically - 0 missing, see `commands-and-results.md`
-item 10). Mappings were built from `docs/security/Threat Model & Security Assurance Plan.md` Section
-16's baseline table where that table directly named a threat family, and extended by area-appropriate
-PRD/NFR IDs for threats Section 16 did not individually name (e.g. `TM-REC-*` -> `PRD-REC-*`,
-`TM-UX-*` -> the relevant `PRD-*`/`NFR-UX-*` product surface).
+**Reverse mapping:** `docs/execution/Requirements Status.csv`'s `threat_ref` column now carries the
+reverse mapping for every requirement referenced by at least one threat - 70 requirement rows,
+including all `NFR-SEC-*` rows, so traceability works in both directions as required.
 
-## Severity totals cross-check
+## A0-R2: TM-INF-001 status correction
 
-Catalogue severity totals were re-derived by parsing
-`docs/security/Threat Model & Security Assurance Plan.md` Section 11's own tables programmatically:
-**CRITICAL = 25, HIGH = 47, MEDIUM = 10** (total 82). `Threat Status.csv`'s per-row `severity` column
-matches this exactly (verified: grouping `Threat Status.csv` by `severity` produces the same counts).
-`docs/security/Security Findings.md`'s summary was corrected to match (previously said 33 CRITICAL).
+At the second submission, `TM-INF-001` was `MITIGATED / VERIFIED` with a `residual_risk` note
+explaining that the required control's runtime-guard half was missing. The reviewer correctly rejected
+this: `TM-INF-001`'s locked required control is "network lock + runtime guard" (two parts) - a threat
+whose own required control is half-missing cannot be `MITIGATED / VERIFIED` regardless of how clearly
+a footnote records the gap.
 
-## MITIGATED / VERIFIED review
+**Fix:** `TM-INF-001` is now `IN PROGRESS`. Its `control_refs` field explicitly marks the lock half
+DONE and the guard half NOT DONE; its `implementation_refs`/`test_refs` describe the still-missing
+planned runtime guard (`packages/protocol-sdk/` / `tests/frontend/test_network_guard.py`, tracked
+jointly with `TM-UX-002`, which remains fully `OPEN`). `docs/security/Security Findings.md` was
+updated to match: 2 concrete `MITIGATED / VERIFIED` findings now (`TM-INF-003`, `TM-INF-006`), not 3.
 
-Three threats carry real evidence: `TM-INF-001`, `TM-INF-003`, `TM-INF-006`. `TM-INF-001`'s row and
-its corresponding finding (`F-INF-001`) were corrected to state explicitly that its required control
-("network lock + runtime guard") is only half-satisfied - the network lock exists and is verified; the
-SDK/frontend runtime guard does not exist yet (no SDK/frontend code has been written at all). This
-threat remains `MITIGATED / VERIFIED` in the status column with an explicit `residual_risk` note
-recording the gap, rather than being silently marked fully closed. `TM-INF-003` and `TM-INF-006` are
-fully closed with no such caveat.
+Verified programmatically: `TM-INF-001.status === "IN PROGRESS"`; the `MITIGATED / VERIFIED` set is
+exactly `{TM-INF-003, TM-INF-006}` - see `commands-and-results.md` item 10.
 
-## No CRITICAL accepted as residual risk
+## Unchanged from the first remediation pass (accepted as closed)
 
-Verified programmatically: 0 rows with `severity=CRITICAL` and `status=ACCEPTED RESIDUAL RISK` (see
-`commands-and-results.md` item 12).
-
-## S0 baseline commit reference
-
-The S0 baseline is recorded via this packet's `commit.txt` (the audit target commit) rather than any
-self-referential claim inside `Threat Status.csv` itself, avoiding the same circularity class of bug
-found in the Frontend Contract (A0-008/frontend-contract-review.md).
+- Column completeness (`control_refs`, `requirement_refs`, `implementation_refs`, `test_refs`,
+  `evidence_refs`, `residual_risk`, `owner`, `commit`, `last_updated` plus permitted extras).
+- Status enum compliance (only the seven allowed values).
+- Severity totals (CRITICAL=25, HIGH=47, MEDIUM=10, matching the locked catalogue exactly).
+- 0 CRITICAL threats marked `ACCEPTED RESIDUAL RISK`.

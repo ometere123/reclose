@@ -21,10 +21,20 @@ docs/execution/Requirements Status.csv
 docs/execution/Studio-dev Toolchain & Network Compatibility Record.md
 docs/execution/audit-packets/A0/COMMIT.txt
 docs/execution/audit-packets/A0/README.md
+docs/execution/audit-packets/A0/commands-and-results.md
+docs/execution/audit-packets/A0/compatibility-findings.md
 docs/execution/audit-packets/A0/content-hashes.txt
+docs/execution/audit-packets/A0/evidence-index.md
 docs/execution/audit-packets/A0/file-manifest.txt
+docs/execution/audit-packets/A0/files-changed.txt
+docs/execution/audit-packets/A0/frontend-contract-review.md
+docs/execution/audit-packets/A0/known-limitations.md
 docs/execution/audit-packets/A0/requirements-status-snapshot.csv
+docs/execution/audit-packets/A0/requirements.csv
+docs/execution/audit-packets/A0/scope.md
+docs/execution/audit-packets/A0/threat-model-review.md
 docs/execution/audit-packets/A0/threat-status-snapshot.csv
+docs/execution/audit-packets/A0/threat-status.csv
 docs/execution/audit-packets/A0/verification-results.txt
 docs/governance/Implementation Specification.md
 docs/governance/Master Design Package.md
@@ -87,6 +97,7 @@ schemas/transaction/GenLayerTransactionLifecycle.schema.json
 scripts/list-deployable-contracts.js
 scripts/py-verify.sh
 scripts/test-list-deployable-contracts.js
+scripts/test-transaction-truth-model.js
 scripts/validate-fixtures.js
 sentinel/README.md
 tests/README.md
