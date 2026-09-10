@@ -156,6 +156,49 @@ def _valid_hash(value: str) -> bool:
     return True
 
 
+def _normalize_hash_arg(value) -> str:
+    """Defensive lossless normalization for canonical Keccak-256 hash-shaped calldata arguments
+    (C1R live-deployment finding, verified against the exact pinned genlayer CLI 0.40.0-rc.3
+    source: `dist/index.js`'s `--args` scalar parser matches ANY `0x`+hex-digits token against
+    `HEX_RE` before it ever considers a plain-string fallback, so a canonical lowercase 64-hex
+    hash string passed via `--args` is always CLI-side coerced to a BigInt/int before it reaches
+    this contract - there is no CLI escape syntax to force a hex-shaped value to remain a string.
+    This is a verified CLI-tooling behavior, not a contract defect (CLAUDE.md Section 5: verified
+    live RC behavior controls runtime/toolchain facts). Since `_valid_hash` requires EXACTLY 64
+    hex characters, the round-trip int->'0x' + zero-padded-64-hex is lossless (leading zero
+    nibbles are restored by the fixed-width format), so this narrows CLI-argument-encoding
+    friction without weakening `_valid_hash`'s canonical-format enforcement below - a value that
+    round-trips incorrectly (out of u256 range, or the caller genuinely sent a malformed string)
+    still fails `_valid_hash` exactly as before."""
+    if isinstance(value, str):
+        return value
+    try:
+        as_int = int(value)
+    except (TypeError, ValueError):
+        return value
+    if as_int < 0 or as_int >= (1 << 256):
+        return value
+    return "0x" + format(as_int, "064x")
+
+
+def _normalize_str_arg(value):
+    """Defensive normalization for optional/empty str-typed calldata arguments (C1R live-
+    deployment finding, verified against the exact pinned genlayer CLI 0.40.0-rc.3 source):
+    `dist/index.js`'s `--args` scalar parser runs `Number(value)` on any token that isn't
+    null/true/false/an address/a `b#`-prefixed byte string/`0x`-hex, and `Number("")` is `0` in
+    JavaScript (not NaN) - so an intentionally EMPTY string argument (e.g. `parent_incident_id`
+    for an INCIDENT-kind decision, or `resource_id`/`param_str` for a target-wide effect) is
+    CLI-side coerced to the integer `0`, not the empty string, with no CLI escape available.
+    Recovers the intended empty string losslessly; a non-zero int is left untouched (that would
+    indicate a genuine caller error, not this CLI quirk, and must still fail the normal
+    identifier/length validation below rather than being silently accepted)."""
+    if isinstance(value, str):
+        return value
+    if value == 0:
+        return ""
+    return value
+
+
 def _ck(*parts: str) -> str:
     """Canonical length-prefixed composite-key encoding (C1R A1-H09): `<len(p)>:<p>` per part,
     concatenated. Immune to delimiter-collision ambiguity that raw `":".join(parts)` has whenever
@@ -386,6 +429,7 @@ class AssuranceKernel(gl.contract.Contract):
 
     @gl.public.write
     def begin_policy(self, target_id: str, policy_key: str, manifest_hash: str) -> None:
+        manifest_hash = _normalize_hash_arg(manifest_hash)
         self._require(_valid_identifier(policy_key, 96), "INVALID_POLICY_KEY")
         self._require(_valid_hash(manifest_hash), "INVALID_MANIFEST_HASH")
         target = self.targets[target_id]
@@ -502,6 +546,8 @@ class AssuranceKernel(gl.contract.Contract):
         param_str: str,
         release_phase: gl.u8,
     ) -> None:
+        resource_id = _normalize_str_arg(resource_id)
+        param_str = _normalize_str_arg(param_str)
         self._require(_valid_identifier(resource_id, 64, allow_empty=True), "INVALID_RESOURCE_ID")
         header = self.policy_headers[policy_key]
         target = self.targets[header.target_id]
@@ -758,6 +804,10 @@ class AssuranceKernel(gl.contract.Contract):
         judge_version: gl.u32,
     ) -> None:
         reporter = gl.Address(reporter)
+        policy_hash = _normalize_hash_arg(policy_hash)
+        evidence_hash = _normalize_hash_arg(evidence_hash)
+        parent_incident_id = _normalize_str_arg(parent_incident_id)
+        resource_id = _normalize_str_arg(resource_id)
         self._require(_valid_identifier(incident_id, 96), "INVALID_INCIDENT_ID")
         self._require(_valid_identifier(parent_incident_id, 96, allow_empty=True), "INVALID_PARENT_INCIDENT_ID")
         self._require(_valid_identifier(rule_id, 64), "INVALID_RULE_ID")

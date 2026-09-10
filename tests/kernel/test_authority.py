@@ -670,3 +670,48 @@ def test_malformed_hash_rejected(kernel_harness, direct_vm):
         kernel.begin_policy("target-001", "policy-x", "0xmanifest1")  # too short, not hex
     with pytest.raises(Exception):
         kernel.begin_policy("target-001", "policy-y", "0x" + "A" * 64)  # uppercase hex rejected
+
+
+def test_hash_argument_normalizes_from_int_calldata(kernel_harness, direct_vm):
+    """C1R live-deployment finding: the exact pinned genlayer CLI 0.40.0-rc.3's --args scalar
+    parser always coerces a `0x`+hex token to a BigInt/int before it reaches this contract (no
+    CLI escape exists to force a hex-shaped string to stay a string) - see _normalize_hash_arg's
+    docstring. Prove the round-trip is lossless: passing the int form of a valid canonical hash
+    must be accepted identically to passing the string form."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    hash_str = "0x" + "7" * 64
+    hash_int = int(hash_str, 16)
+    kernel.begin_policy("target-001", "policy-int-hash", hash_int)
+    kernel.add_policy_rule("policy-int-hash", "R1", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.seal_policy("policy-int-hash")
+    kernel.activate_policy("policy-int-hash")
+    kernel.receive_decision(
+        "incident-int-hash", "", "target-001", "policy-int-hash", 1, hash_int,
+        "R1", "", owner_addr, hash_int, OUTCOME_CONFIRMED, "C1", STAGE_FINAL, 1,
+    )
+    # a leading-zero-shaped hash must round-trip through zero-padding, not just any hash value
+    padded_hash_str = "0x" + "00" + "9" * 62
+    padded_hash_int = int(padded_hash_str, 16)
+    kernel.begin_policy("target-001", "policy-padded-hash", padded_hash_int)
+
+
+def test_empty_str_argument_normalizes_from_int_zero_calldata(kernel_harness, direct_vm):
+    """C1R live-deployment finding: the exact pinned genlayer CLI 0.40.0-rc.3's --args scalar
+    parser runs `Number(value)` on non-special tokens, and `Number("")` is `0` in JavaScript, so
+    an intentionally empty string argument (parent_incident_id for an INCIDENT decision,
+    resource_id/param_str for a target-wide effect) arrives at the contract as the int 0, not the
+    empty string - see _normalize_str_arg's docstring. Prove int 0 is accepted identically to "".
+    """
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-empty-str", M2)
+    kernel.add_policy_rule("policy-empty-str", "R1", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-empty-str", "R1", 7, 0, 0, 0, 2)  # ENTER_SAFE_MODE, resource_id=int 0
+    kernel.seal_policy("policy-empty-str")
+    kernel.activate_policy("policy-empty-str")
+    kernel.receive_decision(
+        "incident-empty-str", 0, "target-001", "policy-empty-str", 1, M2,
+        "R1", 0, owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_FINAL, 1,
+    )
+    assert int(kernel.get_target_state("target-001")) == 3  # SAFE_MODE
