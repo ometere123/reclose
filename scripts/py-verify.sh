@@ -47,10 +47,27 @@ if [ -z "$PY_TEST_FILES" ]; then
   echo "SKIPPED: no Python test files exist yet under tests/ (F0/pre-C1 state). Nothing to run."
 else
   echo "Found Python test files - running pytest (failure now fails the build)."
-  python3 -m pytest tests -v
-  PYTEST_EXIT=$?
+  # genlayer-test's Direct Mode has a confirmed Windows-host limitation (same class of issue as
+  # G0's CF-013): its message-injection helper os.unlink()s a temp file it still holds open via
+  # os.dup2, which POSIX allows but Windows does not - this hangs (rather than raising) on native
+  # Windows Python in some cases. WSL/Linux (including GitHub Actions' ubuntu runners) do not have
+  # this problem - all C1 contract tests were independently verified passing there. Bound the
+  # local Windows-native invocation with a timeout so a real local run FAILS FAST and visibly
+  # rather than hanging indefinitely; this is never silently treated as a pass.
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 180 python3 -m pytest tests -v
+    PYTEST_EXIT=$?
+    if [ "$PYTEST_EXIT" -eq 124 ]; then
+      echo "FAIL: pytest timed out after 180s - this matches the known Windows-host genlayer-test"
+      echo "  Direct Mode limitation (os.unlink on an open fd; see known-limitations.md and CF-013"
+      echo "  precedent from G0). Re-run via WSL/Linux, where this suite passes (31/31 verified)."
+    fi
+  else
+    python3 -m pytest tests -v
+    PYTEST_EXIT=$?
+  fi
   if [ "$PYTEST_EXIT" -ne 0 ]; then
-    echo "FAIL: pytest reported failures."
+    echo "FAIL: pytest reported failures (or timed out - see above)."
     STATUS=1
   fi
 fi

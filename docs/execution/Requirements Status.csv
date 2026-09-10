@@ -7,26 +7,26 @@ PRD-ACC-005,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
 PRD-ACC-006,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
 PRD-ACC-007,NOT STARTED,Claude/Frontend,C4,,,,TM-UX-008,,,2026-09-10
 PRD-ACC-008,NOT STARTED,Claude/Frontend,C4,,,,,,,2026-09-10
-PRD-TGT-001,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
-PRD-TGT-002,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
+PRD-TGT-001,IN PROGRESS,Claude/Protocol+Frontend,C1/C4,contracts/assurance_kernel.py::register_target,tests/kernel/test_authority.py::test_duplicate_target_registration_rejected,,,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
+PRD-TGT-002,IN PROGRESS,Claude/Protocol+Frontend,C1/C4,contracts/assurance_kernel.py::register_target (live get_owner/get_assurance_controller handshake),tests/kernel/test_authority.py::test_unauthorized_owner_cannot_construct_policy,,,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
 PRD-TGT-003,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-UX-003,,,2026-09-10
 PRD-TGT-004,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
-PRD-TGT-005,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-AUTH-007,,,2026-09-10
-PRD-TGT-006,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-AUTH-010,,,2026-09-10
+PRD-TGT-005,IN PROGRESS,Claude/Protocol+Frontend,C1/C4,contracts/assurance_kernel.py::revoke_authority; contracts/reference_agent_protocol.py::revoke_assurance_controller/owner_emergency_pause,tests/kernel/test_authority.py::test_authority_revoked_path,,TM-AUTH-007,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
+PRD-TGT-006,IN PROGRESS,Claude/Protocol+Frontend,C1/C4,contracts/reference_agent_protocol.py::owner_restore (human_override_enabled gate),tests/reference-agent/test_reference_agent_protocol.py::test_human_override_restores_only_when_enabled,,TM-AUTH-010,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
 PRD-TGT-007,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
-PRD-TGT-008,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
-PRD-POL-001,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
-PRD-POL-002,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-TGT-008,IN PROGRESS,Claude/Protocol+Frontend,C1/C4,"packages/protocol-sdk/src/sdk.ts (RecloseSDK interface, type-only)",packages/protocol-sdk/src/__typetests__/,,,SDK is type-only per F1 - runtime implementation against the deployed C1 contracts not yet built,,2026-09-10
+PRD-POL-001,IN PROGRESS,Claude/Protocol+SDK,C1/C4,contracts/assurance_kernel.py::begin_policy/add_policy_resource/add_policy_rule/add_policy_effect/seal_policy/activate_policy,tests/kernel/test_authority.py (12/19 tests exercise policy construction),,,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
+PRD-POL-002,IN PROGRESS,Claude/Protocol+SDK,C1/C4,contracts/assurance_kernel.py policy construction methods,tests/kernel/test_authority.py,,,packages/policy-compiler not started (C2+ scope),,2026-09-10
 PRD-POL-003,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,TM-AUTH-011,,,2026-09-10
 PRD-POL-004,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,TM-AUTH-012,,,2026-09-10
-PRD-POL-005,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
-PRD-POL-006,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,TM-AUTH-002;TM-AUTH-005,,,2026-09-10
+PRD-POL-005,IN PROGRESS,Claude/Protocol+SDK,C1/C4,contracts/assurance_kernel.py::activate_policy (sealed/active/superseded lifecycle),tests/kernel/test_authority.py::test_authority_reduction_is_immediate;test_authority_expansion_requires_timelock,,,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
+PRD-POL-006,IN PROGRESS,Claude/Protocol+SDK,C1/C4,contracts/assurance_kernel.py::add_policy_effect (SUPPORTED_ACTIONS default-deny),tests/kernel/test_authority.py::test_unsupported_action_rejected_at_policy_construction,,TM-AUTH-002;TM-AUTH-005,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
 PRD-POL-007,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,TM-UX-001,,,2026-09-10
-PRD-POL-008,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,TM-AUTH-004,,,2026-09-10
-PRD-POL-009,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
+PRD-POL-008,IN PROGRESS,Claude/Protocol+SDK,C1/C4,contracts/assurance_kernel.py::activate_policy (timelock on expansion),tests/kernel/test_authority.py::test_authority_expansion_requires_timelock,,TM-AUTH-004,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
+PRD-POL-009,IN PROGRESS,Claude/Protocol+SDK,C1/C4,contracts/assurance_kernel.py::disable_action/disable_resource,tests/kernel/test_authority.py::test_overlay_can_immediately_disable_action;test_overlay_cannot_broaden_authority,,,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
 PRD-POL-010,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,TM-UX-001,,,2026-09-10
 PRD-POL-011,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,,,,2026-09-10
-PRD-POL-012,NOT STARTED,Claude/Protocol+SDK,C1/C4,,,,TM-AUTH-002;TM-AUTH-009,,,2026-09-10
+PRD-POL-012,IN PROGRESS,Claude/Protocol+SDK,C1/C4,contracts/assurance_kernel.py::add_policy_effect resource/action validation; contracts/reference_agent_protocol.py::apply_assurance_action resource validation,tests/kernel/test_authority.py::test_unsupported_action_rejected_at_policy_construction,,TM-AUTH-002;TM-AUTH-009,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
 PRD-REP-001,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
 PRD-REP-002,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-EVID-002,,,2026-09-10
 PRD-REP-003,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-EVID-001;TM-EVID-008;TM-EVID-009,,,2026-09-10
@@ -39,18 +39,18 @@ PRD-REP-009,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-UX-004,,,2026-09-10
 PRD-REP-010,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-ECON-001;TM-ECON-002;TM-ECON-003;TM-ECON-004;TM-ECON-006,,,2026-09-10
 PRD-REP-011,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-EVID-013,,,2026-09-10
 PRD-INC-001,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
-PRD-INC-002,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-LIFE-001;TM-LIFE-003,,,2026-09-10
+PRD-INC-002,IN PROGRESS,Claude/Protocol+Frontend,C1/C4,contracts/assurance_kernel.py::receive_decision,tests/kernel/test_authority.py::test_no_action_without_active_policy;test_wrong_judge_rejected;test_stale_policy_decision_rejected,,TM-LIFE-001;TM-LIFE-003,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
 PRD-INC-003,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-LIFE-001;TM-UX-005,,,2026-09-10
 PRD-INC-004,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-UX-009,,,2026-09-10
-PRD-INC-005,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-LIFE-002;TM-LIFE-006;TM-UX-006,,,2026-09-10
+PRD-INC-005,IN PROGRESS,Claude/Protocol+Frontend,C1/C4,contracts/assurance_kernel.py::_apply_final (FINAL_CONFIRMED/REJECTED/UNDETERMINED),tests/kernel/test_authority.py::test_resolving_incident_a_does_not_remove_incident_b_restriction,,TM-LIFE-002;TM-LIFE-006;TM-UX-006,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
 PRD-INC-006,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-LIFE-002;TM-LIFE-006;TM-UX-006;TM-UX-009,,,2026-09-10
 PRD-INC-007,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-LIFE-004;TM-LIFE-005;TM-LIFE-010;TM-LIFE-011,,,2026-09-10
 PRD-INC-008,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
-PRD-INC-009,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-LIFE-010;TM-REC-001;TM-REC-002;TM-REC-008,,,2026-09-10
+PRD-INC-009,IN PROGRESS,Claude/Protocol+Frontend,C1/C4,contracts/assurance_kernel.py::apply_remediation_decision/apply_recovery_validation,tests/kernel/,,TM-LIFE-010;TM-REC-001;TM-REC-002;TM-REC-008,C2 IncidentJudge remediation/recovery rule families not started,,2026-09-10
 PRD-INC-010,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
 PRD-INC-011,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-UX-005,,,2026-09-10
 PRD-INC-012,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
-PRD-INC-013,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-AUTH-006;TM-LIFE-007;TM-LIFE-008;TM-LIFE-009,,,2026-09-10
+PRD-INC-013,IN PROGRESS,Claude/Protocol+Frontend,C1/C4,contracts/assurance_kernel.py::_resources_restricted_by/_release_incident_restrictions (reason-indexed),tests/kernel/test_authority.py::test_resolving_incident_a_does_not_remove_incident_b_restriction;test_multi_incident_restriction_composition,,TM-AUTH-006;TM-LIFE-007;TM-LIFE-008;TM-LIFE-009,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending,,2026-09-10
 PRD-INC-014,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
 PRD-REC-001,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,,,,2026-09-10
 PRD-REC-002,NOT STARTED,Claude/Protocol+Frontend,C1/C4,,,,TM-REC-003;TM-REC-005;TM-REC-007,,,2026-09-10
