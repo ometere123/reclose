@@ -20,6 +20,11 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 
 const STALE_DIAGNOSTIC_RE = /Class '([A-Za-z0-9_]+)' used in storage needs @allow_storage decorator/;
+// genvm-lint's actual per-issue diagnostic lines are prefixed "  line <N>: <message>" - only
+// these lines carry real findings. Header/summary lines ("✗ Lint failed", banners, blank lines)
+// are tool chrome, not diagnostics, and must never be treated as an unwaived failure just because
+// they don't match the one waived pattern.
+const DIAGNOSTIC_LINE_RE = /^\s*line\s+\d+\s*:/i;
 
 /**
  * @param {string} filePath - contract file to lint
@@ -39,9 +44,13 @@ function runNarrowLint(filePath, runner) {
   const unwaived = [];
 
   for (const line of lines) {
+    if (!DIAGNOSTIC_LINE_RE.test(line)) {
+      // Tool chrome (header/summary/blank) - never a diagnostic on its own, ignore it.
+      continue;
+    }
     const m = line.match(STALE_DIAGNOSTIC_RE);
     if (!m) {
-      if (line.trim().length > 0) unwaived.push(line);
+      unwaived.push(line);
       continue;
     }
     const className = m[1];
