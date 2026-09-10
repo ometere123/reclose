@@ -18,6 +18,11 @@ docs/execution/Open Blockers.md
 docs/execution/Phase Log.md
 docs/execution/Requirements Status.csv
 docs/execution/Studio-dev Toolchain & Network Compatibility Record.md
+docs/execution/audit-packets/A0/COMMIT.txt
+docs/execution/audit-packets/A0/README.md
+docs/execution/audit-packets/A0/file-manifest.txt
+docs/execution/audit-packets/A0/requirements-status-snapshot.csv
+docs/execution/audit-packets/A0/threat-status-snapshot.csv
 docs/governance/Implementation Specification.md
 docs/governance/Master Design Package.md
 docs/governance/Naming & Brand Decision Record.md

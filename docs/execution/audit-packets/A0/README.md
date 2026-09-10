@@ -12,7 +12,7 @@ the already-externally-accepted G0 (Toolchain Conformance) baseline.
 ## Exact commit submitted for review
 
 ```text
-23fb711421dafa59e919869a03e4b9b183464ed4
+cea1aa2
 ```
 
 on branch `claude/r1-foundation` (see `COMMIT.txt` in this directory). Subsequent commits in this same directory
@@ -89,7 +89,7 @@ Diff `toolchain/` against the state at G0 acceptance - should be byte-identical 
 
 ### 9. No governance document was silently modified
 
-Run `git diff <G0-acceptance-commit>..23fb711421dafa59e919869a03e4b9b183464ed4 -- docs/governance/` (or diff
+Run `git diff <G0-acceptance-commit>..cea1aa2 -- docs/governance/` (or diff
 against your own retained copy of the six governance files) - should show **no changes** to any file under
 `docs/governance/`.
 

@@ -1,3 +1,3 @@
-Reviewed state (F0/F1/S0 content): 23fb711421dafa59e919869a03e4b9b183464ed4
-Packet itself added in:            d5e101f (docs(execution): prepare A0 External Foundation Audit packet)
+Exact commit submitted for external A0 review: cea1aa2
 Branch: claude/r1-foundation
+(This is the tip of the tranche; `npm run verify` passes cleanly at this commit.)
