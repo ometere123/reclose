@@ -14,7 +14,7 @@ never invented.
 | 3 | `fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff` | **FAIL** | A0-T1 .. A0-T5 |
 | 4 | `c7ace037f63029dccff708cde1ac52372c3f642d` | **FAIL** (owner-recorded, A10) | F1 compiled-interface/schema drift, incomplete bounded-parameter enforcement, incomplete lifecycle/receipt semantic constraints, and integrity/status overclaims |
 | 5 | see `docs/execution/Current Phase.md` for this submission's audit target SHA | **FAIL** (owner-supplied external review, C1R instruction Section 0) | A0-U01 (canonical `ActionEnvelope.boundedParameters` field flattened to top-level paramU256/paramStr), A0-U02 (compiled RecloseSDK did not match all 14 frozen signatures), A0-U03 (`test-f1-parity.js` overclaimed full SDK parity while checking only a subset mechanically) |
-| 6 | see `docs/execution/Current Phase.md` for this submission's audit target SHA | AWAITING EXTERNAL REVIEW | addresses A0-U01/A0-U02/A0-U03 via F1-v6; see `docs/execution/audit-packets/A0-attempt-6/` |
+| 6 | `55ee2cbccb1be0404b7e4bfb9f265e868d5b93dc` (branch `claude/r1-core-hardening`) | AWAITING EXTERNAL REVIEW | addresses A0-U01/A0-U02/A0-U03 via F1-v6; see `docs/execution/audit-packets/A0-attempt-6/` |
 
 Detail:
 
@@ -87,7 +87,7 @@ reviewer they designate) supplies an actual external A0 decision on attempt 5.
 | Attempt | Audit target commit (full SHA) | Decision | Notes |
 |---|---|---|---|
 | 1 | `82421aab595acfda4351c54f6542a071633152ad` (branch `claude/r1-core`) | **FAIL** (owner-supplied external review, C1R instruction Section 0) | findings A1-H01..A1-H12 below; see `docs/execution/audit-packets/A1/` for the attempt-1 packet (preserved unchanged) and `docs/execution/audit-packets/A1-attempt-2/` for the closure work |
-| 2 | see `docs/execution/Current Phase.md` for this submission's audit target SHA (branch `claude/r1-core-hardening`) | AWAITING EXTERNAL REVIEW | C1R hardening pass; see `docs/execution/audit-packets/A1-attempt-2/findings-closure.md` for finding-by-finding closure |
+| 2 | `55ee2cbccb1be0404b7e4bfb9f265e868d5b93dc` (branch `claude/r1-core-hardening`) | AWAITING EXTERNAL REVIEW | C1R hardening pass; see `docs/execution/audit-packets/A1-attempt-2/findings-closure.md` for finding-by-finding closure |
 
 **Attempt 1 findings (2026-09-10, owner-supplied via the C1R hardening instruction, Section 0):**
 

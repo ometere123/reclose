@@ -428,3 +428,59 @@ threats (implementation_refs/test_refs added), TM-LIFE-001/002/003 (executable t
 Blockers: none. Architecture deviations: none.
 Status: A0, AWAITING EXTERNAL REVIEW (third submission). C1 not started.
 
+
+## C1R - Core Hardening, Architectural Correction, and Live-Proof Closure (2026-09-10)
+
+Authorized phase: C1R hardening only (owner instruction "C1R: Core Hardening, Architectural
+Correction, and Live-Proof Closure"), branch `claude/r1-core-hardening` from verified
+`claude/r1-core` HEAD `4691d58`.
+
+Phase status: complete and stopped per instruction. Audit target commit `55ee2cb`.
+
+Seven commits: `6f4bcb8` (audit/governance/interface correction, A0-U01/U02/U03), `4bb0a94`
+(Kernel data-model/security correction, A1-H01..H09,H11,H12), `c574550` (target hardening +
+narrow genvm-lint waiver, A1-H10), `d641cc8` (independent reference model + model-vs-contract
+trace tests), `3519db0` (CI fix for a real genvm-lint-wrapper bug caught by GitHub Actions),
+`4fc2599` (two CLI-arg-encoding bugs found and fixed during live deployment), `55ee2cb` (live
+deployment/proof evidence).
+
+Requirements addressed: none moved to VERIFIED this pass (see Threat Status rationale below).
+Threat IDs: no status changes this pass - the live cross-contract dispatch (A1-H08) required to
+justify upgrading TM-AUTH-*/TM-REC-*/TM-LIFE-* from MITIGATED/UNVERIFIED to VERIFIED remains
+unresolved, so none were upgraded, per Section 27's explicit rule against upgrading on
+Direct-Mode-only or partial evidence.
+
+Tests/checks run: 73/73 Direct Mode + independent-model tests (WSL/Linux); full `npm run verify`
+green on real GitHub Actions CI (run 34534943290); `scripts/test-genvm-lint-wrapper.js` 9/9;
+`scripts/test-f1-parity.js` 17/17; `scripts/test-action-envelope-negative.js` 24/24; `npm run
+typecheck` (includes the new compile-time `sdk-parity.ts` bidirectional-assignability check).
+
+Evidence produced: fresh Studio-dev (chain 61997) deployment of ProviderStubA/B, AssuranceKernel,
+ReferenceAgentProtocol (`deployment/61997/c1r-manifest.json`,
+`release-evidence/r1/c1r/deploy-log.md`); live-proven target/controller registration and full
+policy lifecycle; nine-transaction fee-allocation investigation for `receive_decision`'s
+cross-contract dispatch, reaching `InsufficientFees` (structurally valid tree) but not success.
+
+Security/invariant findings: two real CLI-arg-encoding bugs found live (hash-shaped strings and
+empty strings both mis-coerced to integers by the exact pinned `genlayer` CLI's `--args` parser)
+and fixed with `_normalize_hash_arg`/`_normalize_str_arg`, plus regression tests; a genvm-lint
+wrapper bug caught by real CI (misread the tool's own header lines as failures) and fixed.
+
+Architecture deviations: none beyond the six narrowly owner-authorized interface corrections
+recorded in `docs/execution/Interface Change Log.md`.
+
+Known limitations: see `docs/execution/audit-packets/A1-attempt-2/known-limitations.md` (10
+items) and `docs/execution/audit-packets/A0-attempt-6/` for the narrower A0 delta.
+
+Blockers: A1-H08 (live `receive_decision` -> Kernel -> Target cross-contract dispatch) remains
+unresolved - an undocumented, multi-field-coupled Studio-dev fee-validation threshold, not a
+contract defect. External review required to advance past A1; A0 attempt 6 also awaits review.
+
+External audit required next: yes - both A0 (attempt 6) and A1 (attempt 2).
+
+Exact next phase authorized if gate passes: C2 (IncidentJudgeV1, IncentiveVault, Sentinel,
+frontend) - NOT yet authorized. C2 has not started.
+
+Work deliberately not attempted because out of scope: IncidentJudgeV1, IncentiveVault, Sentinel,
+frontend/product implementation, and the reference-agent autonomous-treasury economic proof
+(Section 24, explicitly deferred to C3 per the owner's own fallback clause).
