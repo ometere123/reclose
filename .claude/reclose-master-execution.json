@@ -1,0 +1,31 @@
+{
+  "directive": "Reclose R1 Master Execution",
+  "status": "IN_PROGRESS",
+  "current_major_phase": "C1-FINAL",
+  "current_section": 5,
+  "current_task": "first-policy timelock (A1-H14)",
+  "last_completed_section": 4,
+  "last_completed_commit": "3e67ce5",
+  "owner_permission_required": false,
+  "mandatory_final_stop": "S1",
+  "phases": {
+    "C1-FINAL": "IN_PROGRESS",
+    "C2": "NOT_STARTED",
+    "C3": "NOT_STARTED",
+    "A2": "NOT_STARTED",
+    "D1": "NOT_STARTED",
+    "D2": "NOT_STARTED",
+    "D3": "NOT_STARTED",
+    "I1": "NOT_STARTED",
+    "I2": "NOT_STARTED",
+    "D4": "NOT_STARTED",
+    "A3": "NOT_STARTED",
+    "E1": "NOT_STARTED",
+    "H1": "NOT_STARTED",
+    "A4": "NOT_STARTED",
+    "R1": "NOT_STARTED",
+    "S1": "NOT_STARTED"
+  },
+  "hard_blockers": [],
+  "next_action": "Implement Section 5 (first-policy timelock, A1-H14) in contracts/assurance_kernel.py"
+}
