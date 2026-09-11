@@ -1338,3 +1338,38 @@ def test_kernel_read_views_for_judge(kernel_harness, direct_vm):
 
     target_id, pkey, rule_id, status = kernel.get_incident_summary("no-such-incident")
     assert target_id == ""
+
+
+def test_policy_enumeration_views_for_sdk_indexer(kernel_harness, direct_vm):
+    """C3 Section 36: get_policy_counts/get_policy_resource_at/get_policy_rule_id_at/
+    get_policy_effect_at let an off-chain SDK/indexer reconstruct a full PolicyDetail without
+    already knowing every rule_id/resource_id in advance - closes the read-side gap found while
+    implementing RecloseSDK.getActivePolicy()."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_resource("policy-1", "provider_b")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 5, 10)
+    kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)  # RESTRICT provider_a
+
+    rule_count, resource_count, effect_count = kernel.get_policy_counts("policy-1")
+    assert int(rule_count) == 1
+    assert int(resource_count) == 2
+    assert int(effect_count) == 1
+
+    resources = {kernel.get_policy_resource_at("policy-1", i) for i in range(int(resource_count))}
+    assert resources == {"provider_a", "provider_b"}
+    assert kernel.get_policy_resource_at("policy-1", 99) == ""
+
+    assert kernel.get_policy_rule_id_at("policy-1", 0) == "RULE_A"
+    assert kernel.get_policy_rule_id_at("policy-1", 99) == ""
+
+    rule_id, action_type, resource_id, param_u256, param_str, release_phase, enabled = kernel.get_policy_effect_at("policy-1", 0)
+    assert rule_id == "RULE_A"
+    assert int(action_type) == 3
+    assert resource_id == "provider_a"
+    assert bool(enabled) is True
+
+    _, _, _, _, _, _, enabled_oob = kernel.get_policy_effect_at("policy-1", 99)
+    assert bool(enabled_oob) is False

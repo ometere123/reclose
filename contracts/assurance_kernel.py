@@ -1473,3 +1473,40 @@ class AssuranceKernel(gl.contract.Contract):
         if incident_id not in self.incidents:
             return gl.u8(0)
         return self.incidents[incident_id].final_outcome
+
+    # -- C3 Section 36: read-model enumeration views for the SDK/indexer (PRD-DEV-*). Policy
+    # rules/resources/effects were already stored indexed-by-count internally (add_policy_rule/
+    # add_policy_resource/add_policy_effect); these views only EXPOSE that existing storage by
+    # index - no new state, no architecture change, just closing the read-side gap that blocked a
+    # real RecloseSDK.getActivePolicy() implementation (CLAUDE.md Section 21: "SDK MUST expose
+    # protocol truth without requiring the hosted frontend").
+
+    @gl.public.view
+    def get_policy_counts(self, policy_key: str) -> tuple:
+        """Returns (rule_count, resource_count, effect_count) for a policy."""
+        header = self.policy_headers[policy_key]
+        return (header.rule_count, header.resource_count, header.effect_count)
+
+    @gl.public.view
+    def get_policy_resource_at(self, policy_key: str, index: gl.u16) -> str:
+        """Returns the resource_id at this index, or "" if out of range."""
+        key = _ck(policy_key, str(int(index)))
+        return self.policy_resources[key] if key in self.policy_resources else ""
+
+    @gl.public.view
+    def get_policy_rule_id_at(self, policy_key: str, index: gl.u16) -> str:
+        """Returns the rule_id at this index, or "" if out of range - callers then pass this
+        rule_id to the existing get_policy_rule(policy_key, rule_id) view for the full record."""
+        key = _ck(policy_key, str(int(index)))
+        return self.policy_rules[key].rule_id if key in self.policy_rules else ""
+
+    @gl.public.view
+    def get_policy_effect_at(self, policy_key: str, index: gl.u16) -> tuple:
+        """Returns (rule_id, action_type, resource_id, param_u256, param_str, release_phase,
+        enabled) for the effect at this index, or a zero-valued disabled tuple if out of range or
+        the slot was never populated."""
+        key = _ck(policy_key, str(int(index)))
+        if key not in self.policy_effects:
+            return ("", gl.u8(0), "", gl.u256(0), "", gl.u8(0), False)
+        e = self.policy_effects[key]
+        return (e.rule_id, e.action_type, e.resource_id, e.param_u256, e.param_str, e.release_phase, e.enabled)
