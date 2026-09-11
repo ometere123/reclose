@@ -93,12 +93,12 @@ SUPPORTED_ACTIONS = {
     ACTION_RESTORE,
 }
 
-# R1 provisional-safe action set (Implementation Specification Section 25; TM-LIFE-* / Section 16
-# of CLAUDE.md invariant 6). Only these may execute before finality.
+# R1 provisional-safe action set - EXACTLY {MONITOR, RESTRICT, REVOKE_CAPABILITY, ENTER_SAFE_MODE}
+# per the C1-FINAL owner directive Section 4 (A1-H13: THROTTLE was previously included, disagreeing
+# with the locked R1 specification - removed). Only these may execute before finality.
 PROVISIONAL_SAFE_ACTIONS = {
     ACTION_MONITOR,
     ACTION_RESTRICT,
-    ACTION_THROTTLE,
     ACTION_REVOKE_CAPABILITY,
     ACTION_ENTER_SAFE_MODE,
 }

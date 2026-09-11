@@ -100,3 +100,37 @@ def test_unauthorized_caller_cannot_purchase(direct_deploy, direct_vm, direct_ow
     direct_vm.value = 10
     with pytest.raises(Exception):
         target.purchase_service("req-1")
+
+
+# -- C1-FINAL Section 4: exact provisional-safe action set matrix (A1-H13 closure), target layer -
+
+@pytest.mark.parametrize("action_type,resource_id,label", [
+    (2, "", "MONITOR"),
+    (3, "provider_a", "RESTRICT"),
+    (5, "provider_a", "REVOKE_CAPABILITY"),
+    (7, "", "ENTER_SAFE_MODE"),
+])
+def test_target_provisional_safe_action_accepted(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie, action_type, resource_id, label):
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    direct_vm.sender = kernel_stub
+    target.apply_assurance_action(f"a-safe-{label}", "i1", "p1", action_type, resource_id, 0, "", 1)  # PROVISIONAL
+
+
+@pytest.mark.parametrize("action_type,resource_id,label", [
+    (4, "provider_a", "THROTTLE"),
+    (6, "provider_a", "REROUTE"),
+    (8, "", "PAUSE"),
+    (9, "", "ENTER_RECOVERY"),
+    (10, "", "RESTORE"),
+])
+def test_target_provisional_unsafe_action_rejected(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie, action_type, resource_id, label):
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    direct_vm.sender = kernel_stub
+    with pytest.raises(Exception):
+        target.apply_assurance_action(f"a-unsafe-{label}", "i1", "p1", action_type, resource_id, 0, "", 1)  # PROVISIONAL

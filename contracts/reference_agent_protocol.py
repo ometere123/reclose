@@ -41,10 +41,12 @@ ACTION_RESTORE = gl.u8(10)
 DECISION_STAGE_PROVISIONAL = gl.u8(1)
 DECISION_STAGE_FINAL = gl.u8(2)
 
-# Provisional-safe subset this target accepts at PROVISIONAL stage (C1R Section 12) - must be a
-# subset of AssuranceKernel's own PROVISIONAL_SAFE_ACTIONS; PAUSE/ENTER_RECOVERY/RESTORE can never
-# be PROVISIONAL regardless of what the Kernel claims to send.
-PROVISIONAL_SAFE_ACTIONS = {int(ACTION_MONITOR), int(ACTION_RESTRICT), int(ACTION_THROTTLE), int(ACTION_REVOKE_CAPABILITY)}
+# Provisional-safe subset this target accepts at PROVISIONAL stage - EXACTLY
+# {MONITOR, RESTRICT, REVOKE_CAPABILITY, ENTER_SAFE_MODE} per the C1-FINAL owner directive Section 4
+# (A1-H13: this set previously disagreed with the Kernel's own PROVISIONAL_SAFE_ACTIONS - it
+# included THROTTLE, which is no longer provisional-safe, and omitted ENTER_SAFE_MODE, which is).
+# PAUSE/ENTER_RECOVERY/RESTORE can never be PROVISIONAL regardless of what the Kernel claims to send.
+PROVISIONAL_SAFE_ACTIONS = {int(ACTION_MONITOR), int(ACTION_RESTRICT), int(ACTION_REVOKE_CAPABILITY), int(ACTION_ENTER_SAFE_MODE)}
 
 RESOURCE_PROVIDER_A = "provider_a"
 RESOURCE_PROVIDER_B = "provider_b"

@@ -715,3 +715,62 @@ def test_empty_str_argument_normalizes_from_int_zero_calldata(kernel_harness, di
         "R1", 0, owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_FINAL, 1,
     )
     assert int(kernel.get_target_state("target-001")) == 3  # SAFE_MODE
+
+
+# -- C1-FINAL Section 4: exact provisional-safe action set matrix (A1-H13 closure) --------------
+# EXACTLY {MONITOR, RESTRICT, REVOKE_CAPABILITY, ENTER_SAFE_MODE} may execute provisionally.
+# THROTTLE was previously (incorrectly) included; ENTER_SAFE_MODE was already present.
+
+@pytest.mark.parametrize("action_type,resource_id,label", [
+    (2, "", "MONITOR"),
+    (3, "provider_a", "RESTRICT"),
+    (5, "provider_a", "REVOKE_CAPABILITY"),
+    (7, "", "ENTER_SAFE_MODE"),
+])
+def test_provisional_safe_action_dispatches(kernel_harness, direct_vm, action_type, resource_id, label):
+    """C1-FINAL Section 4 (A1-H13): each of the four provisional-safe actions must actually be
+    applied/dispatched when submitted PROVISIONAL CONFIRMED."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    policy_key = f"policy-safe-{label.lower()}"
+    kernel.begin_policy("target-001", policy_key, M1)
+    if resource_id:
+        kernel.add_policy_resource(policy_key, resource_id)
+    kernel.add_policy_rule(policy_key, "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect(policy_key, "RULE_A", action_type, resource_id, 0, "", 1)
+    kernel.seal_policy(policy_key)
+    kernel.activate_policy(policy_key)
+
+    kernel.receive_decision(
+        f"incident-safe-{label.lower()}", "", "target-001", policy_key, 1, M1,
+        "RULE_A", resource_id, owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_PROVISIONAL, 1,
+    )
+    assert len(dispatch_log) >= 1, f"{label} was not dispatched provisionally"
+
+
+@pytest.mark.parametrize("action_type,resource_id,label", [
+    (4, "provider_a", "THROTTLE"),
+    (6, "provider_a", "REROUTE"),
+    (8, "", "PAUSE"),
+    (9, "", "ENTER_RECOVERY"),
+    (10, "", "RESTORE"),
+])
+def test_provisional_unsafe_action_rejected(kernel_harness, direct_vm, action_type, resource_id, label):
+    """C1-FINAL Section 4 (A1-H13): none of THROTTLE/REROUTE/PAUSE/ENTER_RECOVERY/RESTORE may ever
+    be dispatched provisionally, even if registered as an effect for the triggering rule."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    policy_key = f"policy-unsafe-{label.lower()}"
+    kernel.begin_policy("target-001", policy_key, M1)
+    if resource_id:
+        kernel.add_policy_resource(policy_key, resource_id)
+    kernel.add_policy_rule(policy_key, "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect(policy_key, "RULE_A", action_type, resource_id, 0, "", 1)
+    kernel.seal_policy(policy_key)
+    kernel.activate_policy(policy_key)
+
+    kernel.receive_decision(
+        f"incident-unsafe-{label.lower()}", "", "target-001", policy_key, 1, M1,
+        "RULE_A", resource_id, owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_PROVISIONAL, 1,
+    )
+    assert len(dispatch_log) == 0, f"{label} must never be dispatched provisionally"
