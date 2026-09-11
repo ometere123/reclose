@@ -1,0 +1,20 @@
+{
+  "name": "@reclose/sentinel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "C3: Sentinel - improves liveness by monitoring configured sources, detecting CANDIDATE conditions, and building EAPs (CLAUDE.md Section 33). Sentinel NEVER decides truth and NEVER receives target-control authority: candidate detection here is a deterministic keyword/pattern check, never an LLM judgment - that remains exclusively IncidentJudgeV1's job. Sentinel also never custodies private keys; submission is a separate, explicit step the operator performs through their own wallet/keystore (e.g. `reclose evidence build` piped into `genlayer write`), never automated inside this package.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@reclose/protocol-sdk": "0.1.0",
+    "@reclose/evidence-builder": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "22.10.2"
+  }
+}
