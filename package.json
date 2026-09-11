@@ -3,13 +3,8 @@
   "private": true,
   "version": "0.1.0",
   "description": "Reclose R1 - runtime assurance for autonomous economic systems",
-  "workspaces": [
-    "packages/*",
-    "frontend"
-  ],
-  "engines": {
-    "node": "24.16.0"
-  },
+  "workspaces": ["packages/*", "frontend"],
+  "engines": { "node": "24.16.0" },
   "scripts": {
     "lint": "echo 'no JS/TS lint rules configured yet beyond typecheck - tracked as a known limitation'",
     "typecheck": "npm run build -w @reclose/protocol-sdk && npm run typecheck -w @reclose/protocol-sdk && npm run typecheck -w @reclose/policy-compiler && npm run typecheck -w @reclose/evidence-builder && npm run typecheck -w @reclose/transaction-tracker && npm run typecheck -w @reclose/sentinel && npm run typecheck -w @reclose/cli",
@@ -35,7 +30,8 @@
     "verify:py": "bash scripts/py-verify.sh",
     "a0-integrity": "node scripts/a0-integrity-check.js",
     "estimate-studio-dev-write": "node scripts/estimate-studio-dev-write.mjs",
-    "fee-profile": "node scripts/fee-profile.mjs"
+    "fee-profile": "node scripts/fee-profile.mjs",
+    "fee-profile:coverage": "node scripts/check-fee-profile-coverage.mjs"
   },
   "devDependencies": {
     "ajv": "8.20.0",
