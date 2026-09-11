@@ -1,7 +1,6 @@
 # Reclose R1 - pinned Python toolchain, exactly matching the G0-verified baseline.
-# See toolchain/versions.lock and toolchain/runner.lock for the full accepted baseline
-# and docs/execution/Studio-dev Toolchain & Network Compatibility Record.md for how these
-# exact versions were verified. Do not bump without rerunning G0-equivalent conformance.
+# The [sim] extra does NOT change the genlayer-test version; it installs the package's own pinned
+# sandbox/simulator dependencies (including cloudpickle) needed by spawn_sandbox validator tests.
 genlayer-py==0.19.0rc2
-genlayer-test==0.30.0rc2
+genlayer-test[sim]==0.30.0rc2
 genvm-linter==0.11.1rc2
