@@ -1265,3 +1265,44 @@ def test_redispatch_resource_restore_rejected_when_resource_re_restricted(kernel
     )
     with pytest.raises(Exception):
         kernel.redispatch_final_action(action_id)  # aggregate count is no longer zero
+
+
+# -- C1-FINAL Section 16: stable error codes (new closure) ----------------------------------------
+
+def test_stable_error_code_e_krn_008_inactive_policy(kernel_harness, direct_vm):
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    with pytest.raises(Exception) as exc_info:
+        kernel.receive_decision(
+            "incident-001", "", "target-001", "policy-nonexistent", 1, M1,
+            "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_FINAL, 1,
+        )
+    assert "E_KRN_008" in str(exc_info.value)
+
+
+def test_stable_error_code_e_krn_007_timelock(kernel_harness, direct_vm):
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.seal_policy("policy-1")
+    with pytest.raises(Exception) as exc_info:
+        kernel.activate_policy("policy-1")
+    assert "E_KRN_007" in str(exc_info.value)
+
+
+def test_stable_error_code_e_krn_011_wrong_judge(kernel_harness, direct_vm, direct_alice):
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+    direct_vm.sender = direct_alice  # not the configured Judge (owner_addr)
+    with pytest.raises(Exception) as exc_info:
+        kernel.receive_decision(
+            "incident-001", "", "target-001", "policy-1", 1, M1,
+            "RULE_A", "", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_FINAL, 1,
+        )
+    assert "E_KRN_011" in str(exc_info.value)

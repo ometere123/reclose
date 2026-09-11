@@ -215,3 +215,27 @@ def test_throttle_is_genuinely_unsupported_by_dispatch(direct_deploy, direct_vm,
     direct_vm.sender = kernel_stub
     with pytest.raises(Exception):
         target.apply_assurance_action("a1", "i1", "p1", 4, "provider_a", 0, "", 2)  # FINAL THROTTLE
+
+
+# -- C1-FINAL Section 16: stable error codes (new closure) ----------------------------------------
+
+def test_stable_error_code_e_agt_007_unauthorized_kernel(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    direct_vm.sender = direct_alice
+    with pytest.raises(Exception) as exc_info:
+        target.apply_assurance_action("a1", "i1", "p1", 3, "provider_a", 0, "", 2)
+    assert "E_AGT_007" in str(exc_info.value)
+
+
+def test_stable_error_code_e_agt_008_unsupported_action(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    direct_vm.sender = kernel_stub
+    with pytest.raises(Exception) as exc_info:
+        target.apply_assurance_action("a1", "i1", "p1", 4, "provider_a", 0, "", 2)  # THROTTLE
+    assert "E_AGT_008" in str(exc_info.value)

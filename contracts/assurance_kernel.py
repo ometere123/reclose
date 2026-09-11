@@ -419,7 +419,7 @@ class AssuranceKernel(gl.contract.Contract):
 
     def _require_live_owner(self, target_id: str, target: TargetRecord) -> None:
         live_owner = self._live_owner(target.target_address)
-        self._require(gl.message.sender_address == live_owner, "UNAUTHORIZED_CALLER: not the live target owner")
+        self._require(gl.message.sender_address == live_owner, "E_KRN_003: UNAUTHORIZED_CALLER: not the live target owner")
 
     def _require_live_controller_active(self, target_id: str, target: TargetRecord) -> None:
         """C1-FINAL Section 7 (A1-H18): the target owner may directly revoke the Kernel as
@@ -441,8 +441,8 @@ class AssuranceKernel(gl.contract.Contract):
     def register_target(self, target_id: str, target_address: gl.Address, human_override_enabled: bool) -> None:
         # Address-typed parameters arrive as raw bytes over the wire - wrap defensively.
         target_address = gl.Address(target_address)
-        self._require(_valid_identifier(target_id, 96), "INVALID_TARGET_ID")
-        self._require(target_id not in self.targets, "DUPLICATE_TARGET: target_id already registered")
+        self._require(_valid_identifier(target_id, 96), "E_KRN_001: INVALID_TARGET_ID")
+        self._require(target_id not in self.targets, "E_KRN_002: DUPLICATE_TARGET: target_id already registered")
 
         # Live handshake (C1-FINAL Section 6, A1-H15): the target must independently confirm ALL
         # FOUR of: reported owner == caller, reported controller == this Kernel, reported target
@@ -452,13 +452,13 @@ class AssuranceKernel(gl.contract.Contract):
         # be freshly registered). Do not rely only on the cached owner field for any of this.
         target_view = gl.contract.get_at(target_address)
         reported_owner = target_view.view().get_assurance_owner()
-        self._require(gl.message.sender_address == reported_owner, "UNAUTHORIZED_CALLER: caller is not target owner")
+        self._require(gl.message.sender_address == reported_owner, "E_KRN_003: UNAUTHORIZED_CALLER: caller is not target owner")
         controller = target_view.view().get_assurance_controller()
-        self._require(controller == gl.message.contract_address, "TARGET_HANDSHAKE_FAILED: target does not recognize this Kernel as controller")
+        self._require(controller == gl.message.contract_address, "E_KRN_004: TARGET_HANDSHAKE_FAILED: target does not recognize this Kernel as controller")
         reported_target_id = target_view.view().get_assurance_target_id()
-        self._require(reported_target_id == target_id, "TARGET_ID_MISMATCH: target's own reported target_id does not match the registration argument")
+        self._require(reported_target_id == target_id, "E_KRN_004: TARGET_ID_MISMATCH: target's own reported target_id does not match the registration argument")
         reported_revoked = target_view.view().is_assurance_authority_revoked()
-        self._require(not reported_revoked, "TARGET_ALREADY_REVOKED: target reports assurance authority already revoked")
+        self._require(not reported_revoked, "E_KRN_004: TARGET_ALREADY_REVOKED: target reports assurance authority already revoked")
 
         record = TargetRecord()
         record.target_address = target_address
@@ -483,7 +483,7 @@ class AssuranceKernel(gl.contract.Contract):
         self._require(_valid_hash(manifest_hash), "INVALID_MANIFEST_HASH")
         target = self.targets[target_id]
         self._require_live_owner(target_id, target)
-        self._require(policy_key not in self.policy_headers, "DUPLICATE_POLICY: policy_key already exists")
+        self._require(policy_key not in self.policy_headers, "E_KRN_005: DUPLICATE_POLICY: policy_key already exists")
 
         prior_version = gl.u32(0)
         for pk in self._policy_keys_for_target(target_id):
@@ -526,10 +526,10 @@ class AssuranceKernel(gl.contract.Contract):
         header = self.policy_headers[policy_key]
         target = self.targets[header.target_id]
         self._require_live_owner(header.target_id, target)
-        self._require(not header.sealed, "SEALED_POLICY: cannot mutate a sealed policy")
+        self._require(not header.sealed, "E_KRN_006: SEALED_POLICY: cannot mutate a sealed policy")
         for i in range(int(header.resource_count)):
             if self.policy_resources[_ck(policy_key, str(i))] == resource_id:
-                raise gl.vm.UserError("DUPLICATE_RESOURCE: resource_id already registered on this policy")
+                raise gl.vm.UserError("E_KRN_005: DUPLICATE_RESOURCE: resource_id already registered on this policy")
         idx = int(header.resource_count)
         self.policy_resources[_ck(policy_key, str(idx))] = resource_id
         header.resource_count = gl.u16(idx + 1)
@@ -549,17 +549,17 @@ class AssuranceKernel(gl.contract.Contract):
     ) -> None:
         judge = gl.Address(judge)
         self._require(_valid_identifier(rule_id, 64), "INVALID_RULE_ID")
-        self._require(int(judge_version) != 0, "INVALID_JUDGE_VERSION: judge_version must be non-zero for R1")
+        self._require(int(judge_version) != 0, "E_KRN_005: INVALID_JUDGE_VERSION: judge_version must be non-zero for R1")
         self._require(rule_kind in VALID_RULE_KINDS, "INVALID_RULE_KIND")
 
         header = self.policy_headers[policy_key]
         target = self.targets[header.target_id]
         self._require_live_owner(header.target_id, target)
-        self._require(not header.sealed, "SEALED_POLICY: cannot mutate a sealed policy")
+        self._require(not header.sealed, "E_KRN_006: SEALED_POLICY: cannot mutate a sealed policy")
 
         for i in range(int(header.rule_count)):
             if self.policy_rules[_ck(policy_key, str(i))].rule_id == rule_id:
-                raise gl.vm.UserError("DUPLICATE_RULE_ID: rule_id already registered on this policy")
+                raise gl.vm.UserError("E_KRN_005: DUPLICATE_RULE_ID: rule_id already registered on this policy")
 
         rule = PolicyRuleRecord()
         rule.rule_id = rule_id
@@ -601,31 +601,31 @@ class AssuranceKernel(gl.contract.Contract):
         header = self.policy_headers[policy_key]
         target = self.targets[header.target_id]
         self._require_live_owner(header.target_id, target)
-        self._require(not header.sealed, "SEALED_POLICY: cannot mutate a sealed policy")
+        self._require(not header.sealed, "E_KRN_006: SEALED_POLICY: cannot mutate a sealed policy")
 
         # C1R A1-H05: the effect MUST be scoped to a rule that exists on THIS exact policy.
         rule = self._find_rule(policy_key, rule_id, header)
         self._require(rule is not None, "UNKNOWN_RULE: rule_id not registered on this policy")
 
-        self._require(action_type in SUPPORTED_ACTIONS, "UNSUPPORTED_ACTION: action_type not in Kernel-v1 action set")
-        self._require(release_phase in VALID_RELEASE_PHASES, "INVALID_RELEASE_PHASE")
+        self._require(action_type in SUPPORTED_ACTIONS, "E_KRN_013: UNSUPPORTED_ACTION: action_type not in Kernel-v1 action set")
+        self._require(release_phase in VALID_RELEASE_PHASES, "E_KRN_005: INVALID_RELEASE_PHASE")
         # Policy-authored effects may only use the incident-triggered release phases (Section 3.4);
         # RELEASE_AT_POLICY_REPLACEMENT is reserved for the Kernel-created FINAL UNDETERMINED hold.
-        self._require(int(release_phase) != int(RELEASE_AT_POLICY_REPLACEMENT), "RESERVED_RELEASE_PHASE: RELEASE_AT_POLICY_REPLACEMENT is Kernel-internal only")
+        self._require(int(release_phase) != int(RELEASE_AT_POLICY_REPLACEMENT), "E_KRN_005: RESERVED_RELEASE_PHASE: RELEASE_AT_POLICY_REPLACEMENT is Kernel-internal only")
 
         if action_type in RESOURCE_SCOPED_ACTIONS:
-            self._require(resource_id != "", "RESOURCE_REQUIRED: this action type requires a non-empty resource_id")
+            self._require(resource_id != "", "E_KRN_013: RESOURCE_REQUIRED: this action type requires a non-empty resource_id")
             found = False
             for i in range(int(header.resource_count)):
                 if self.policy_resources[_ck(policy_key, str(i))] == resource_id:
                     found = True
                     break
-            self._require(found, "UNREGISTERED_RESOURCE: resource_id not registered on this policy")
+            self._require(found, "E_KRN_013: UNREGISTERED_RESOURCE: resource_id not registered on this policy")
 
         # C1R Section 3.3: never allow more than MAX_EFFECTS_PER_DECISION enabled effects for one
         # rule - reject the 5th at construction, never silently truncate at execution.
         existing_for_rule = self._effect_count_for_rule(policy_key, header, rule_id)
-        self._require(existing_for_rule < MAX_EFFECTS_PER_DECISION, "TOO_MANY_EFFECTS: this rule already has MAX_EFFECTS_PER_DECISION enabled effects")
+        self._require(existing_for_rule < MAX_EFFECTS_PER_DECISION, "E_KRN_005: TOO_MANY_EFFECTS: this rule already has MAX_EFFECTS_PER_DECISION enabled effects")
 
         for i in range(int(header.effect_count)):
             key = _ck(policy_key, str(i))
@@ -633,7 +633,7 @@ class AssuranceKernel(gl.contract.Contract):
                 continue
             e = self.policy_effects[key]
             if e.enabled and e.rule_id == rule_id and int(e.action_type) == int(action_type) and e.resource_id == resource_id:
-                raise gl.vm.UserError("DUPLICATE_EFFECT: an identical enabled effect already exists for this rule")
+                raise gl.vm.UserError("E_KRN_005: DUPLICATE_EFFECT: an identical enabled effect already exists for this rule")
 
         effect = EffectRecord()
         effect.rule_id = rule_id
@@ -654,7 +654,7 @@ class AssuranceKernel(gl.contract.Contract):
         header = self.policy_headers[policy_key]
         target = self.targets[header.target_id]
         self._require_live_owner(header.target_id, target)
-        self._require(not header.sealed, "ALREADY_SEALED")
+        self._require(not header.sealed, "E_KRN_006: ALREADY_SEALED")
         self._require_target_supports_all_effects(policy_key, header, target)
         header.sealed = True
         header.sealed_at = self._tx_time_seconds()
@@ -682,7 +682,7 @@ class AssuranceKernel(gl.contract.Contract):
             if int(effect.action_type) in (int(ACTION_ALERT), int(ACTION_NO_ACTION)):
                 continue
             supported = target_view.view().supports_assurance_action(effect.action_type, effect.resource_id)
-            self._require(supported, f"TARGET_DOES_NOT_SUPPORT_EFFECT: action_type={int(effect.action_type)} resource_id={effect.resource_id}")
+            self._require(supported, f"E_KRN_013: TARGET_DOES_NOT_SUPPORT_EFFECT: action_type={int(effect.action_type)} resource_id={effect.resource_id}")
 
     def _rule_identity_map(self, policy_key: str, header: PolicyHeader) -> dict:
         """Maps each enabled rule's non-economic identity (rule_id, judge, judge_version,
@@ -782,8 +782,8 @@ class AssuranceKernel(gl.contract.Contract):
         target_id = header.target_id
         target = self.targets[target_id]
         self._require_live_owner(target_id, target)
-        self._require(header.sealed, "NOT_SEALED: cannot activate an unsealed policy")
-        self._require(not header.active, "ALREADY_ACTIVE")
+        self._require(header.sealed, "E_KRN_006: NOT_SEALED: cannot activate an unsealed policy")
+        self._require(not header.active, "E_KRN_006: ALREADY_ACTIVE")
 
         # C1R Section 3.1: recompute expansion against whatever is CURRENTLY active at activation
         # time - never trust only the classification made at seal time, since the active policy
@@ -792,7 +792,7 @@ class AssuranceKernel(gl.contract.Contract):
         now = self._tx_time_seconds()
         if is_expansion:
             required_not_before = int(header.sealed_at) + int(self.minimum_policy_delay_seconds)
-            self._require(int(now) >= required_not_before, "TIMELOCK_NOT_ELAPSED: authority expansion requires the configured delay from seal time")
+            self._require(int(now) >= required_not_before, "E_KRN_007: TIMELOCK_NOT_ELAPSED: authority expansion requires the configured delay from seal time")
             # C1-FINAL Section 7 (A1-H18): an authority-GRANTING activation must live-check the
             # target hasn't unilaterally revoked Reclose in the meantime - a pure reduction never
             # needs this, since it can only narrow authority.
@@ -913,12 +913,12 @@ class AssuranceKernel(gl.contract.Contract):
         self._require(_valid_hash(policy_hash), "INVALID_POLICY_HASH")
         self._require(_valid_hash(evidence_hash), "INVALID_EVIDENCE_HASH")
         self._require(int(decision_stage) in (int(DECISION_STAGE_PROVISIONAL), int(DECISION_STAGE_FINAL)), "INVALID_DECISION_STAGE")
-        self._require(int(outcome) in (int(DECISION_OUTCOME_CONFIRMED), int(DECISION_OUTCOME_REJECTED), int(DECISION_OUTCOME_UNDETERMINED)), "INVALID_OUTCOME")
+        self._require(int(outcome) in (int(DECISION_OUTCOME_CONFIRMED), int(DECISION_OUTCOME_REJECTED), int(DECISION_OUTCOME_UNDETERMINED)), "E_KRN_016: INVALID_OUTCOME")
 
         target = self.targets[target_id]
         # Invariant 1 / TM-AUTH-001: default-deny without an active policy.
-        self._require(target.active_policy_key != "", "INACTIVE_POLICY: no active policy for target")
-        self._require(not target.authority_revoked, "AUTHORITY_REVOKED")
+        self._require(target.active_policy_key != "", "E_KRN_008: INACTIVE_POLICY: no active policy for target")
+        self._require(not target.authority_revoked, "E_KRN_010: AUTHORITY_REVOKED")
         # C1-FINAL Section 7 (A1-H18): live-check the target's OWN reported controller/revocation
         # state before processing a decision that could create a new effect - a target may have
         # revoked Reclose directly without the Kernel's local authority_revoked flag reflecting it.
@@ -927,16 +927,16 @@ class AssuranceKernel(gl.contract.Contract):
         header = self.policy_headers[target.active_policy_key]
         # C1R A1-H11 / TM-AUTH-006: bind policy identity strongly - key, version AND hash must all
         # match the currently active policy, or the decision is rejected as stale/mismatched.
-        self._require(policy_key == target.active_policy_key, "STALE_POLICY: decision references a superseded policy_key")
-        self._require(int(policy_version) == int(header.version), "STALE_POLICY_VERSION: decision references a stale policy_version")
-        self._require(policy_hash == header.manifest_hash, "STALE_POLICY_HASH: decision references a mismatched policy_hash")
+        self._require(policy_key == target.active_policy_key, "E_KRN_009: STALE_POLICY: decision references a superseded policy_key")
+        self._require(int(policy_version) == int(header.version), "E_KRN_009: STALE_POLICY_VERSION: decision references a stale policy_version")
+        self._require(policy_hash == header.manifest_hash, "E_KRN_009: STALE_POLICY_HASH: decision references a mismatched policy_hash")
 
         rule = self._find_rule(policy_key, rule_id, header)
-        self._require(rule is not None, "UNKNOWN_RULE: rule_id not registered on active policy")
+        self._require(rule is not None, "E_KRN_013: UNKNOWN_RULE: rule_id not registered on active policy")
         self._require(rule.enabled, "RULE_DISABLED")
         # TM-AUTH-008: exact sender AND exact judge_version validation.
-        self._require(gl.message.sender_address == rule.judge, "WRONG_JUDGE: sender is not the configured Judge for this rule")
-        self._require(int(judge_version) == int(rule.judge_version), "WRONG_JUDGE_VERSION: judge_version does not match the configured rule")
+        self._require(gl.message.sender_address == rule.judge, "E_KRN_011: WRONG_JUDGE: sender is not the configured Judge for this rule")
+        self._require(int(judge_version) == int(rule.judge_version), "E_KRN_012: WRONG_JUDGE_VERSION: judge_version does not match the configured rule")
 
         decision_key = _ck(incident_id, str(int(decision_stage)))
         fingerprint = _ck(
@@ -951,14 +951,14 @@ class AssuranceKernel(gl.contract.Contract):
                 return
             # C1R Section 7: a CONFLICTING second decision for the same incident/stage is rejected
             # outright, never silently treated as (or overwriting) the original.
-            raise gl.vm.UserError("CONFLICTING_DECISION: a different decision already exists for this incident/stage")
+            raise gl.vm.UserError("E_KRN_015: CONFLICTING_DECISION: a different decision already exists for this incident/stage")
         self.processed_decisions[decision_key] = fingerprint
 
         incident_exists = incident_id in self.incidents
         incident = self.incidents[incident_id] if incident_exists else None
 
         if int(rule.rule_kind) == int(RULE_KIND_INCIDENT):
-            self._require(parent_incident_id == "", "UNEXPECTED_PARENT: an INCIDENT rule decision must not carry a parent_incident_id")
+            self._require(parent_incident_id == "", "E_KRN_017: UNEXPECTED_PARENT: an INCIDENT rule decision must not carry a parent_incident_id")
             if incident is None:
                 incident = IncidentRecord()
                 incident.incident_id = incident_id
@@ -986,20 +986,20 @@ class AssuranceKernel(gl.contract.Contract):
             self.incidents[incident_id] = incident
         elif int(rule.rule_kind) == int(RULE_KIND_REMEDIATION):
             self._require(int(decision_stage) == int(DECISION_STAGE_FINAL), "REMEDIATION_MUST_BE_FINAL")
-            self._require(parent_incident_id != "", "PARENT_REQUIRED: remediation decisions require parent_incident_id")
-            self._require(parent_incident_id in self.incidents, "UNKNOWN_PARENT_INCIDENT")
+            self._require(parent_incident_id != "", "E_KRN_017: PARENT_REQUIRED: remediation decisions require parent_incident_id")
+            self._require(parent_incident_id in self.incidents, "E_KRN_017: UNKNOWN_PARENT_INCIDENT")
             parent = self.incidents[parent_incident_id]
-            self._require(parent.target_id == target_id and parent.policy_key == policy_key, "PARENT_LINEAGE_MISMATCH")
-            self._require(int(parent.status) == int(INCIDENT_STATUS_FINAL_CONFIRMED), "PARENT_NOT_REMEDIATION_ELIGIBLE")
+            self._require(parent.target_id == target_id and parent.policy_key == policy_key, "E_KRN_017: PARENT_LINEAGE_MISMATCH")
+            self._require(int(parent.status) == int(INCIDENT_STATUS_FINAL_CONFIRMED), "E_KRN_017: PARENT_NOT_REMEDIATION_ELIGIBLE")
             self._apply_remediation(parent, outcome)
             self.incidents[parent_incident_id] = parent
         elif int(rule.rule_kind) == int(RULE_KIND_RECOVERY_VALIDATION):
             self._require(int(decision_stage) == int(DECISION_STAGE_FINAL), "RECOVERY_VALIDATION_MUST_BE_FINAL")
-            self._require(parent_incident_id != "", "PARENT_REQUIRED: recovery validation decisions require parent_incident_id")
-            self._require(parent_incident_id in self.incidents, "UNKNOWN_PARENT_INCIDENT")
+            self._require(parent_incident_id != "", "E_KRN_017: PARENT_REQUIRED: recovery validation decisions require parent_incident_id")
+            self._require(parent_incident_id in self.incidents, "E_KRN_017: UNKNOWN_PARENT_INCIDENT")
             parent = self.incidents[parent_incident_id]
-            self._require(parent.target_id == target_id and parent.policy_key == policy_key, "PARENT_LINEAGE_MISMATCH")
-            self._require(int(parent.status) == int(INCIDENT_STATUS_RECOVERY), "PARENT_NOT_IN_RECOVERY")
+            self._require(parent.target_id == target_id and parent.policy_key == policy_key, "E_KRN_017: PARENT_LINEAGE_MISMATCH")
+            self._require(int(parent.status) == int(INCIDENT_STATUS_RECOVERY), "E_KRN_017: PARENT_NOT_IN_RECOVERY")
             self._apply_recovery_validation(parent, outcome)
             self.incidents[parent_incident_id] = parent
         else:
@@ -1088,7 +1088,7 @@ class AssuranceKernel(gl.contract.Contract):
             incident.closed_at = self._tx_time_seconds()
             self._track_policy_replacement_hold(incident.target_id, incident.incident_id)
         else:
-            raise gl.vm.UserError("INVALID_OUTCOME")
+            raise gl.vm.UserError("E_KRN_016: INVALID_OUTCOME")
 
     # -- REMEDIATION rule handling (Section 8.2) ------------------------------------------------
 
@@ -1365,7 +1365,7 @@ class AssuranceKernel(gl.contract.Contract):
           - ENTER_RECOVERY: the parent incident must still be in RECOVERY.
         Also requires the target's live controller/revocation state to still be active (Section 7)
         - a target that revoked Reclose cannot have a stale action redelivered to it either."""
-        self._require(action_id in self.action_dispatch_records, "UNKNOWN_ACTION_ID")
+        self._require(action_id in self.action_dispatch_records, "E_KRN_019: UNKNOWN_ACTION_ID")
         record = self.action_dispatch_records[action_id]
         target = self.targets[record.target_id]
         self._require_live_controller_active(record.target_id, target)
@@ -1374,19 +1374,19 @@ class AssuranceKernel(gl.contract.Contract):
         action = int(record.action_type)
 
         if action in (int(ACTION_RESTRICT), int(ACTION_THROTTLE), int(ACTION_REVOKE_CAPABILITY), int(ACTION_REROUTE), int(ACTION_MONITOR), int(ACTION_ENTER_SAFE_MODE), int(ACTION_PAUSE)):
-            self._require(incident is not None, "UNKNOWN_INCIDENT")
-            self._require(self._restriction_still_active(incident, record.action_type, record.resource_id), "RESTRICTION_NO_LONGER_ACTIVE")
+            self._require(incident is not None, "E_KRN_019: UNKNOWN_INCIDENT")
+            self._require(self._restriction_still_active(incident, record.action_type, record.resource_id), "E_KRN_019: RESTRICTION_NO_LONGER_ACTIVE")
         elif action == int(ACTION_RESTORE):
             if record.resource_id != "":
                 rkey = _ck(target.target_address.as_hex, record.resource_id)
                 current_count = int(self.resource_restriction_counts[rkey]) if rkey in self.resource_restriction_counts else 0
-                self._require(current_count == 0, "RESOURCE_STILL_RESTRICTED: aggregate count has not reached zero")
+                self._require(current_count == 0, "E_KRN_019: RESOURCE_STILL_RESTRICTED: aggregate count has not reached zero")
             else:
                 current_state = self._recompute_target_state(record.target_id)
-                self._require(int(current_state) == int(record.param_u256), "STALE_DESIRED_STATE: current recomputed state no longer matches the stored redispatch value")
+                self._require(int(current_state) == int(record.param_u256), "E_KRN_019: STALE_DESIRED_STATE: current recomputed state no longer matches the stored redispatch value")
         elif action == int(ACTION_ENTER_RECOVERY):
-            self._require(incident is not None, "UNKNOWN_INCIDENT")
-            self._require(int(incident.status) == int(INCIDENT_STATUS_RECOVERY), "PARENT_NOT_IN_RECOVERY")
+            self._require(incident is not None, "E_KRN_019: UNKNOWN_INCIDENT")
+            self._require(int(incident.status) == int(INCIDENT_STATUS_RECOVERY), "E_KRN_017: PARENT_NOT_IN_RECOVERY")
 
         self._dispatch_action(record.target_id, record.incident_id, record.policy_key, record.action_type, record.resource_id, record.param_u256, record.param_str, DECISION_STAGE_FINAL)
 

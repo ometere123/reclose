@@ -117,8 +117,8 @@ class ReferenceAgentProtocol(gl.contract.Contract):
 
     @gl.public.write
     def set_assurance_controller(self, kernel_address: gl.Address) -> None:
-        self._require(gl.message.sender_address == self.owner, "UNAUTHORIZED_CALLER: only owner may set the controller")
-        self._require(not self.assurance_controller_set, "CONTROLLER_ALREADY_SET")
+        self._require(gl.message.sender_address == self.owner, "E_AGT_001: UNAUTHORIZED_CALLER: only owner may set the controller")
+        self._require(not self.assurance_controller_set, "E_AGT_001: CONTROLLER_ALREADY_SET")
         self.kernel = gl.Address(kernel_address)
         self.assurance_controller_set = True
 
@@ -205,9 +205,9 @@ class ReferenceAgentProtocol(gl.contract.Contract):
             self.state = candidate
 
     def _require_kernel(self) -> None:
-        self._require(self.assurance_controller_set, "NO_CONTROLLER: assurance controller not set")
-        self._require(gl.message.sender_address == self.kernel, "UNAUTHORIZED_CALLER: only the Kernel may apply assurance actions")
-        self._require(not self.authority_revoked, "AUTHORITY_REVOKED")
+        self._require(self.assurance_controller_set, "E_AGT_001: NO_CONTROLLER: assurance controller not set")
+        self._require(gl.message.sender_address == self.kernel, "E_AGT_007: UNAUTHORIZED_CALLER: only the Kernel may apply assurance actions")
+        self._require(not self.authority_revoked, "E_AGT_010: AUTHORITY_REVOKED")
 
     # -- Kernel-dispatched typed action interface (Section 48) --------------------------------
     # No generic execute(bytes)-style method exists anywhere on this contract (TM-AUTH-009).
@@ -228,9 +228,9 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         # Kernel's dispatch rather than trusting it blindly - it is the final backstop against a
         # Kernel bug, not merely a passive executor.
         self._require_kernel()
-        self._require(len(incident_id) > 0, "INVALID_INCIDENT_ID")
-        self._require(len(policy_key) > 0, "INVALID_POLICY_KEY")
-        self._require(int(decision_stage) in (int(DECISION_STAGE_PROVISIONAL), int(DECISION_STAGE_FINAL)), "INVALID_DECISION_STAGE")
+        self._require(len(incident_id) > 0, "E_AGT_008: INVALID_INCIDENT_ID")
+        self._require(len(policy_key) > 0, "E_AGT_008: INVALID_POLICY_KEY")
+        self._require(int(decision_stage) in (int(DECISION_STAGE_PROVISIONAL), int(DECISION_STAGE_FINAL)), "E_AGT_008: INVALID_DECISION_STAGE")
 
         if action_id in self.processed_action_ids:
             return  # duplicate action ID -> no-op (Section 48) - the real idempotency boundary.
@@ -240,45 +240,45 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         # trust that the Kernel's dispatch is well-formed.
         self._require(
             resource_id in (RESOURCE_PROVIDER_A, RESOURCE_PROVIDER_B, ""),
-            "UNSUPPORTED_RESOURCE: not a resource this target recognizes",
+            "E_AGT_009: UNSUPPORTED_RESOURCE: not a resource this target recognizes",
         )
 
         is_provisional = int(decision_stage) == int(DECISION_STAGE_PROVISIONAL)
         if is_provisional:
-            self._require(int(action_type) in PROVISIONAL_SAFE_ACTIONS, "PROVISIONAL_NOT_SAFE: this action may never be applied provisionally")
+            self._require(int(action_type) in PROVISIONAL_SAFE_ACTIONS, "E_AGT_008: PROVISIONAL_NOT_SAFE: this action may never be applied provisionally")
             # PAUSE/ENTER_RECOVERY/RESTORE are already excluded from PROVISIONAL_SAFE_ACTIONS, but
             # assert explicitly per Section 12's exact required checks.
-            self._require(int(action_type) != int(ACTION_PAUSE), "PROVISIONAL_PAUSE_FORBIDDEN")
-            self._require(int(action_type) != int(ACTION_ENTER_RECOVERY), "PROVISIONAL_ENTER_RECOVERY_FORBIDDEN")
-            self._require(int(action_type) != int(ACTION_RESTORE), "PROVISIONAL_RESTORE_FORBIDDEN")
+            self._require(int(action_type) != int(ACTION_PAUSE), "E_AGT_008: PROVISIONAL_PAUSE_FORBIDDEN")
+            self._require(int(action_type) != int(ACTION_ENTER_RECOVERY), "E_AGT_008: PROVISIONAL_ENTER_RECOVERY_FORBIDDEN")
+            self._require(int(action_type) != int(ACTION_RESTORE), "E_AGT_008: PROVISIONAL_RESTORE_FORBIDDEN")
 
         if int(action_type) == int(ACTION_MONITOR):
-            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER: MONITOR takes no parameters")
+            self._require(int(param_u256) == 0 and param_str == "", "E_AGT_008: UNUSED_PARAMETER: MONITOR takes no parameters")
             self._raise_state(ASSURANCE_STATE_MONITORED)
         elif int(action_type) == int(ACTION_RESTRICT):
-            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
+            self._require(int(param_u256) == 0 and param_str == "", "E_AGT_008: UNUSED_PARAMETER")
             self._raise_state(ASSURANCE_STATE_RESTRICTED)
         elif int(action_type) == int(ACTION_REVOKE_CAPABILITY):
-            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
+            self._require(int(param_u256) == 0 and param_str == "", "E_AGT_008: UNUSED_PARAMETER")
             if resource_id == RESOURCE_PROVIDER_A:
                 self.provider_a_enabled = False
             elif resource_id == RESOURCE_PROVIDER_B:
                 self.provider_b_enabled = False
             self._raise_state(ASSURANCE_STATE_RESTRICTED)
         elif int(action_type) == int(ACTION_ENTER_SAFE_MODE):
-            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
+            self._require(int(param_u256) == 0 and param_str == "", "E_AGT_008: UNUSED_PARAMETER")
             self._raise_state(ASSURANCE_STATE_SAFE_MODE)
         elif int(action_type) == int(ACTION_PAUSE):
-            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
+            self._require(int(param_u256) == 0 and param_str == "", "E_AGT_008: UNUSED_PARAMETER")
             self._raise_state(ASSURANCE_STATE_PAUSED)
         elif int(action_type) == int(ACTION_ENTER_RECOVERY):
-            self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
+            self._require(int(param_u256) == 0 and param_str == "", "E_AGT_008: UNUSED_PARAMETER")
             self._raise_state(ASSURANCE_STATE_RECOVERY)
         elif int(action_type) == int(ACTION_RESTORE):
             # C1R Section 11: RESTORE is FINAL-only; already enforced above for PROVISIONAL. The
             # only C1R action that intentionally uses param_u256 is this one, carrying the exact
             # recomputed AssuranceState the Kernel wants this target to hold after release.
-            self._require(int(param_u256) in VALID_ASSURANCE_STATES, "INVALID_RESTORE_STATE: param_u256 must be a valid AssuranceState value")
+            self._require(int(param_u256) in VALID_ASSURANCE_STATES, "E_AGT_008: INVALID_RESTORE_STATE: param_u256 must be a valid AssuranceState value")
             if resource_id == RESOURCE_PROVIDER_A:
                 # Owner-level revocation is authoritative and is NOT cleared by a Kernel RESTORE -
                 # the Kernel only ever tells us its aggregate restriction count for this resource
@@ -293,7 +293,7 @@ class ReferenceAgentProtocol(gl.contract.Contract):
                 # Kernel-computed value - never arbitrary.
                 self.state = gl.u8(int(param_u256))
         else:
-            raise gl.vm.UserError("UNSUPPORTED_ACTION")
+            raise gl.vm.UserError("E_AGT_008: UNSUPPORTED_ACTION")
 
     # -- AUTO provider selection (Section 46) --------------------------------------------------
 
@@ -334,17 +334,17 @@ class ReferenceAgentProtocol(gl.contract.Contract):
     def purchase_service(self, request_ref: str) -> None:
         self._require(
             gl.message.sender_address == self.owner or gl.message.sender_address == self.authorized_agent,
-            "UNAUTHORIZED_CALLER: only owner or authorized agent may purchase service",
+            "E_AGT_001: UNAUTHORIZED_CALLER: only owner or authorized agent may purchase service",
         )
-        self._require(int(self.state) != int(ASSURANCE_STATE_PAUSED), "PAUSED: target rejects purchases while paused")
-        self._require(request_ref not in self.processed_requests, "DUPLICATE_REQUEST: request_ref already processed")
+        self._require(int(self.state) != int(ASSURANCE_STATE_PAUSED), "E_AGT_002: PAUSED: target rejects purchases while paused")
+        self._require(request_ref not in self.processed_requests, "E_AGT_006: DUPLICATE_REQUEST: request_ref already processed")
 
         amount = gl.message.value
         limit = self.safe_mode_limit if int(self.state) == int(ASSURANCE_STATE_SAFE_MODE) else self.per_request_limit
-        self._require(int(amount) <= int(limit), "LIMIT_EXCEEDED: amount exceeds the per-request/safe-mode limit")
+        self._require(int(amount) <= int(limit), "E_AGT_003: LIMIT_EXCEEDED: amount exceeds the per-request/safe-mode limit")
 
         provider_choice = self._select_provider()
-        self._require(int(provider_choice) != int(PROVIDER_NONE), "NO_PROVIDER_AVAILABLE")
+        self._require(int(provider_choice) != int(PROVIDER_NONE), "E_AGT_005: NO_PROVIDER_AVAILABLE")
 
         self.processed_requests[request_ref] = True
         provider_address = self.provider_a if int(provider_choice) == int(PROVIDER_A) else self.provider_b
@@ -359,18 +359,18 @@ class ReferenceAgentProtocol(gl.contract.Contract):
 
     @gl.public.write
     def owner_emergency_pause(self) -> None:
-        self._require(gl.message.sender_address == self.owner, "UNAUTHORIZED_CALLER")
+        self._require(gl.message.sender_address == self.owner, "E_AGT_001: UNAUTHORIZED_CALLER")
         self.state = ASSURANCE_STATE_PAUSED
 
     @gl.public.write
     def revoke_assurance_controller(self) -> None:
-        self._require(gl.message.sender_address == self.owner, "UNAUTHORIZED_CALLER")
+        self._require(gl.message.sender_address == self.owner, "E_AGT_001: UNAUTHORIZED_CALLER")
         self.authority_revoked = True
 
     @gl.public.write
     def owner_restore(self) -> None:
-        self._require(gl.message.sender_address == self.owner, "UNAUTHORIZED_CALLER")
-        self._require(self.human_override_enabled, "HUMAN_OVERRIDE_DISABLED: this target does not permit direct owner restoration")
+        self._require(gl.message.sender_address == self.owner, "E_AGT_001: UNAUTHORIZED_CALLER")
+        self._require(self.human_override_enabled, "E_AGT_010: HUMAN_OVERRIDE_DISABLED: this target does not permit direct owner restoration")
         self.state = ASSURANCE_STATE_NORMAL
         self.provider_a_enabled = True
         self.provider_b_enabled = True
