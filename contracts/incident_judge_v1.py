@@ -223,6 +223,20 @@ class IncidentJudgeV1(gl.contract.Contract):
     def _derive_incident_id(self, target_id: str, reporter: gl.Address, nonce: gl.u64) -> str:
         return f"{target_id}:{reporter.as_hex}:{int(nonce)}"
 
+    def _maybe_open_bond(self, bond_id: str, target_id: str, policy_key: str, policy_version: gl.u32, rule_id: str, reporter_nonce: gl.u64, incident_id: str) -> None:
+        """Section 25/33: zero-bond policies work - an empty bond_id skips the Vault entirely, and
+        any attached value in that case is simply not forwarded (the caller should not attach
+        value without a bond_id). When bond_id is supplied, the ENTIRE submission's attached value
+        is forwarded to Vault.open_bond() as the bond amount - the Judge never custodies value
+        itself."""
+        if bond_id == "":
+            return
+        self._require(_valid_identifier(bond_id, 96), "E_JDG_INPUT: invalid bond_id")
+        vault_contract = gl.contract.get_at(self.vault)
+        vault_contract.emit(value=int(gl.message.value), on="accepted").open_bond(
+            bond_id, target_id, policy_key, policy_version, rule_id, reporter_nonce, incident_id,
+        )
+
     def _check_and_bump_nonce(self, reporter: gl.Address, nonce: gl.u64) -> None:
         key = reporter.as_hex
         expected = int(self.reporter_nonces[key]) if key in self.reporter_nonces else 0
@@ -348,7 +362,7 @@ class IncidentJudgeV1(gl.contract.Contract):
 
     # -- Public submission entry points (Section 25/32/33) -----------------------------------
 
-    @gl.public.write
+    @gl.public.write.payable
     def submit_incident(
         self, target_id: str, policy_key: str, rule_id: str, resource_id: str,
         evidence_hash: str, evidence_json: str, reporter_nonce: gl.u64, bond_id: str,
@@ -362,6 +376,8 @@ class IncidentJudgeV1(gl.contract.Contract):
 
         incident_id = self._derive_incident_id(target_id, reporter, reporter_nonce)
         self._require(incident_id not in self.incidents, "E_JDG_INPUT: incident_id collision (should be unreachable given monotonic nonce)")
+
+        self._maybe_open_bond(bond_id, target_id, policy_key, policy_version, rule_id, reporter_nonce, incident_id)
 
         record = IncidentRecordLocal()
         record.incident_id = incident_id
@@ -401,17 +417,17 @@ class IncidentJudgeV1(gl.contract.Contract):
         )
         return incident_id
 
-    @gl.public.write
+    @gl.public.write.payable
     def submit_remediation(self, parent_incident_id: str, policy_key: str, evidence_hash: str, evidence_json: str, reporter_nonce: gl.u64, bond_id: str) -> str:
-        return self._submit_final_only(parent_incident_id, policy_key, RULE_REMEDIATION_CONFIRMED_V1, evidence_hash, evidence_json, reporter_nonce, RULE_KIND_REMEDIATION)
+        return self._submit_final_only(parent_incident_id, policy_key, RULE_REMEDIATION_CONFIRMED_V1, evidence_hash, evidence_json, reporter_nonce, RULE_KIND_REMEDIATION, bond_id)
 
-    @gl.public.write
+    @gl.public.write.payable
     def submit_recovery_validation(self, parent_incident_id: str, policy_key: str, evidence_hash: str, evidence_json: str, reporter_nonce: gl.u64, bond_id: str) -> str:
-        return self._submit_final_only(parent_incident_id, policy_key, RULE_RECOVERY_VALIDATED_V1, evidence_hash, evidence_json, reporter_nonce, RULE_KIND_RECOVERY_VALIDATION)
+        return self._submit_final_only(parent_incident_id, policy_key, RULE_RECOVERY_VALIDATED_V1, evidence_hash, evidence_json, reporter_nonce, RULE_KIND_RECOVERY_VALIDATION, bond_id)
 
     def _submit_final_only(
         self, parent_incident_id: str, policy_key: str, rule_id: str,
-        evidence_hash: str, evidence_json: str, reporter_nonce: gl.u64, expected_kind: gl.u8,
+        evidence_hash: str, evidence_json: str, reporter_nonce: gl.u64, expected_kind: gl.u8, bond_id: str,
     ) -> str:
         self._require(_valid_identifier(parent_incident_id, 96), "E_JDG_INPUT: invalid parent_incident_id")
         self._require(parent_incident_id in self.incidents, "E_JDG_INPUT: unknown parent_incident_id")
@@ -441,6 +457,8 @@ class IncidentJudgeV1(gl.contract.Contract):
         record.outcome = gl.u8(0)
         record.decision_stage = int(DECISION_STAGE_FINAL)
         record.created_at = gl.u64(0)
+
+        self._maybe_open_bond(bond_id, target_id, policy_key, policy_version, rule_id, reporter_nonce, incident_id)
 
         condition_code = self._run_judgment(rule_id, eap)
         outcome = self._outcome_for_code(rule_id, condition_code)

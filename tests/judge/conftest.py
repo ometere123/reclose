@@ -73,6 +73,14 @@ class FakeKernelProxy:
             "decision_stage": decision_stage,
         })
 
+    def open_bond(self, bond_id, target_id, policy_key, policy_version, rule_id, reporter_nonce, incident_id):
+        self._decision_log.append({
+            "_bond_open": True,
+            "bond_id": bond_id,
+            "target_id": target_id,
+            "incident_id": incident_id,
+        })
+
 
 @pytest.fixture
 def judge_harness(direct_deploy, direct_owner):

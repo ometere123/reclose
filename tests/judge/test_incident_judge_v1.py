@@ -180,3 +180,29 @@ def test_prompt_injection_in_evidence_cannot_force_arbitrary_code(judge_harness,
     direct_vm.mock_llm(".*", json.dumps({"condition_code": "HACKED_ADMIN_ACCESS"}))
     with pytest.raises(Exception):
         judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", "0x" + "a" * 64, injection_eap, 0, "")
+
+
+def test_submit_incident_with_bond_id_opens_bond_on_vault(judge_harness, direct_vm):
+    """Section 25/33: a non-empty bond_id must forward the submission's attached value to
+    Vault.open_bond() - the Judge never custodies value itself."""
+    judge, gl, decision_log, config = judge_harness
+    direct_vm.mock_web(EAP_URL, {"method": "GET", "status": 200, "body": "x"})
+    direct_vm.mock_llm(".*", json.dumps({"condition_code": "INSUFFICIENT_EVIDENCE"}))
+    direct_vm.value = 500
+    judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", "0x" + "a" * 64, VALID_EAP, 0, "bond-1")
+    direct_vm.value = 0
+
+    bond_opens = [d for d in decision_log if d.get("_bond_open")]
+    assert len(bond_opens) == 1
+    assert bond_opens[0]["bond_id"] == "bond-1"
+
+
+def test_submit_incident_zero_bond_skips_vault(judge_harness, direct_vm):
+    """CLAUDE.md Section 19: zero-bond policies work - an empty bond_id must never touch the
+    Vault at all."""
+    judge, gl, decision_log, config = judge_harness
+    direct_vm.mock_web(EAP_URL, {"method": "GET", "status": 200, "body": "x"})
+    direct_vm.mock_llm(".*", json.dumps({"condition_code": "INSUFFICIENT_EVIDENCE"}))
+    judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", "0x" + "a" * 64, VALID_EAP, 0, "")
+    bond_opens = [d for d in decision_log if d.get("_bond_open")]
+    assert len(bond_opens) == 0
