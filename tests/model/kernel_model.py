@@ -131,6 +131,7 @@ class Target:
     human_override_enabled: bool
     active_policy_key: str = ""
     authority_revoked: bool = False
+    live_revoked: bool = False  # C1-FINAL Section 7 (A1-H18): target's OWN out-of-band revocation
     disabled_actions: set = field(default_factory=set)
     disabled_resources: set = field(default_factory=set)
 
@@ -152,13 +153,40 @@ class Model:
 
     # -- targets --
 
-    def register_target(self, target_id: str, owner: str, human_override_enabled: bool) -> None:
+    def register_target(
+        self, target_id: str, owner: str, human_override_enabled: bool,
+        caller: str | None = None, reported_owner: str | None = None,
+        reported_controller_matches: bool = True, reported_target_id: str | None = None,
+        reported_revoked: bool = False,
+    ) -> None:
+        """C1-FINAL Section 6 (A1-H15): mirrors the Kernel's full live registration handshake -
+        caller must equal the target's reported owner, the target must recognise this Kernel as
+        controller, the target's own reported target_id must match the argument, and the target
+        must not already report itself revoked. Defaults reproduce a well-formed handshake so
+        existing model callers that don't care about this need no changes."""
         if target_id in self.targets:
             raise ModelError("DUPLICATE_TARGET")
+        caller = caller if caller is not None else owner
+        reported_owner = reported_owner if reported_owner is not None else owner
+        reported_target_id = reported_target_id if reported_target_id is not None else target_id
+        if caller != reported_owner:
+            raise ModelError("UNAUTHORIZED_CALLER")
+        if not reported_controller_matches:
+            raise ModelError("TARGET_HANDSHAKE_FAILED")
+        if reported_target_id != target_id:
+            raise ModelError("TARGET_ID_MISMATCH")
+        if reported_revoked:
+            raise ModelError("TARGET_ALREADY_REVOKED")
         self.targets[target_id] = Target(target_id, owner, human_override_enabled)
 
     def revoke_authority(self, target_id: str) -> None:
         self.targets[target_id].authority_revoked = True
+
+    def target_side_revoke(self, target_id: str) -> None:
+        """C1-FINAL Section 7 (A1-H18): the target directly revokes Reclose, independent of any
+        Kernel-side revoke_authority() call - the Kernel must live-check this before any new
+        effect, not rely only on its own authority_revoked flag."""
+        self.targets[target_id].live_revoked = True
 
     def disable_action(self, target_id: str, action_type: str) -> None:
         self.targets[target_id].disabled_actions.add(action_type)
@@ -271,6 +299,8 @@ class Model:
             raise ModelError("INACTIVE_POLICY")
         if target.authority_revoked:
             raise ModelError("AUTHORITY_REVOKED")
+        if target.live_revoked:
+            raise ModelError("E_KRN_018_TARGET_CONTROLLER_REVOKED")
         if policy_key != target.active_policy_key:
             raise ModelError("STALE_POLICY")
         policy = self.policies[policy_key]

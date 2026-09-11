@@ -26,10 +26,15 @@ import pytest
 class FakeTargetProxy:
     """Stands in for a live Target contract during Kernel-only Direct Mode tests."""
 
-    def __init__(self, owner_addr, kernel_addr, dispatch_log):
+    def __init__(self, owner_addr, kernel_addr, dispatch_log, target_id="target-001", revoked_flag=None, controller_addr=None):
         self._owner_addr = owner_addr
         self._kernel_addr = kernel_addr
         self._dispatch_log = dispatch_log
+        self._target_id = target_id
+        # C1-FINAL Section 7 (A1-H18): a mutable box (list) so tests can flip live revocation
+        # after the proxy is constructed, simulating target-side revocation mid-test.
+        self._revoked_flag = revoked_flag if revoked_flag is not None else [False]
+        self._controller_addr = controller_addr if controller_addr is not None else [kernel_addr]
 
     def view(self):
         return self
@@ -37,8 +42,17 @@ class FakeTargetProxy:
     def get_owner(self):
         return self._owner_addr
 
+    def get_assurance_owner(self):
+        return self._owner_addr
+
     def get_assurance_controller(self):
-        return self._kernel_addr
+        return self._controller_addr[0]
+
+    def get_assurance_target_id(self):
+        return self._target_id
+
+    def is_assurance_authority_revoked(self):
+        return self._revoked_flag[0]
 
     def emit(self, **kwargs):
         return self
@@ -81,10 +95,51 @@ def kernel_harness(direct_deploy, direct_owner):
     kernel.targets["target-001"] = rec
     kernel.target_ids.append("target-001")
 
-    dispatch_log = []
+    class DispatchLog(list):
+        """Plain list (unchanged len()/append() semantics for every existing test) that ALSO
+        carries the mutable revocation/controller boxes a test can flip to simulate target-side
+        revocation (C1-FINAL Section 7, A1-H18) without changing the 4-tuple fixture shape every
+        existing test already unpacks."""
+        pass
+
+    dispatch_log = DispatchLog()
+    dispatch_log.revoked_flag = [False]
+    dispatch_log.controller_addr = [kernel.address]
     orig_get_at = gl.contract.get_at
-    gl.contract.get_at = lambda addr: FakeTargetProxy(owner_addr, kernel.address, dispatch_log)
+    gl.contract.get_at = lambda addr: FakeTargetProxy(
+        owner_addr, kernel.address, dispatch_log, "target-001", dispatch_log.revoked_flag, dispatch_log.controller_addr
+    )
 
     yield kernel, gl, owner_addr, dispatch_log
+
+    gl.contract.get_at = orig_get_at
+
+
+@pytest.fixture
+def fresh_kernel_with_proxy(direct_deploy, direct_owner):
+    """Like kernel_harness, but does NOT pre-inject a TargetRecord - for testing
+    register_target()'s own live handshake (C1-FINAL Section 6, A1-H15) against the
+    FakeTargetProxy. Returns (kernel, gl, owner_addr, target_addr, dispatch_log)."""
+    kernel = direct_deploy("assurance_kernel.py", 1, 60)
+    mod = sys.modules[type(kernel).__module__]
+    gl = mod.gl
+
+    owner_addr = gl.Address(bytes(direct_owner))
+    target_addr = gl.Address(b"\x22" * 20)
+
+    class DispatchLog(list):
+        pass
+
+    dispatch_log = DispatchLog()
+    dispatch_log.revoked_flag = [False]
+    dispatch_log.controller_addr = [kernel.address]
+    dispatch_log.target_id = ["target-001"]
+    orig_get_at = gl.contract.get_at
+    gl.contract.get_at = lambda addr: FakeTargetProxy(
+        owner_addr, kernel.address, dispatch_log, dispatch_log.target_id[0],
+        dispatch_log.revoked_flag, dispatch_log.controller_addr,
+    )
+
+    yield kernel, gl, owner_addr, target_addr, dispatch_log
 
     gl.contract.get_at = orig_get_at

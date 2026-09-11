@@ -915,3 +915,92 @@ def test_report_bond_change_is_expansion(kernel_harness, direct_vm):
     kernel.seal_policy("policy-bond-2")
     with pytest.raises(Exception):
         kernel.activate_policy("policy-bond-2")  # bond decrease is STILL expansion per Section 8
+
+
+# -- C1-FINAL Section 6: full registration handshake matrix (A1-H15 closure) ---------------------
+
+def test_registration_handshake_succeeds_with_matching_target(fresh_kernel_with_proxy, direct_vm):
+    kernel, gl, owner_addr, target_addr, dispatch_log = fresh_kernel_with_proxy
+    _base_time(direct_vm)
+    direct_vm.sender = owner_addr
+    kernel.register_target("target-001", target_addr, True)
+    assert int(kernel.get_target_state("target-001")) == 0
+
+
+def test_registration_rejects_wrong_owner(fresh_kernel_with_proxy, direct_vm, direct_alice):
+    kernel, gl, owner_addr, target_addr, dispatch_log = fresh_kernel_with_proxy
+    _base_time(direct_vm)
+    direct_vm.sender = direct_alice  # not the reported owner
+    with pytest.raises(Exception):
+        kernel.register_target("target-001", target_addr, True)
+
+
+def test_registration_rejects_wrong_controller(fresh_kernel_with_proxy, direct_vm):
+    kernel, gl, owner_addr, target_addr, dispatch_log = fresh_kernel_with_proxy
+    _base_time(direct_vm)
+    dispatch_log.controller_addr[0] = gl.Address(b"\x99" * 20)  # target does NOT recognize this Kernel
+    direct_vm.sender = owner_addr
+    with pytest.raises(Exception):
+        kernel.register_target("target-001", target_addr, True)
+
+
+def test_registration_rejects_target_id_mismatch(fresh_kernel_with_proxy, direct_vm):
+    kernel, gl, owner_addr, target_addr, dispatch_log = fresh_kernel_with_proxy
+    _base_time(direct_vm)
+    dispatch_log.target_id[0] = "some-other-target-id"  # target reports a different ID than the argument
+    direct_vm.sender = owner_addr
+    with pytest.raises(Exception):
+        kernel.register_target("target-001", target_addr, True)
+
+
+def test_registration_rejects_already_revoked_target(fresh_kernel_with_proxy, direct_vm):
+    kernel, gl, owner_addr, target_addr, dispatch_log = fresh_kernel_with_proxy
+    _base_time(direct_vm)
+    dispatch_log.revoked_flag[0] = True  # target already revoked assurance authority
+    direct_vm.sender = owner_addr
+    with pytest.raises(Exception):
+        kernel.register_target("target-001", target_addr, True)
+
+
+# -- C1-FINAL Section 7: live target-controller check before new effects (A1-H18 closure) -------
+
+def test_receive_decision_rejects_when_target_has_revoked_live(kernel_harness, direct_vm):
+    """A target may directly revoke the Kernel as controller at any time - the Kernel must
+    live-check this before creating any new effect, not merely trust its own cached flag."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    dispatch_log.revoked_flag[0] = True  # target revokes Reclose directly, out-of-band
+    with pytest.raises(Exception):
+        kernel.receive_decision(
+            "incident-001", "", "target-001", "policy-1", 1, M1,
+            "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_PROVISIONAL, 1,
+        )
+    assert len(dispatch_log) == 0
+
+
+def test_receive_decision_rejects_when_target_no_longer_recognizes_kernel(kernel_harness, direct_vm):
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    dispatch_log.controller_addr[0] = gl.Address(b"\x88" * 20)  # target installed a different controller
+    with pytest.raises(Exception):
+        kernel.receive_decision(
+            "incident-001", "", "target-001", "policy-1", 1, M1,
+            "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_PROVISIONAL, 1,
+        )
+    assert len(dispatch_log) == 0

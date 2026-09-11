@@ -394,6 +394,20 @@ class AssuranceKernel(gl.contract.Contract):
         live_owner = self._live_owner(target.target_address)
         self._require(gl.message.sender_address == live_owner, "UNAUTHORIZED_CALLER: not the live target owner")
 
+    def _require_live_controller_active(self, target_id: str, target: TargetRecord) -> None:
+        """C1-FINAL Section 7 (A1-H18): the target owner may directly revoke the Kernel as
+        assurance controller at any time - sovereign emergency authority. Before creating ANY new
+        effect (receive_decision dispatch, final action redispatch, an authority-granting policy
+        activation), the Kernel must live-check the target's OWN reported controller/revocation
+        state, not merely trust its own possibly-stale authority_revoked flag. If the target has
+        revoked Reclose, fail closed - the Kernel's local revoke_authority() flag is a Kernel-side
+        cache of what the target may have ALREADY decided unilaterally, not the source of truth."""
+        target_view = gl.contract.get_at(target.target_address)
+        controller = target_view.view().get_assurance_controller()
+        self._require(controller == gl.message.contract_address, "E_KRN_018: target controller revoked - target does not recognize this Kernel as controller")
+        revoked = target_view.view().is_assurance_authority_revoked()
+        self._require(not revoked, "E_KRN_018: target controller revoked - target reports assurance authority revoked")
+
     # -- Target registration (Section 20) ------------------------------------------------------
 
     @gl.public.write
@@ -403,13 +417,21 @@ class AssuranceKernel(gl.contract.Contract):
         self._require(_valid_identifier(target_id, 96), "INVALID_TARGET_ID")
         self._require(target_id not in self.targets, "DUPLICATE_TARGET: target_id already registered")
 
-        # Live handshake: the target must acknowledge this Kernel as its controller and report an
-        # owner we can authenticate against for all future owner-gated calls (TM-AUTH-007).
+        # Live handshake (C1-FINAL Section 6, A1-H15): the target must independently confirm ALL
+        # FOUR of: reported owner == caller, reported controller == this Kernel, reported target
+        # ID == the target_id argument (a target cannot be registered under an ID it does not
+        # itself recognize - stops a caller registering an unrelated/mismatched target record),
+        # and reported revoked == false (a target that already revoked assurance authority cannot
+        # be freshly registered). Do not rely only on the cached owner field for any of this.
         target_view = gl.contract.get_at(target_address)
-        reported_owner = target_view.view().get_owner()
+        reported_owner = target_view.view().get_assurance_owner()
         self._require(gl.message.sender_address == reported_owner, "UNAUTHORIZED_CALLER: caller is not target owner")
         controller = target_view.view().get_assurance_controller()
         self._require(controller == gl.message.contract_address, "TARGET_HANDSHAKE_FAILED: target does not recognize this Kernel as controller")
+        reported_target_id = target_view.view().get_assurance_target_id()
+        self._require(reported_target_id == target_id, "TARGET_ID_MISMATCH: target's own reported target_id does not match the registration argument")
+        reported_revoked = target_view.view().is_assurance_authority_revoked()
+        self._require(not reported_revoked, "TARGET_ALREADY_REVOKED: target reports assurance authority already revoked")
 
         record = TargetRecord()
         record.target_address = target_address
@@ -724,6 +746,10 @@ class AssuranceKernel(gl.contract.Contract):
         if is_expansion:
             required_not_before = int(header.sealed_at) + int(self.minimum_policy_delay_seconds)
             self._require(int(now) >= required_not_before, "TIMELOCK_NOT_ELAPSED: authority expansion requires the configured delay from seal time")
+            # C1-FINAL Section 7 (A1-H18): an authority-GRANTING activation must live-check the
+            # target hasn't unilaterally revoked Reclose in the meantime - a pure reduction never
+            # needs this, since it can only narrow authority.
+            self._require_live_controller_active(target_id, target)
 
         active_key = target.active_policy_key
         if active_key != "" and active_key in self.policy_headers:
@@ -839,6 +865,10 @@ class AssuranceKernel(gl.contract.Contract):
         # Invariant 1 / TM-AUTH-001: default-deny without an active policy.
         self._require(target.active_policy_key != "", "INACTIVE_POLICY: no active policy for target")
         self._require(not target.authority_revoked, "AUTHORITY_REVOKED")
+        # C1-FINAL Section 7 (A1-H18): live-check the target's OWN reported controller/revocation
+        # state before processing a decision that could create a new effect - a target may have
+        # revoked Reclose directly without the Kernel's local authority_revoked flag reflecting it.
+        self._require_live_controller_active(target_id, target)
 
         header = self.policy_headers[target.active_policy_key]
         # C1R A1-H11 / TM-AUTH-006: bind policy identity strongly - key, version AND hash must all

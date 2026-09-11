@@ -131,6 +131,27 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         return self.kernel if self.assurance_controller_set else gl.Address("0x" + "0" * 40)
 
     @gl.public.view
+    def get_assurance_owner(self) -> gl.Address:
+        """C1-FINAL Section 6 (A1-H15): alias of get_owner() using the canonical registration-
+        handshake view name the Kernel's register_target() checks against."""
+        return self.owner
+
+    @gl.public.view
+    def get_assurance_target_id(self) -> str:
+        """C1-FINAL Section 6 (A1-H15): the target's own record of its registered target_id, so
+        the Kernel can independently verify the caller-supplied target_id argument actually
+        matches what this target believes its identity is - not just trust the argument."""
+        return self.target_id
+
+    @gl.public.view
+    def is_assurance_authority_revoked(self) -> bool:
+        """C1-FINAL Section 6/7 (A1-H15/A1-H18): live-checkable revocation flag. The Kernel must
+        check this before registering a target AND before processing any new decision that could
+        create effects (Section 7) - a target that revoked Reclose must never have a new Kernel
+        effect land on it."""
+        return self.authority_revoked
+
+    @gl.public.view
     def get_state(self) -> gl.u8:
         return self.state
 

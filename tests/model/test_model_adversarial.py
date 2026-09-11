@@ -243,3 +243,39 @@ def test_model_report_bond_change_is_expansion():
     m.seal_policy("p2")
     with pytest.raises(ModelError):
         m.activate_policy("p2")
+
+
+def test_model_registration_rejects_wrong_owner():
+    m = Model(minimum_policy_delay_seconds=60)
+    with pytest.raises(ModelError):
+        m.register_target("t1", "0xowner", True, caller="0xsomeoneelse")
+
+
+def test_model_registration_rejects_wrong_controller():
+    m = Model(minimum_policy_delay_seconds=60)
+    with pytest.raises(ModelError):
+        m.register_target("t1", "0xowner", True, reported_controller_matches=False)
+
+
+def test_model_registration_rejects_target_id_mismatch():
+    m = Model(minimum_policy_delay_seconds=60)
+    with pytest.raises(ModelError):
+        m.register_target("t1", "0xowner", True, reported_target_id="different-id")
+
+
+def test_model_registration_rejects_already_revoked_target():
+    m = Model(minimum_policy_delay_seconds=60)
+    with pytest.raises(ModelError):
+        m.register_target("t1", "0xowner", True, reported_revoked=True)
+
+
+def test_model_receive_decision_rejects_target_side_revocation():
+    m = _fresh()
+    m.begin_policy("t1", "p1", M1)
+    m.add_policy_rule("p1", "R1", JUDGE, 1, RULE_KIND_INCIDENT, True)
+    m.seal_policy("p1")
+    m.warp(60)
+    m.activate_policy("p1")
+    m.target_side_revoke("t1")
+    with pytest.raises(ModelError):
+        m.receive_decision("i1", "", "t1", "p1", 1, M1, "R1", "", JUDGE, OUTCOME_CONFIRMED, STAGE_FINAL, 1)
