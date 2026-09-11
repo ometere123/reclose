@@ -1,14 +1,9 @@
-// C3 real implementation: compiles a PolicyManifest into the exact ordered AssuranceKernel write
-// sequence, replacing the hand-typed CLI call sequence used during live C2 deployment
-// (deployment/61997/c2-manifest.json) with reusable, tested code. Validation here MIRRORS the
-// Kernel's own deterministic checks (contracts/assurance_kernel.py) for fast local feedback, but
-// is never treated as a second authority - the Kernel still independently enforces every one of
-// these rules on-chain, and this compiler's job is only to avoid submitting a call that the
-// Kernel would reject anyway (CLAUDE.md Section 13: never a second policy evaluator that can
-// disagree with protocol semantics).
+// C3 policy compiler: compiles a PolicyManifest into the exact ordered AssuranceKernel write
+// sequence. Client validation mirrors deterministic Kernel checks for fast feedback; the Kernel
+// remains the sole authority.
 
-import { createHash } from "node:crypto";
 import type { ActionType } from "@reclose/protocol-sdk";
+import { canonicalKeccak256 } from "@reclose/protocol-sdk";
 import type {
   PolicyManifest,
   PolicyRuleManifest,
@@ -24,7 +19,6 @@ export class PolicyCompileError extends Error {
   }
 }
 
-// Mirrors contracts/assurance_kernel.py's ACTION_* constants exactly (ordinal values, not names).
 const ACTION_TYPE_ORDINAL: Record<ActionType, number> = {
   NO_ACTION: 0,
   ALERT: 1,
@@ -39,13 +33,9 @@ const ACTION_TYPE_ORDINAL: Record<ActionType, number> = {
   RESTORE: 10,
 };
 
-// contracts/assurance_kernel.py::RESOURCE_SCOPED_ACTIONS - requires a non-empty resourceId.
 const RESOURCE_SCOPED_ACTIONS = new Set<ActionType>(["RESTRICT", "THROTTLE", "REVOKE_CAPABILITY", "REROUTE"]);
-// contracts/assurance_kernel.py::TARGET_WIDE_ACTIONS - must use an empty resourceId.
 const TARGET_WIDE_ACTIONS = new Set<ActionType>(["MONITOR", "ENTER_SAFE_MODE", "PAUSE", "ENTER_RECOVERY", "RESTORE"]);
 
-// contracts/assurance_kernel.py::RELEASE_AT_REMEDIATION_CONFIRMED / RELEASE_AT_RECOVERY_VALIDATED.
-// RELEASE_AT_POLICY_REPLACEMENT (3) is Kernel-internal only and deliberately has no entry here.
 const RELEASE_PHASE_ORDINAL: Record<PolicyEffectManifest["releasePhase"], number> = {
   REMEDIATION_CONFIRMED: 1,
   RECOVERY_VALIDATED: 2,
@@ -54,7 +44,6 @@ const RELEASE_PHASE_ORDINAL: Record<PolicyEffectManifest["releasePhase"], number
 const MAX_EFFECTS_PER_DECISION = 4;
 const VALID_IDENTIFIER_EXTRA = new Set(["_", ".", ":", "-"]);
 
-/** Mirrors contracts/assurance_kernel.py::_valid_identifier exactly. */
 function isValidIdentifier(value: string, maxLen: number, allowEmpty = false): boolean {
   if (value === "") return allowEmpty;
   if (value.length > maxLen) return false;
@@ -78,25 +67,13 @@ function toU256String(value: string | number | undefined): string {
   return s;
 }
 
-/** Canonical (stable-key-order) JSON serialization, so the same manifest content always hashes
- * identically regardless of object-literal key order in the caller's source. */
-function canonicalize(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (value !== null && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
-      out[key] = canonicalize((value as Record<string, unknown>)[key]);
-    }
-    return out;
-  }
-  return value;
-}
-
-/** Content-addressed hash of the manifest, committed to begin_policy's manifest_hash argument. */
+/**
+ * Canonical policy identity used by every Reclose client surface:
+ * Keccak-256(RFC8785-JCS(manifest)). This intentionally replaces the earlier SHA-256/custom-sort
+ * implementation, which was not the locked APM identity.
+ */
 export function hashPolicyManifest(manifest: PolicyManifest): `0x${string}` {
-  const canonical = JSON.stringify(canonicalize(manifest));
-  const digest = createHash("sha256").update(canonical, "utf8").digest("hex");
-  return `0x${digest}` as `0x${string}`;
+  return canonicalKeccak256(manifest);
 }
 
 function validateRule(rule: PolicyRuleManifest, seenRuleIds: Set<string>): void {
@@ -110,8 +87,8 @@ function validateRule(rule: PolicyRuleManifest, seenRuleIds: Set<string>): void 
   if (!isValidAddress(rule.judge)) {
     throw new PolicyCompileError(`Rule ${rule.ruleId}: judge must be a 0x-prefixed 40-hex-char address, got: ${rule.judge}`);
   }
-  if (rule.judgeVersion === 0) {
-    throw new PolicyCompileError(`Rule ${rule.ruleId}: judgeVersion must be non-zero (E_KRN_005 INVALID_JUDGE_VERSION on-chain)`);
+  if (!Number.isSafeInteger(rule.judgeVersion) || rule.judgeVersion <= 0) {
+    throw new PolicyCompileError(`Rule ${rule.ruleId}: judgeVersion must be a positive safe integer`);
   }
 }
 
@@ -122,69 +99,45 @@ function validateEffect(
   effectCountByRule: Map<string, number>
 ): void {
   if (!ruleIds.has(effect.ruleId)) {
-    throw new PolicyCompileError(`Effect references unknown rule_id (must be declared in manifest.rules first): ${effect.ruleId}`);
+    throw new PolicyCompileError(`Effect references unknown rule_id: ${effect.ruleId}`);
   }
   const isResourceScoped = RESOURCE_SCOPED_ACTIONS.has(effect.actionType);
   const isTargetWide = TARGET_WIDE_ACTIONS.has(effect.actionType);
   if (isResourceScoped) {
     if (effect.resourceId === "") {
-      throw new PolicyCompileError(`Effect ${effect.ruleId}/${effect.actionType}: resourceId is required for this action type (E_KRN_013 RESOURCE_REQUIRED on-chain)`);
+      throw new PolicyCompileError(`Effect ${effect.ruleId}/${effect.actionType}: resourceId is required`);
     }
     if (!resourceIds.has(effect.resourceId)) {
-      throw new PolicyCompileError(`Effect ${effect.ruleId}/${effect.actionType}: resourceId "${effect.resourceId}" is not declared in manifest.resources (E_KRN_013 UNREGISTERED_RESOURCE on-chain)`);
+      throw new PolicyCompileError(`Effect ${effect.ruleId}/${effect.actionType}: resourceId "${effect.resourceId}" is not declared`);
     }
   } else if (isTargetWide && effect.resourceId !== "") {
-    throw new PolicyCompileError(`Effect ${effect.ruleId}/${effect.actionType}: resourceId must be empty for a target-wide action, got: "${effect.resourceId}"`);
+    throw new PolicyCompileError(`Effect ${effect.ruleId}/${effect.actionType}: resourceId must be empty for target-wide action`);
   }
   const count = (effectCountByRule.get(effect.ruleId) ?? 0) + 1;
   effectCountByRule.set(effect.ruleId, count);
   if (count > MAX_EFFECTS_PER_DECISION) {
-    throw new PolicyCompileError(`Rule ${effect.ruleId} has more than MAX_EFFECTS_PER_DECISION (${MAX_EFFECTS_PER_DECISION}) enabled effects (E_KRN_005 TOO_MANY_EFFECTS on-chain)`);
+    throw new PolicyCompileError(`Rule ${effect.ruleId} has more than MAX_EFFECTS_PER_DECISION (${MAX_EFFECTS_PER_DECISION}) enabled effects`);
   }
 }
 
-/**
- * Compiles a PolicyManifest into the exact ordered Kernel write-call sequence:
- * begin_policy -> add_policy_resource* -> add_policy_rule* -> add_policy_effect* -> seal_policy.
- * Throws PolicyCompileError (never silently drops/reorders) on anything the Kernel would itself
- * reject - see each check's on-chain error-code cross-reference in comments above.
- *
- * Deliberately does NOT call activate_policy - activation additionally requires live knowledge
- * of the Kernel's authority-expansion timelock state (whether this is the target's first policy,
- * or whether it only reduces authority vs. the currently active one), which only the chain itself
- * can answer authoritatively at call time. Callers activate separately once sealed.
- */
 export function compilePolicyManifest(manifest: PolicyManifest): CompiledPolicy {
-  if (!isValidIdentifier(manifest.targetId, 96)) {
-    throw new PolicyCompileError(`Invalid target_id: ${manifest.targetId}`);
-  }
-  if (!isValidIdentifier(manifest.policyKey, 96)) {
-    throw new PolicyCompileError(`Invalid policy_key: ${manifest.policyKey}`);
-  }
-  if (manifest.rules.length === 0) {
-    throw new PolicyCompileError("A policy must declare at least one rule");
-  }
+  if (!isValidIdentifier(manifest.targetId, 96)) throw new PolicyCompileError(`Invalid target_id: ${manifest.targetId}`);
+  if (!isValidIdentifier(manifest.policyKey, 96)) throw new PolicyCompileError(`Invalid policy_key: ${manifest.policyKey}`);
+  if (!Array.isArray(manifest.rules) || manifest.rules.length === 0) throw new PolicyCompileError("A policy must declare at least one rule");
+  if (!Array.isArray(manifest.resources) || !Array.isArray(manifest.effects)) throw new PolicyCompileError("resources and effects must be arrays");
 
   const resourceIds = new Set<string>();
   for (const resourceId of manifest.resources) {
-    if (!isValidIdentifier(resourceId, 64)) {
-      throw new PolicyCompileError(`Invalid resource_id: ${resourceId}`);
-    }
-    if (resourceIds.has(resourceId)) {
-      throw new PolicyCompileError(`Duplicate resource_id in manifest: ${resourceId} (E_KRN_005 DUPLICATE_RESOURCE on-chain)`);
-    }
+    if (!isValidIdentifier(resourceId, 64)) throw new PolicyCompileError(`Invalid resource_id: ${resourceId}`);
+    if (resourceIds.has(resourceId)) throw new PolicyCompileError(`Duplicate resource_id in manifest: ${resourceId}`);
     resourceIds.add(resourceId);
   }
 
   const ruleIds = new Set<string>();
-  for (const rule of manifest.rules) {
-    validateRule(rule, ruleIds);
-  }
+  for (const rule of manifest.rules) validateRule(rule, ruleIds);
 
   const effectCountByRule = new Map<string, number>();
-  for (const effect of manifest.effects) {
-    validateEffect(effect, ruleIds, resourceIds, effectCountByRule);
-  }
+  for (const effect of manifest.effects) validateEffect(effect, ruleIds, resourceIds, effectCountByRule);
 
   const manifestHash = hashPolicyManifest(manifest);
   const calls: CompiledKernelCall[] = [];
