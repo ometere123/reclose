@@ -1,21 +1,28 @@
 # { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
-"""IncentiveVault - R1 economic settlement (C2, Implementation Specification Section 33/CLAUDE.md
-Section 19). Economically SEPARATE from target-control authority: this contract has ZERO target
-authority, no generic execute, and never grants or receives assurance-controller status. It reads
-the Kernel's authoritative FINAL incident outcome (get_incident_final_outcome) purely to decide
-settlement - it is never itself a source of truth about what happened, only about what economic
-consequence follows from what the Kernel has already recorded.
+"""IncentiveVault - isolated Reporter-bond and target-bounty accounting for Reclose R1.
 
-Ordinary good-faith REJECTED/UNDETERMINED reports are never truth-slashed merely for being wrong
-or uncertain (CLAUDE.md Section 19) - the bond is always returned in full for those outcomes; only
-CONFIRMED pays the additional bounty, bounded by the target's own funded pool.
+A2 remediation:
+- Reporter opens their own bond directly; the Judge is never mis-recorded as Reporter.
+- Bond amount is read from immutable Kernel policy economics and must match exactly.
+- `settle_bond` has no caller-controlled bounty argument. Confirmed bounty is read from the same
+  immutable policy version/rule that the bond committed to.
+- EOA payout uses the documented finalized EVM-interface `emit_transfer` path.
+- Payout submission is tracked separately from settlement; no blind value resend is permitted.
+- Grace-period reclaim is allowed only while the Kernel still has no final incident outcome.
 """
 
+import datetime
 import genlayer as gl
 
 DECISION_OUTCOME_CONFIRMED = gl.u8(1)
 DECISION_OUTCOME_REJECTED = gl.u8(2)
 DECISION_OUTCOME_UNDETERMINED = gl.u8(3)
+
+PAYOUT_NONE = gl.u8(0)
+PAYOUT_SUBMITTED = gl.u8(1)
+# GenLayer external value transfer has no callback in R1; final recipient success must be checked
+# from its child/external transaction by the SDK/tracker. The Vault therefore never fabricates a
+# PAYOUT_CONFIRMED storage state.
 
 
 def _valid_identifier(value: str, max_len: int, allow_empty: bool = False) -> bool:
@@ -26,11 +33,18 @@ def _valid_identifier(value: str, max_len: int, allow_empty: bool = False) -> bo
     if len(value) > max_len:
         return False
     for ch in value:
-        if not (ch.isalnum() or ch in "_.:-"):
-            return False
-        if ord(ch) > 127:
+        if not (ch.isalnum() or ch in "_.:-") or ord(ch) > 127:
             return False
     return True
+
+
+@gl.evm.contract_interface
+class _Recipient:
+    class View:
+        pass
+
+    class Write:
+        pass
 
 
 @gl.storage.allow
@@ -45,9 +59,10 @@ class BondRecord:
     incident_id: str
     amount: gl.u256
     opened_at: gl.u64
+    consumed: bool
     settled: bool
     claimable_amount: gl.u256
-    claim_submitted: bool
+    payout_status: gl.u8
 
 
 class IncentiveVault(gl.contract.Contract):
@@ -56,7 +71,6 @@ class IncentiveVault(gl.contract.Contract):
     module_version: gl.u32
 
     bonds: gl.storage.TreeMap[str, BondRecord]
-    # Per-target bounty pool, funded independently of any bond (Section 33).
     target_pools: gl.storage.TreeMap[str, gl.u256]
 
     def __init__(self, kernel_address: gl.Address, judge_address: gl.Address, module_version: gl.u32) -> None:
@@ -81,23 +95,34 @@ class IncentiveVault(gl.contract.Contract):
     def get_judge(self) -> gl.Address:
         return self.judge
 
-    # -- Bonds (Section 33) ----------------------------------------------------------------
+    def _policy_economics(self, policy_key: str, policy_version: gl.u32, rule_id: str) -> tuple:
+        header = gl.contract.get_at(self.kernel).view().get_policy_header(policy_key)
+        # Kernel get_policy_header returns (version, manifest_hash, sealed, active,
+        # human_override_enabled). A bond may settle after the policy is superseded, so active is
+        # not required; immutable version identity is.
+        self._require(int(header[0]) == int(policy_version), "E_VLT_POLICY: policy version mismatch")
+        report_bond, confirmed_bounty = gl.contract.get_at(self.kernel).view().get_policy_rule_economics(policy_key, rule_id)
+        return (report_bond, confirmed_bounty)
 
     @gl.public.write.payable
     def open_bond(
         self, bond_id: str, target_id: str, policy_key: str, policy_version: gl.u32,
         rule_id: str, reporter_nonce: gl.u64, incident_id: str,
     ) -> None:
-        """Zero-bond policies work: gl.message.value may be 0. Only the configured Judge may open
-        a bond - a Reporter never calls the Vault directly, closing the path where a caller could
-        fabricate a bond record for an incident that was never actually judged."""
-        self._require(gl.message.sender_address == self.judge, "E_VLT_001: UNAUTHORIZED_CALLER: only the configured Judge may open a bond")
+        """Reporter opens their own bond before Judge submission.
+
+        The record is bound to the deterministic incident identity and immutable policy economics.
+        Exact amount is required: overpayment is rejected instead of trapping accidental GEN.
+        """
         self._require(_valid_identifier(bond_id, 96), "E_VLT_002: invalid bond_id")
-        self._require(bond_id not in self.bonds, "E_VLT_003: DUPLICATE_BOND: bond_id already exists")
+        self._require(bond_id not in self.bonds, "E_VLT_003: DUPLICATE_BOND")
         self._require(_valid_identifier(target_id, 96), "E_VLT_002: invalid target_id")
         self._require(_valid_identifier(policy_key, 96), "E_VLT_002: invalid policy_key")
         self._require(_valid_identifier(rule_id, 64), "E_VLT_002: invalid rule_id")
-        self._require(_valid_identifier(incident_id, 96), "E_VLT_002: invalid incident_id")
+        self._require(_valid_identifier(incident_id, 160), "E_VLT_002: invalid incident_id")
+        report_bond, _confirmed_bounty = self._policy_economics(policy_key, policy_version, rule_id)
+        self._require(int(report_bond) > 0, "E_VLT_010: ZERO_BOND_RULE: do not create a Vault bond for a zero-bond policy")
+        self._require(int(gl.message.value) == int(report_bond), "E_VLT_011: BOND_AMOUNT_MISMATCH")
 
         record = BondRecord()
         record.bond_id = bond_id
@@ -110,15 +135,49 @@ class IncentiveVault(gl.contract.Contract):
         record.incident_id = incident_id
         record.amount = gl.u256(int(gl.message.value))
         record.opened_at = self._tx_time_seconds()
+        record.consumed = False
         record.settled = False
         record.claimable_amount = gl.u256(0)
-        record.claim_submitted = False
+        record.payout_status = PAYOUT_NONE
         self.bonds[bond_id] = record
+
+    @gl.public.view
+    def verify_open_bond(
+        self, bond_id: str, reporter: gl.Address, target_id: str, policy_key: str,
+        policy_version: gl.u32, rule_id: str, reporter_nonce: gl.u64, incident_id: str,
+        expected_amount: gl.u256,
+    ) -> bool:
+        if bond_id not in self.bonds:
+            return False
+        bond = self.bonds[bond_id]
+        reporter = gl.Address(reporter)
+        return (
+            not bond.settled
+            and not bond.consumed
+            and bond.reporter == reporter
+            and bond.target_id == target_id
+            and bond.policy_key == policy_key
+            and int(bond.policy_version) == int(policy_version)
+            and bond.rule_id == rule_id
+            and int(bond.reporter_nonce) == int(reporter_nonce)
+            and bond.incident_id == incident_id
+            and int(bond.amount) == int(expected_amount)
+        )
+
+    @gl.public.write
+    def mark_bond_consumed(self, bond_id: str, incident_id: str) -> None:
+        self._require(gl.message.sender_address == self.judge, "E_VLT_001: only configured Judge may consume bond")
+        self._require(bond_id in self.bonds, "E_VLT_004: UNKNOWN_BOND")
+        bond = self.bonds[bond_id]
+        self._require(not bond.settled and not bond.consumed, "E_VLT_012: BOND_ALREADY_CONSUMED")
+        self._require(bond.incident_id == incident_id, "E_VLT_013: INCIDENT_BINDING_MISMATCH")
+        bond.consumed = True
+        self.bonds[bond_id] = bond
 
     @gl.public.write.payable
     def fund_target_pool(self, target_id: str) -> None:
-        """Anyone may top up a target's bounty pool - independent of any specific bond/incident."""
         self._require(_valid_identifier(target_id, 96), "E_VLT_002: invalid target_id")
+        self._require(int(gl.message.value) > 0, "E_VLT_014: funding value must be non-zero")
         current = int(self.target_pools[target_id]) if target_id in self.target_pools else 0
         self.target_pools[target_id] = gl.u256(current + int(gl.message.value))
 
@@ -127,82 +186,64 @@ class IncentiveVault(gl.contract.Contract):
         return self.target_pools[target_id] if target_id in self.target_pools else gl.u256(0)
 
     @gl.public.write
-    def settle_bond(self, bond_id: str, confirmed_bounty: gl.u256) -> None:
-        """Reads the Kernel's AUTHORITATIVE final incident outcome - the Vault is never itself the
-        source of truth. CONFIRMED: bond returned + bounty (bounded by the target's funded pool
-        and the caller-supplied confirmed_bounty ceiling, which the caller must derive from the
-        active PolicyRuleRecord.confirmed_bounty - the Vault does not read policy state itself, to
-        avoid becoming a second policy engine). REJECTED/UNDETERMINED: bond returned only - never
-        truth-slashed for being wrong or uncertain (CLAUDE.md Section 19)."""
+    def settle_bond(self, bond_id: str) -> None:
+        """Permissionless settlement with zero caller-controlled economics."""
         self._require(bond_id in self.bonds, "E_VLT_004: UNKNOWN_BOND")
         bond = self.bonds[bond_id]
         self._require(not bond.settled, "E_VLT_005: ALREADY_SETTLED")
-
         outcome = gl.contract.get_at(self.kernel).view().get_incident_final_outcome(bond.incident_id)
-        self._require(int(outcome) != 0, "E_VLT_006: INCIDENT_NOT_FINAL: Kernel has not recorded a final outcome yet")
+        self._require(int(outcome) in (
+            int(DECISION_OUTCOME_CONFIRMED), int(DECISION_OUTCOME_REJECTED), int(DECISION_OUTCOME_UNDETERMINED)
+        ), "E_VLT_006: INCIDENT_NOT_FINAL")
+        _report_bond, confirmed_bounty = self._policy_economics(bond.policy_key, bond.policy_version, bond.rule_id)
 
         claimable = int(bond.amount)
         if int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
-            pool_key = bond.target_id
-            available = int(self.target_pools[pool_key]) if pool_key in self.target_pools else 0
+            available = int(self.target_pools[bond.target_id]) if bond.target_id in self.target_pools else 0
             bounty = min(int(confirmed_bounty), available)
             if bounty > 0:
-                self.target_pools[pool_key] = gl.u256(available - bounty)
+                self.target_pools[bond.target_id] = gl.u256(available - bounty)
             claimable += bounty
-        # REJECTED / UNDETERMINED: claimable stays exactly the bond amount - no slashing, no bounty.
-
+        # REJECTED / UNDETERMINED: original bond only, never truth-slashed.
         bond.settled = True
         bond.claimable_amount = gl.u256(claimable)
         self.bonds[bond_id] = bond
 
     @gl.public.write
     def claim(self, bond_id: str) -> None:
-        """FINAL only (settle_bond already requires a final Kernel outcome before this can be
-        claimed). Caller must be the original Reporter. Claim once - never blindly retried; a
-        failed value transfer requires a fresh claim() call, not an automatic resend, so no
-        duplicate economic effect can occur even if the underlying transfer fails."""
+        """Submit exactly one finalized external GEN transfer to the original Reporter.
+
+        The value is deducted into the external message when emitted. If the external child fails,
+        GenLayer does not automatically return it, therefore this contract deliberately provides
+        no blind retry path. SDK/action-trace code must expose the external child result.
+        """
         self._require(bond_id in self.bonds, "E_VLT_004: UNKNOWN_BOND")
         bond = self.bonds[bond_id]
         self._require(bond.settled, "E_VLT_007: NOT_SETTLED")
-        self._require(not bond.claim_submitted, "E_VLT_008: ALREADY_CLAIMED")
-        self._require(gl.message.sender_address == bond.reporter, "E_VLT_001: UNAUTHORIZED_CALLER: only the original Reporter may claim")
-
-        bond.claim_submitted = True
+        self._require(int(bond.payout_status) == int(PAYOUT_NONE), "E_VLT_008: PAYOUT_ALREADY_SUBMITTED")
+        self._require(gl.message.sender_address == bond.reporter, "E_VLT_001: only original Reporter may claim")
+        self._require(int(bond.claimable_amount) > 0, "E_VLT_015: NOTHING_CLAIMABLE")
+        bond.payout_status = PAYOUT_SUBMITTED
         self.bonds[bond_id] = bond
-
-        # KNOWN LIMITATION (Section 35 will attempt live verification): this dispatch assumes the
-        # Reporter address either implements fulfill_vault_claim(bond_id) or that GenVM delivers
-        # `value` to a plain EOA recipient regardless of the attempted method call. Neither has
-        # been live-proven yet - see release-evidence/r1/c2/ for the outcome once attempted. The
-        # accounting above (claim_submitted/claimable_amount) is authoritative and safe regardless
-        # of how the value-transfer wire mechanics resolve: a failed transfer never re-credits or
-        # re-triggers this path (claim_submitted is already permanently set), so no double-payment
-        # can occur even if the dispatch below turns out to require a different mechanism.
-        if int(bond.claimable_amount) > 0:
-            reporter_contract = gl.contract.get_at(bond.reporter)
-            reporter_contract.emit(value=int(bond.claimable_amount), on="finalized").fulfill_vault_claim(bond_id)
+        _Recipient(bond.reporter).emit_transfer(value=bond.claimable_amount)
 
     @gl.public.write
     def reclaim_unused_bond(self, bond_id: str) -> None:
-        """Bounded safety valve: if a bond was opened but the corresponding incident somehow never
-        reaches a final outcome (Judge/Kernel path failure), the ORIGINAL reporter may reclaim
-        their own bond amount after a long fixed grace period - never anyone else's funds, never
-        before the grace period, and never more than the original bond amount."""
+        """Reclaim an orphaned bond only after grace period AND only while Kernel has no final outcome."""
         self._require(bond_id in self.bonds, "E_VLT_004: UNKNOWN_BOND")
         bond = self.bonds[bond_id]
         self._require(not bond.settled, "E_VLT_005: ALREADY_SETTLED")
-        self._require(not bond.claim_submitted, "E_VLT_008: ALREADY_CLAIMED")
-        self._require(gl.message.sender_address == bond.reporter, "E_VLT_001: UNAUTHORIZED_CALLER: only the original Reporter may reclaim")
+        self._require(int(bond.payout_status) == int(PAYOUT_NONE), "E_VLT_008: PAYOUT_ALREADY_SUBMITTED")
+        self._require(gl.message.sender_address == bond.reporter, "E_VLT_001: only original Reporter may reclaim")
         grace_period_seconds = 7 * 24 * 60 * 60
         self._require(int(self._tx_time_seconds()) >= int(bond.opened_at) + grace_period_seconds, "E_VLT_009: GRACE_PERIOD_NOT_ELAPSED")
-
+        final_outcome = gl.contract.get_at(self.kernel).view().get_incident_final_outcome(bond.incident_id)
+        self._require(int(final_outcome) == 0, "E_VLT_016: INCIDENT_ALREADY_FINAL: use normal settlement")
         bond.settled = True
         bond.claimable_amount = bond.amount
-        bond.claim_submitted = True
+        bond.payout_status = PAYOUT_SUBMITTED
         self.bonds[bond_id] = bond
-        if int(bond.amount) > 0:
-            reporter_contract = gl.contract.get_at(bond.reporter)
-            reporter_contract.emit(value=int(bond.amount), on="finalized").fulfill_vault_claim(bond_id)
+        _Recipient(bond.reporter).emit_transfer(value=bond.amount)
 
     @gl.public.view
     def get_bond_claimable_amount(self, bond_id: str) -> gl.u256:
@@ -212,7 +253,15 @@ class IncentiveVault(gl.contract.Contract):
     def is_bond_settled(self, bond_id: str) -> bool:
         return self.bonds[bond_id].settled if bond_id in self.bonds else False
 
+    @gl.public.view
+    def get_bond_payout_status(self, bond_id: str) -> gl.u8:
+        return self.bonds[bond_id].payout_status if bond_id in self.bonds else PAYOUT_NONE
+
+    @gl.public.view
+    def get_bond_reporter(self, bond_id: str) -> gl.Address:
+        return self.bonds[bond_id].reporter if bond_id in self.bonds else gl.Address("0x" + "0" * 40)
+
     def _tx_time_seconds(self) -> gl.u64:
-        import datetime
+        # Existing Direct Mode behavior relies on deterministic VM-warped datetime.
         dt = datetime.datetime.now(datetime.timezone.utc)
         return gl.u64(int(dt.timestamp()))
