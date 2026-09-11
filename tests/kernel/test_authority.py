@@ -1306,3 +1306,35 @@ def test_stable_error_code_e_krn_011_wrong_judge(kernel_harness, direct_vm, dire
             "RULE_A", "", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_FINAL, 1,
         )
     assert "E_KRN_011" in str(exc_info.value)
+
+
+# -- C2 Section 32: Kernel read views for the Judge (new closure) --------------------------------
+
+def test_kernel_read_views_for_judge(kernel_harness, direct_vm):
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    policy_key, version, policy_hash = kernel.get_target_policy_identity("target-001")
+    assert policy_key == "policy-1"
+    assert int(version) == 1
+    assert policy_hash == M1
+
+    v, h, sealed, active, hoe = kernel.get_policy_header("policy-1")
+    assert bool(sealed) is True
+    assert bool(active) is True
+
+    judge, judge_version, rule_kind, provisional_allowed, enabled = kernel.get_policy_rule("policy-1", "RULE_A")
+    assert bool(enabled) is True
+    assert int(judge_version) == 1
+
+    assert bool(kernel.is_policy_resource("policy-1", "provider_a")) is True
+    assert bool(kernel.is_policy_resource("policy-1", "nonexistent")) is False
+
+    target_id, pkey, rule_id, status = kernel.get_incident_summary("no-such-incident")
+    assert target_id == ""

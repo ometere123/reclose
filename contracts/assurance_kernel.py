@@ -1416,3 +1416,60 @@ class AssuranceKernel(gl.contract.Contract):
     @gl.public.view
     def get_incident_status(self, incident_id: str) -> gl.u8:
         return self.incidents[incident_id].status
+
+    # -- C2 Section 32: minimal deterministic read views for IncidentJudgeV1's deterministic
+    # prechecks. The Judge does NOT implement a second policy engine - it only reads these to
+    # verify a submission's rule/resource/policy-identity claims before doing any nondeterministic
+    # work; receive_decision() remains the sole authority that actually authenticates and applies
+    # a decision.
+
+    @gl.public.view
+    def get_target_policy_identity(self, target_id: str) -> tuple:
+        """Returns (active_policy_key, policy_version, policy_hash) for a target, or ("", 0, "")
+        if no policy is active."""
+        target = self.targets[target_id]
+        if target.active_policy_key == "" or target.active_policy_key not in self.policy_headers:
+            return ("", gl.u32(0), "")
+        header = self.policy_headers[target.active_policy_key]
+        return (target.active_policy_key, header.version, header.manifest_hash)
+
+    @gl.public.view
+    def get_policy_header(self, policy_key: str) -> tuple:
+        """Returns (version, manifest_hash, sealed, active, human_override_enabled) for a policy."""
+        header = self.policy_headers[policy_key]
+        return (header.version, header.manifest_hash, header.sealed, header.active, header.human_override_enabled)
+
+    @gl.public.view
+    def get_policy_rule(self, policy_key: str, rule_id: str) -> tuple:
+        """Returns (judge, judge_version, rule_kind, provisional_allowed, enabled) for a rule, or
+        a zero-valued tuple with enabled=False if the rule is not registered on this policy."""
+        header = self.policy_headers[policy_key]
+        rule = self._find_rule(policy_key, rule_id, header)
+        if rule is None:
+            return (gl.Address("0x" + "0" * 40), gl.u32(0), gl.u8(0), False, False)
+        return (rule.judge, rule.judge_version, rule.rule_kind, rule.provisional_allowed, rule.enabled)
+
+    @gl.public.view
+    def is_policy_resource(self, policy_key: str, resource_id: str) -> bool:
+        header = self.policy_headers[policy_key]
+        for i in range(int(header.resource_count)):
+            key = _ck(policy_key, str(i))
+            if key in self.policy_resources and self.policy_resources[key] == resource_id:
+                return True
+        return False
+
+    @gl.public.view
+    def get_incident_summary(self, incident_id: str) -> tuple:
+        """Returns (target_id, policy_key, rule_id, status) for an incident, or ("", "", "", 0) if
+        it does not yet exist (the Judge must not assume an incident_id it derives itself already
+        has a Kernel-side record before the first decision referencing it is accepted)."""
+        if incident_id not in self.incidents:
+            return ("", "", "", gl.u8(0))
+        incident = self.incidents[incident_id]
+        return (incident.target_id, incident.policy_key, incident.rule_id, incident.status)
+
+    @gl.public.view
+    def get_incident_final_outcome(self, incident_id: str) -> gl.u8:
+        if incident_id not in self.incidents:
+            return gl.u8(0)
+        return self.incidents[incident_id].final_outcome
