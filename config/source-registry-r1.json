@@ -1,0 +1,29 @@
+{
+  "schema": "reclose-source-registry-v1",
+  "sources": [
+    {
+      "sourceId": "genlayer-project-boilerplate",
+      "canonicalOrigin": "https://raw.githubusercontent.com",
+      "sourceClass": "INDEPENDENT_PUBLIC",
+      "ruleIds": [
+        "PROVIDER_COMPROMISE_V1",
+        "SERVICE_FAILURE_V1",
+        "REMEDIATION_CONFIRMED_V1",
+        "RECOVERY_VALIDATED_V1"
+      ],
+      "enabled": true
+    },
+    {
+      "sourceId": "reclose-reference-evidence",
+      "canonicalOrigin": "https://raw.githubusercontent.com",
+      "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+      "ruleIds": [
+        "PROVIDER_COMPROMISE_V1",
+        "SERVICE_FAILURE_V1",
+        "REMEDIATION_CONFIRMED_V1",
+        "RECOVERY_VALIDATED_V1"
+      ],
+      "enabled": true
+    }
+  ]
+}
