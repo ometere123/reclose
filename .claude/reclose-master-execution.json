@@ -2,10 +2,10 @@
   "directive": "Reclose R1 Master Execution",
   "status": "IN_PROGRESS",
   "current_major_phase": "C1-FINAL",
-  "current_section": 5,
-  "current_task": "first-policy timelock (A1-H14)",
-  "last_completed_section": 4,
-  "last_completed_commit": "3e67ce5",
+  "current_section": 18,
+  "current_task": "reference agent treasury (investigate safe autonomous spending)",
+  "last_completed_section": 17,
+  "last_completed_commit": "7cfd339",
   "owner_permission_required": false,
   "mandatory_final_stop": "S1",
   "phases": {
@@ -26,6 +26,8 @@
     "R1": "NOT_STARTED",
     "S1": "NOT_STARTED"
   },
+  "c1_final_sections_done": [4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17],
+  "c1_final_sections_remaining": [9, 18, 19, 20, 21, 22],
   "hard_blockers": [],
-  "next_action": "Implement Section 5 (first-policy timelock, A1-H14) in contracts/assurance_kernel.py"
+  "next_action": "Section 18: investigate genlayer-js/genvm support for reference-agent autonomous treasury spending (fund_treasury/purchase_service without caller-supplied value); if unsafe/unsupported, document as C3 limitation per the directive's own fallback clause and move to Section 19-22 (linter/F1 review, fee estimator script, expanded model verification), then branch to claude/r1-consensus for C2."
 }
