@@ -1054,14 +1054,21 @@ class AssuranceKernel(gl.contract.Contract):
 
     def _apply_remediation(self, parent: IncidentRecord, outcome: gl.u8) -> None:
         if int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
-            self._release_restrictions_by_phase(parent, RELEASE_AT_REMEDIATION_CONFIRMED)
+            # C1-FINAL Section 11 (A1-H16): mutate restrictions WITHOUT recomputing/dispatching
+            # yet, so ALL lifecycle counters (status, recovery_incident_counts) are correct BEFORE
+            # target state is computed even once - never compute against stale counters.
+            released_resources, any_released = self._release_restrictions_mutate_only(parent, only_phase=RELEASE_AT_REMEDIATION_CONFIRMED)
             parent.status = INCIDENT_STATUS_RECOVERY
-            target = self.targets[parent.target_id]
             key = _ck(parent.target_id)
             cur = int(self.recovery_incident_counts[key]) if key in self.recovery_incident_counts else 0
             self.recovery_incident_counts[key] = gl.u32(cur + 1)
-            self._recompute_target_state(parent.target_id)
-            self._dispatch_recompute(parent, target, ACTION_ENTER_RECOVERY, "", DECISION_STAGE_FINAL)
+            # Recompute/dispatch exactly ONCE, now that every counter is correct. Unconditional
+            # (not gated on any_released) - entering RECOVERY is itself a state transition the
+            # target must be told about even if this rule had zero remediation-phase restrictions.
+            new_state = self._recompute_target_state(parent.target_id)
+            for resource_id in released_resources:
+                self._dispatch_restore(parent.target_id, parent.incident_id, parent.policy_key, resource_id, gl.u256(0))
+            self._dispatch_restore(parent.target_id, parent.incident_id, parent.policy_key, "", gl.u256(int(new_state)))
         # REJECTED or UNDETERMINED: do not restore authority, do not release restrictions
         # (invariant 11) - parent remains in FINAL_CONFIRMED (remediation-pending).
 
@@ -1069,13 +1076,19 @@ class AssuranceKernel(gl.contract.Contract):
 
     def _apply_recovery_validation(self, parent: IncidentRecord, outcome: gl.u8) -> None:
         if int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
-            self._release_restrictions_by_phase(parent, RELEASE_AT_RECOVERY_VALIDATED)
+            # C1-FINAL Section 11 (A1-H16): decrement recovery_incident_counts and close the
+            # incident BEFORE recomputing - matches the instruction's exact required order
+            # ("decrement recovery count FIRST then recompute then dispatch").
+            released_resources, any_released = self._release_restrictions_mutate_only(parent, only_phase=RELEASE_AT_RECOVERY_VALIDATED)
             parent.status = INCIDENT_STATUS_CLOSED
             parent.closed_at = self._tx_time_seconds()
             key = _ck(parent.target_id)
             cur = int(self.recovery_incident_counts[key]) if key in self.recovery_incident_counts else 0
             self.recovery_incident_counts[key] = gl.u32(max(0, cur - 1))
-            self._recompute_target_state(parent.target_id)
+            new_state = self._recompute_target_state(parent.target_id)
+            for resource_id in released_resources:
+                self._dispatch_restore(parent.target_id, parent.incident_id, parent.policy_key, resource_id, gl.u256(0))
+            self._dispatch_restore(parent.target_id, parent.incident_id, parent.policy_key, "", gl.u256(int(new_state)))
         # REJECTED or UNDETERMINED: do not restore authority, leave parent in RECOVERY.
 
     # -- Restriction lifecycle (Section 3.5 / Section 10) ---------------------------------------
@@ -1149,12 +1162,40 @@ class AssuranceKernel(gl.contract.Contract):
         return ASSURANCE_STATE_NORMAL
 
     def _release_restrictions_by_phase(self, incident: IncidentRecord, release_phase: gl.u8) -> None:
-        self._release_restrictions(incident, only_phase=release_phase)
+        """Legacy convenience wrapper (mutate + recompute + dispatch in one call) - still used by
+        the INCIDENT-rule REJECTED/UNDETERMINED paths, which have no separate lifecycle counters
+        to update first, so mutate-then-immediately-reconcile is correct there. C1-FINAL Section
+        11 (A1-H16): remediation/recovery-validation do NOT use this - they use
+        _release_restrictions_mutate_only directly so ALL lifecycle counters can be updated
+        BEFORE target state is computed/dispatched."""
+        released_resources, any_released = self._release_restrictions_mutate_only(incident, only_phase=release_phase)
+        self._reconcile_and_dispatch(incident, released_resources, any_released)
 
     def _release_all_restrictions(self, incident: IncidentRecord) -> None:
-        self._release_restrictions(incident, only_phase=None)
+        released_resources, any_released = self._release_restrictions_mutate_only(incident, only_phase=None)
+        self._reconcile_and_dispatch(incident, released_resources, any_released)
 
-    def _release_restrictions(self, incident: IncidentRecord, only_phase) -> None:
+    def _reconcile_and_dispatch(self, incident: IncidentRecord, released_resources: list, any_released: bool) -> None:
+        """C1-FINAL Section 11: the SEPARATE dispatch half - recomputes target state (reading
+        whatever lifecycle counters are correct AT THE TIME THIS IS CALLED) and dispatches
+        resource RESTOREs plus one final target-wide reconciliation. Callers with additional
+        lifecycle counters to mutate (recovery_incident_counts, incident.status) MUST do so BEFORE
+        calling this, never after."""
+        if not any_released:
+            return
+        target_id = incident.target_id
+        new_state = self._recompute_target_state(target_id)
+        for resource_id in released_resources:
+            self._dispatch_restore(target_id, incident.incident_id, incident.policy_key, resource_id, gl.u256(0))
+        self._dispatch_restore(target_id, incident.incident_id, incident.policy_key, "", gl.u256(int(new_state)))
+
+    def _release_restrictions_mutate_only(self, incident: IncidentRecord, only_phase) -> tuple:
+        """C1-FINAL Section 11 (A1-H16): pure restriction-state mutation - marks matching active
+        restrictions inactive, decrements counters, returns (released_resources, any_released).
+        Emits NOTHING and does NOT recompute target state - the caller is responsible for updating
+        every other lifecycle counter (recovery_incident_counts, incident.status) BEFORE triggering
+        recompute/dispatch via _reconcile_and_dispatch, so target state is never computed against
+        stale counters."""
         target_id = incident.target_id
         target = self.targets[target_id]
         released_resources: list[str] = []
@@ -1185,16 +1226,7 @@ class AssuranceKernel(gl.contract.Contract):
                 if new_count == 0:
                     released_resources.append(rec.resource_id)
 
-        if not any_released:
-            return
-
-        new_state = self._recompute_target_state(target_id)
-        for resource_id in released_resources:
-            self._dispatch_restore(target_id, incident.incident_id, incident.policy_key, resource_id, gl.u256(0))
-        # Target-wide reconciliation: always tell the target the recomputed state once per
-        # release batch (Section 11: RESTORE with empty resource_id performs target-wide
-        # reconciliation only).
-        self._dispatch_restore(target_id, incident.incident_id, incident.policy_key, "", gl.u256(int(new_state)))
+        return released_resources, any_released
 
     def _recompute_target_state(self, target_id: str) -> gl.u8:
         # C1R Section 10: deterministic explicit-priority recomputation from ACTIVE reasons - never
@@ -1254,9 +1286,6 @@ class AssuranceKernel(gl.contract.Contract):
 
     def _dispatch_restore(self, target_id: str, incident_id: str, policy_key: str, resource_id: str, param_u256: gl.u256) -> None:
         self._dispatch_action(target_id, incident_id, policy_key, ACTION_RESTORE, resource_id, param_u256, "", DECISION_STAGE_FINAL)
-
-    def _dispatch_recompute(self, incident: IncidentRecord, target: TargetRecord, action_type: gl.u8, resource_id: str, decision_stage: gl.u8) -> None:
-        self._dispatch_action(incident.target_id, incident.incident_id, incident.policy_key, action_type, resource_id, gl.u256(0), "", decision_stage)
 
     # -- Views ------------------------------------------------------------------------------
 

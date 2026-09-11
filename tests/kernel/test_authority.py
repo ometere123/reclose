@@ -1058,3 +1058,74 @@ def test_policy_replacement_does_not_release_remediation_phase_restriction(kerne
     kernel.seal_policy("policy-2")
     kernel.activate_policy("policy-2")
     assert int(kernel.get_target_state("target-001")) == 2  # still RESTRICTED - remediation-phase untouched
+
+
+# -- C1-FINAL Section 11: recovery/release lifecycle-counter ordering (A1-H16 closure) -----------
+
+def test_remediation_recompute_uses_updated_recovery_count_not_stale(kernel_harness, direct_vm):
+    """A1-H16: entering RECOVERY must not dispatch a stale target-wide RESTORE computed BEFORE
+    recovery_incident_counts was incremented - the target must never see an intermediate WRONG
+    state (e.g. NORMAL) between the release and the RECOVERY transition."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "INC", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "INC", 3, "provider_a", 0, "", 1)  # RESTRICT, REMEDIATION-phase
+    kernel.add_policy_rule("policy-1", "REM", owner_addr, 1, REMEDIATION_RULE, True, 0, 0)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    kernel.receive_decision(
+        "incident-A", "", "target-001", "policy-1", 1, M1,
+        "INC", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_FINAL, 1,
+    )
+    assert int(kernel.get_target_state("target-001")) == 2  # RESTRICTED
+
+    del dispatch_log[:]
+    kernel.receive_decision(
+        "rem-1", "incident-A", "target-001", "policy-1", 1, M1,
+        "REM", "", owner_addr, EV_B, OUTCOME_CONFIRMED, "COND_2", STAGE_FINAL, 1,
+    )
+    assert int(kernel.get_target_state("target-001")) == 5  # RECOVERY
+    # Exactly one target-wide reconciliation dispatch, carrying the CORRECT final state (RECOVERY),
+    # never an intermediate wrong value from computing before the recovery count was incremented.
+    wide_reconciliations = [d for d in dispatch_log if d["action_type"] == 10 and d["resource_id"] == ""]
+    assert len(wide_reconciliations) == 1
+
+
+def test_recovery_validation_decrements_before_recompute(kernel_harness, direct_vm):
+    """A1-H16: recovery validation must decrement recovery_incident_counts BEFORE recomputing -
+    otherwise the target would incorrectly remain observed as RECOVERY even after the last
+    recovering incident closed."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "INC", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "INC", 3, "provider_a", 0, "", 2)  # RESTRICT, RECOVERY-phase
+    kernel.add_policy_rule("policy-1", "REM", owner_addr, 1, REMEDIATION_RULE, True, 0, 0)
+    kernel.add_policy_rule("policy-1", "REC", owner_addr, 1, RECOVERY_RULE, True, 0, 0)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    kernel.receive_decision(
+        "incident-A", "", "target-001", "policy-1", 1, M1,
+        "INC", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_FINAL, 1,
+    )
+    kernel.receive_decision(
+        "rem-1", "incident-A", "target-001", "policy-1", 1, M1,
+        "REM", "", owner_addr, EV_B, OUTCOME_CONFIRMED, "COND_2", STAGE_FINAL, 1,
+    )
+    # The RESTRICT restriction is RECOVERY-phase (not REMEDIATION-phase), so remediation does not
+    # release it - the target correctly remains RESTRICTED (priority order: RESTRICTED > RECOVERY),
+    # even though the incident's own status has moved to RECOVERY internally.
+    assert int(kernel.get_target_state("target-001")) == 2  # RESTRICTED
+
+    kernel.receive_decision(
+        "rec-1", "incident-A", "target-001", "policy-1", 1, M1,
+        "REC", "", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_3", STAGE_FINAL, 1,
+    )
+    assert int(kernel.get_target_state("target-001")) == 0  # NORMAL - fully resolved
