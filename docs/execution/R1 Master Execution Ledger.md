@@ -30,7 +30,16 @@ and `Threat Status.csv`. Status values: `NOT STARTED`, `IN PROGRESS`, `DONE`, `B
 | 33 | C2 | IncentiveVault - economic settlement, zero target authority | DONE | contracts/incentive_vault.py | tests/vault/ | included in 184/184 | 1ade0ee, eec684c | |
 | 34 | C2 | Judge/Vault circular-construction fix | DONE | contracts/incident_judge_v1.py | tests/judge/ | included in 184/184 | 97484f2 | |
 | 35 | C2 | live Studio-dev proof: deploy full C2 stack, wire, build+activate policy, real submit_incident | PARTIAL - see note | deployment/61997/c2-manifest.json, docs/execution/C2 Live Proof Evidence.md | live txs on chain 61997 | see C2 Live Proof Evidence.md | 61d6b0f | Judge->Kernel internal-message dispatch (receive_decision) fails live with SystemError: 2: inval (same AllocationTreeMalformed-class GenVM runtime limitation as A1 known-limitations.md item 2) - deterministic precheck, real web fetch, and real eq_principle LLM judgment are all live-proven; cross-contract decision dispatch remains Direct-Mode-only (184/184), not live-proven end-to-end pending upstream GenVM resolution |
-| 36-46 | C3 | SDK, tracker, compiler, evidence builder, CLI, Sentinel, fees, deployment, runbook, A2 | NOT STARTED | | | | | |
+| 36 | C3 | @reclose/protocol-sdk real lifecycle-mapping implementation | DONE | packages/protocol-sdk/src/lifecycle.ts | scripts/test-lifecycle-mapping.js | 9/9 | 3e0a332 | |
+| 37 | C3 | Kernel policy enumeration read views | DONE | contracts/assurance_kernel.py | tests/kernel/test_authority.py | 185/185 full suite | 435e177 | |
+| 38 | C3 | @reclose/policy-compiler | DONE | packages/policy-compiler/ | scripts/test-policy-compiler.js | 11/11 | 5fa4ea4 | |
+| 39 | C3 | @reclose/evidence-builder | DONE | packages/evidence-builder/ | scripts/test-evidence-builder.js | 13/13 | 90be817 | |
+| 40 | C3 | @reclose/transaction-tracker | DONE | packages/transaction-tracker/ | scripts/test-transaction-tracker.js | 8/8 | c368525 | |
+| 41 | C3 | @reclose/cli (reclose executable) | DONE | packages/cli/ | scripts/test-cli.js | 9/9 | 66dacc4 | |
+| 42 | C3 | @reclose/sentinel | DONE | packages/sentinel/ | scripts/test-sentinel.js | 10/10 | acb9290 | |
+| 43 | C3 | deployment automation + operations runbook | DONE | scripts/studio-dev-deploy.sh, docs/execution/Operations Runbook.md | manual verification | n/a (operational scripts) | 57bf924 | |
+| 44 | C3 | fee-profiling automation | DONE | scripts/fee-profile.mjs | live run against C2 deployment | release-evidence/r1/c3/fee-profile-report.json | ae3a508 | 2/3 representative branches returned ESTIMATION_FAILED on this run - see A2 known-limitations.md item 4 |
+| 45-46 | A2 | audit packet preparation | AWAITING EXTERNAL REVIEW | docs/execution/audit-packets/A2/ | see packet | see packet | (this commit) | stopped per CLAUDE.md Section 41 - owner/external reviewer decision required before D1-D4 |
 | 47-66 | D1-D4/I1-I2 | frontend product build, mock+real integration, accessibility, A3 | NOT STARTED | | | | | |
 | 67-71 | E1/H1 | canonical live scenario x2, 60-scenario benchmark, hardening | NOT STARTED | | | | | |
 | 72-77 | A4/R1 | pre-release audit, docs, requirements/threat closure, claim-to-evidence, deployment freeze | NOT STARTED | | | | | |
