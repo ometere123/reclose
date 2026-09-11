@@ -1,0 +1,25 @@
+{
+  "name": "@reclose/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "C3: the `reclose` CLI - a first-class, non-browser way to compile policies, build evidence, and track transactions (CLAUDE.md Section 8: 'An autonomous agent must be able to use Reclose programmatically without browsing the website'). Wraps @reclose/policy-compiler, @reclose/evidence-builder, and @reclose/transaction-tracker; never duplicates their logic.",
+  "bin": {
+    "reclose": "bin/reclose.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@reclose/protocol-sdk": "0.1.0",
+    "@reclose/policy-compiler": "0.1.0",
+    "@reclose/evidence-builder": "0.1.0",
+    "@reclose/transaction-tracker": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "22.10.2"
+  }
+}
