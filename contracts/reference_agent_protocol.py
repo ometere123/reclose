@@ -84,6 +84,12 @@ class ReferenceAgentProtocol(gl.contract.Contract):
     # Replay protection for purchase requests (idempotent request_ref).
     processed_requests: gl.storage.TreeMap[str, bool]
 
+    # C1-FINAL Section 17: bounded audit log for owner emergency controls - every entry tagged
+    # HUMAN_OVERRIDE so it's unambiguous which state changes came from direct owner action rather
+    # than the Kernel's own authenticated decision pipeline.
+    override_audit_sequence: gl.u64
+    override_audit_records: gl.storage.TreeMap[gl.u64, str]
+
     def __init__(
         self,
         authorized_agent: gl.Address,
@@ -112,6 +118,7 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         self.human_override_enabled = human_override_enabled
         self.authority_revoked = False
         self.assurance_controller_set = False
+        self.override_audit_sequence = gl.u64(0)
 
     # -- Kernel handshake (Implementation Specification Section 20) ----------------------------
 
@@ -121,6 +128,7 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         self._require(not self.assurance_controller_set, "E_AGT_001: CONTROLLER_ALREADY_SET")
         self.kernel = gl.Address(kernel_address)
         self.assurance_controller_set = True
+        self._override_audit("CONTROLLER_INSTALLATION")
 
     @gl.public.view
     def get_owner(self) -> gl.Address:
@@ -178,6 +186,13 @@ class ReferenceAgentProtocol(gl.contract.Contract):
     def _require(self, condition: bool, message: str) -> None:
         if not condition:
             raise gl.vm.UserError(message)
+
+    def _override_audit(self, action: str) -> None:
+        """C1-FINAL Section 17: append a HUMAN_OVERRIDE-tagged audit entry. Bounded/append-only,
+        exposed via get_override_audit_count/get_override_audit_entry."""
+        seq = int(self.override_audit_sequence)
+        self.override_audit_records[gl.u64(seq)] = f"HUMAN_OVERRIDE action={action} caller={gl.message.sender_address.as_hex}"
+        self.override_audit_sequence = gl.u64(seq + 1)
 
     def _state_priority_rank(self, state: gl.u8) -> int:
         """C1-FINAL Section 13/19 (A1-H19): explicit security priority, NOT raw enum-number
@@ -361,11 +376,13 @@ class ReferenceAgentProtocol(gl.contract.Contract):
     def owner_emergency_pause(self) -> None:
         self._require(gl.message.sender_address == self.owner, "E_AGT_001: UNAUTHORIZED_CALLER")
         self.state = ASSURANCE_STATE_PAUSED
+        self._override_audit("OWNER_EMERGENCY_PAUSE")
 
     @gl.public.write
     def revoke_assurance_controller(self) -> None:
         self._require(gl.message.sender_address == self.owner, "E_AGT_001: UNAUTHORIZED_CALLER")
         self.authority_revoked = True
+        self._override_audit("CONTROLLER_REVOCATION")
 
     @gl.public.write
     def owner_restore(self) -> None:
@@ -374,3 +391,41 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         self.state = ASSURANCE_STATE_NORMAL
         self.provider_a_enabled = True
         self.provider_b_enabled = True
+        self._override_audit("OWNER_RESTORE")
+
+    @gl.public.write
+    def owner_revoke_provider(self, resource_id: str) -> None:
+        """C1-FINAL Section 17/49: owner-level provider revocation - sovereign, independent of and
+        narrower than the Kernel's own REVOKE_CAPABILITY restriction mechanism. NOT cleared by a
+        Kernel RESTORE (see apply_assurance_action's RESTORE branch)."""
+        self._require(gl.message.sender_address == self.owner, "E_AGT_001: UNAUTHORIZED_CALLER")
+        self._require(resource_id in (RESOURCE_PROVIDER_A, RESOURCE_PROVIDER_B), "E_AGT_009: UNSUPPORTED_RESOURCE")
+        if resource_id == RESOURCE_PROVIDER_A:
+            self.provider_a_revoked = True
+            self.provider_a_enabled = False
+        else:
+            self.provider_b_revoked = True
+            self.provider_b_enabled = False
+        self._override_audit(f"OWNER_PROVIDER_REVOCATION resource_id={resource_id}")
+
+    @gl.public.write
+    def owner_restore_provider(self, resource_id: str) -> None:
+        self._require(gl.message.sender_address == self.owner, "E_AGT_001: UNAUTHORIZED_CALLER")
+        self._require(self.human_override_enabled, "E_AGT_010: HUMAN_OVERRIDE_DISABLED: this target does not permit direct owner restoration")
+        self._require(resource_id in (RESOURCE_PROVIDER_A, RESOURCE_PROVIDER_B), "E_AGT_009: UNSUPPORTED_RESOURCE")
+        if resource_id == RESOURCE_PROVIDER_A:
+            self.provider_a_revoked = False
+            self.provider_a_enabled = True
+        else:
+            self.provider_b_revoked = False
+            self.provider_b_enabled = True
+        self._override_audit(f"OWNER_PROVIDER_RESTORE resource_id={resource_id}")
+
+    @gl.public.view
+    def get_override_audit_count(self) -> gl.u64:
+        return self.override_audit_sequence
+
+    @gl.public.view
+    def get_override_audit_entry(self, index: gl.u64) -> str:
+        key = gl.u64(int(index))
+        return self.override_audit_records[key] if key in self.override_audit_records else ""

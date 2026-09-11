@@ -239,3 +239,48 @@ def test_stable_error_code_e_agt_008_unsupported_action(direct_deploy, direct_vm
     with pytest.raises(Exception) as exc_info:
         target.apply_assurance_action("a1", "i1", "p1", 4, "provider_a", 0, "", 2)  # THROTTLE
     assert "E_AGT_008" in str(exc_info.value)
+
+
+# -- C1-FINAL Section 17: human-override audit trail (new closure) -------------------------------
+
+def test_controller_installation_is_audited(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(direct_owner)
+    assert int(target.get_override_audit_count()) == 1
+    assert "HUMAN_OVERRIDE" in target.get_override_audit_entry(0)
+    assert "CONTROLLER_INSTALLATION" in target.get_override_audit_entry(0)
+
+
+def test_emergency_pause_and_restore_are_audited(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.owner_emergency_pause()
+    target.owner_restore()
+    assert int(target.get_override_audit_count()) == 2
+    assert "OWNER_EMERGENCY_PAUSE" in target.get_override_audit_entry(0)
+    assert "OWNER_RESTORE" in target.get_override_audit_entry(1)
+
+
+def test_controller_revocation_is_audited(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.revoke_assurance_controller()
+    assert int(target.get_override_audit_count()) == 1
+    assert "CONTROLLER_REVOCATION" in target.get_override_audit_entry(0)
+
+
+def test_owner_provider_revocation_is_audited_and_not_kernel_clearable(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    target.owner_revoke_provider("provider_a")
+    assert int(target.get_override_audit_count()) == 2  # controller install + provider revoke
+    assert "OWNER_PROVIDER_REVOCATION" in target.get_override_audit_entry(1)
+    assert int(target.get_effective_provider()) == 2  # falls back to B
+
+    # A Kernel RESTORE for provider_a must NOT clear the owner-level revocation.
+    direct_vm.sender = kernel_stub
+    target.apply_assurance_action("restore-1", "i1", "p1", 10, "provider_a", 0, "", 2)  # FINAL RESTORE
+    assert int(target.get_effective_provider()) == 2  # still B - owner revocation persists
