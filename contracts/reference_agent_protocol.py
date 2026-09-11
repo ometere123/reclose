@@ -343,30 +343,68 @@ class ReferenceAgentProtocol(gl.contract.Contract):
     def get_effective_provider(self) -> gl.u8:
         return self._select_provider()
 
-    # -- purchase_service (Section 47) ---------------------------------------------------------
+    # -- Treasury (Section 18): the target owns a real prefunded GEN treasury ------------------
+    #
+    # Primary-source finding (exact pinned py-lib-genlayer-std runner, genlayer/contract/__init__.py
+    # Contract.balance property -> wasi.get_self_balance()): a GenVM contract has its own tracked
+    # native-token balance, independent of any single caller's transaction value. Proxy.emit(value=..)
+    # for a cross-contract write TRANSFERS that amount FROM THIS CONTRACT's own balance to the
+    # callee - it is not merely re-forwarding whatever the immediate caller happened to send. The
+    # prior C1/C1R implementation used `gl.message.value` (the caller-supplied amount) only to
+    # DECIDE how much to forward - which is misleading: it reads as caller-value-forwarding while
+    # actually spending the contract's own balance underneath. This is corrected below to be an
+    # explicit, honest autonomous-treasury model: fund_treasury() accumulates balance separately
+    # from any purchase call, and purchase_service(request_ref, amount) takes NO caller-supplied
+    # value at all - it spends purely from self.balance, checked explicitly before any dispatch.
 
     @gl.public.write.payable
-    def purchase_service(self, request_ref: str) -> None:
+    def fund_treasury(self) -> None:
+        """Anyone may top up the treasury - a real payable call. On real GenVM a payable call's
+        value is expected to credit the receiving contract's own tracked native balance (the same
+        `wasi.get_self_balance()` the pinned Contract.balance accessor reads), consistent with how
+        Proxy.emit(value=...) spends FROM that same balance on an outbound call - no explicit
+        bookkeeping is written here because none should be needed. NOTE (honest Direct Mode
+        limitation, not a contract defect): genlayer-test 0.30.0rc2's Direct Mode VMContext only
+        credits `_balances` via the harness's own `direct_vm.deal(address, amount)` helper - a
+        payable call's `gl.message.value` is NOT automatically added to `_balances` in the
+        simulator, confirmed by direct inspection of gltest/direct/vm.py and wasi_mock.py. Direct
+        Mode tests therefore use `direct_vm.deal(...)` to set up a funded treasury for testing;
+        this does not by itself prove the real chain's auto-crediting behavior, which requires a
+        live 61997 proof to fully confirm (see known-limitations)."""
+        pass
+
+    @gl.public.view
+    def get_treasury_balance(self) -> gl.u256:
+        return self.balance
+
+    # -- purchase_service (Section 18/47) ------------------------------------------------------
+
+    @gl.public.write
+    def purchase_service(self, request_ref: str, amount: gl.u256) -> None:
         self._require(
             gl.message.sender_address == self.owner or gl.message.sender_address == self.authorized_agent,
             "E_AGT_001: UNAUTHORIZED_CALLER: only owner or authorized agent may purchase service",
         )
         self._require(int(self.state) != int(ASSURANCE_STATE_PAUSED), "E_AGT_002: PAUSED: target rejects purchases while paused")
         self._require(request_ref not in self.processed_requests, "E_AGT_006: DUPLICATE_REQUEST: request_ref already processed")
+        self._require(int(amount) > 0, "E_AGT_003: LIMIT_EXCEEDED: amount must be non-zero")
 
-        amount = gl.message.value
         limit = self.safe_mode_limit if int(self.state) == int(ASSURANCE_STATE_SAFE_MODE) else self.per_request_limit
         self._require(int(amount) <= int(limit), "E_AGT_003: LIMIT_EXCEEDED: amount exceeds the per-request/safe-mode limit")
+        self._require(int(amount) <= int(self.balance), "E_AGT_003: LIMIT_EXCEEDED: amount exceeds available treasury balance")
 
         provider_choice = self._select_provider()
         self._require(int(provider_choice) != int(PROVIDER_NONE), "E_AGT_005: NO_PROVIDER_AVAILABLE")
 
+        # Recorded BEFORE the child dispatch (Section 18: "record pending spend state before the
+        # child message in a way that does not falsely claim provider success" - marking the
+        # request_ref processed here is the idempotency boundary; it does NOT claim the provider's
+        # fulfill() succeeded, only that this exact spend was authorized and attempted once. GenVM
+        # gives no synchronous child-completion signal to the caller here (see the note below);
+        # richer reconciliation of provider-side failure is explicitly deferred to C3's transaction
+        # tracker, per the owner directive's own fallback clause for this exact situation.
         self.processed_requests[request_ref] = True
         provider_address = self.provider_a if int(provider_choice) == int(PROVIDER_A) else self.provider_b
-        # Cross-contract payable call: gl.contract.get_at(addr).emit(value=..., on=...).method(...)
-        # forwards `amount` GEN to the provider's `fulfill` (verified against the real pinned
-        # genlayer/contract/__init__.py Proxy.emit() signature, not the earlier genvm-linter
-        # fallback stub which omitted this entirely).
         provider_contract = gl.contract.get_at(provider_address)
         provider_contract.emit(value=amount, on="finalized").fulfill(request_ref)
 

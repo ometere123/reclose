@@ -69,20 +69,23 @@ def test_safe_mode_ceiling_enforced(direct_deploy, direct_vm, direct_owner, dire
     target.apply_assurance_action("safe-1", "incident-1", "policy-1", 7, "", 0, "", 2)  # ENTER_SAFE_MODE
 
     direct_vm.sender = direct_owner
-    direct_vm.value = 500  # exceeds safe_mode_limit (100) though within per_request_limit (1000)
+    direct_vm.value = 1000
+    target.fund_treasury()
+    direct_vm.value = 0
     with pytest.raises(Exception):
-        target.purchase_service("req-1")
+        target.purchase_service("req-1", 500)  # exceeds safe_mode_limit (100) though within per_request_limit (1000)
 
 
 def test_paused_state_rejects_purchase(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
     target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
     direct_vm.sender = direct_owner
+    direct_vm.value = 1000
+    target.fund_treasury()
+    direct_vm.value = 0
     target.owner_emergency_pause()
 
-    direct_vm.sender = direct_owner
-    direct_vm.value = 10
     with pytest.raises(Exception):
-        target.purchase_service("req-1")
+        target.purchase_service("req-1", 10)
 
 
 def test_human_override_restores_only_when_enabled(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
@@ -97,9 +100,8 @@ def test_unauthorized_caller_cannot_purchase(direct_deploy, direct_vm, direct_ow
     target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
     stranger = direct_charlie
     direct_vm.sender = stranger
-    direct_vm.value = 10
     with pytest.raises(Exception):
-        target.purchase_service("req-1")
+        target.purchase_service("req-1", 10)
 
 
 # -- C1-FINAL Section 4: exact provisional-safe action set matrix (A1-H13 closure), target layer -
@@ -284,3 +286,50 @@ def test_owner_provider_revocation_is_audited_and_not_kernel_clearable(direct_de
     direct_vm.sender = kernel_stub
     target.apply_assurance_action("restore-1", "i1", "p1", 10, "provider_a", 0, "", 2)  # FINAL RESTORE
     assert int(target.get_effective_provider()) == 2  # still B - owner revocation persists
+
+
+# -- C1-FINAL Section 18: real prefunded treasury (new closure) ----------------------------------
+
+def test_fund_treasury_and_purchase_spends_from_balance(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    """C1-FINAL Section 18: fund_treasury() is exercised as a real payable call (proves the
+    method's own auth/plumbing); the resulting balance is set via direct_vm.deal(), since
+    genlayer-test 0.30.0rc2's Direct Mode does not auto-credit a payable call's value into
+    _balances (a confirmed Direct Mode simulator limitation, not a contract defect - see
+    fund_treasury's docstring)."""
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
+    direct_vm.sender = direct_owner
+    direct_vm.value = 2000
+    target.fund_treasury()
+    direct_vm.value = 0
+    direct_vm.deal(target.address, 2000)
+    assert int(target.get_treasury_balance()) == 2000
+
+    # The meaningful proof here is that purchase_service succeeds spending from a pre-funded
+    # balance with NO caller-supplied value at all - not a treasury-decrement assertion, since
+    # Direct Mode's mock does not model outbound value-transfer balance bookkeeping either.
+    target.purchase_service("req-1", 300)
+
+
+def test_purchase_rejected_when_amount_exceeds_treasury_balance(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
+    direct_vm.sender = direct_owner
+    direct_vm.deal(target.address, 50)
+    with pytest.raises(Exception):
+        target.purchase_service("req-1", 100)  # exceeds available treasury (50), though within per_request_limit
+
+
+def test_purchase_rejected_with_zero_amount(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
+    direct_vm.sender = direct_owner
+    direct_vm.value = 500
+    target.fund_treasury()
+    direct_vm.value = 0
+    with pytest.raises(Exception):
+        target.purchase_service("req-1", 0)
+
+
+def test_anyone_may_fund_treasury(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
+    direct_vm.sender = direct_charlie  # a stranger, not owner/agent
+    direct_vm.value = 100
+    target.fund_treasury()  # must not raise for a non-owner/non-agent caller
