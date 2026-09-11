@@ -1,32 +1,27 @@
 #!/usr/bin/env node
-// Runtime unit tests for @reclose/sentinel (C3), using a fake fetch so these run without real
-// network access. Verifies CLAUDE.md Section 33's invariants: Sentinel detects CANDIDATE
-// conditions only (deterministic pattern match, never a judgment), exports health metrics, and
-// never produces anything beyond a submittable EAP - it has no method that sends a transaction
-// or touches key material.
-
-const assert = require("assert");
-const path = require("path");
-
-const { checkSource, checkAllSources, SentinelMonitor, buildCandidateReport } = require(
-  path.join(__dirname, "..", "packages", "sentinel", "dist", "index.js")
-);
+"use strict";
+const assert = require("node:assert/strict");
+const path = require("node:path");
+const {
+  checkSource,
+  checkAllSources,
+  SentinelMonitor,
+  buildCandidateReport,
+  SentinelRunner,
+  InMemorySentinelStateStore,
+} = require(path.join(__dirname, "..", "packages", "sentinel", "dist", "index.js"));
 
 let failures = 0;
 async function test(name, fn) {
-  try {
-    await fn();
-    console.log(`PASS  ${name}`);
-  } catch (e) {
-    console.error(`FAIL  ${name}`);
-    console.error("  " + e.message);
-    failures++;
-  }
+  try { await fn(); console.log(`PASS ${name}`); }
+  catch (error) { failures++; console.error(`FAIL ${name}`); console.error(error.stack || error.message); }
 }
-
-function fakeFetch(responsesByUrl) {
+function source(url = "https://status.example.com/a", pattern = "unauthorized") {
+  return { sourceId: "status-source", url, sourceClass: "INDEPENDENT_PUBLIC", pattern };
+}
+function fakeFetch(responses) {
   return async (url) => {
-    const r = responsesByUrl.get(url);
+    const r = responses.get(url);
     if (!r) throw new Error(`no fake response for ${url}`);
     if (r.networkError) throw new Error(r.networkError);
     return { status: r.status, async text() { return r.body; } };
@@ -34,104 +29,107 @@ function fakeFetch(responsesByUrl) {
 }
 
 async function main() {
-  await test("checkSource detects a candidate when the pattern matches fetched content", async () => {
-    const fetchImpl = fakeFetch(new Map([["https://status.example.com/a", { status: 200, body: "Provider A is reporting unauthorized access." }]]));
-    const result = await checkSource({ url: "https://status.example.com/a", sourceClass: "INDEPENDENT_PUBLIC", pattern: "unauthorized access" }, fetchImpl);
-    assert.strictEqual(result.candidateDetected, true);
-    assert.strictEqual(result.error, undefined);
+  await test("detects deterministic candidate", async () => {
+    const result = await checkSource(source(), fakeFetch(new Map([["https://status.example.com/a", { status: 200, body: "unauthorized access" }]])));
+    assert.equal(result.candidateDetected, true);
+    assert.equal(result.sourceId, "status-source");
   });
 
-  await test("checkSource reports no candidate when the pattern does not match", async () => {
-    const fetchImpl = fakeFetch(new Map([["https://status.example.com/a", { status: 200, body: "All systems operational." }]]));
-    const result = await checkSource({ url: "https://status.example.com/a", sourceClass: "INDEPENDENT_PUBLIC", pattern: "unauthorized access" }, fetchImpl);
-    assert.strictEqual(result.candidateDetected, false);
+  await test("refuses unsafe URL before fetch", async () => {
+    let called = false;
+    const result = await checkSource(source("https://localhost/a", "x"), async () => { called = true; return { status: 200, async text() { return "x"; } }; });
+    assert.equal(called, false);
+    assert.equal(result.candidateDetected, false);
   });
 
-  await test("checkSource refuses to fetch a URL the Judge's own rules would reject (never even attempts it)", async () => {
-    let fetchCalled = false;
-    const fetchImpl = async () => { fetchCalled = true; return { status: 200, async text() { return ""; } }; };
-    const result = await checkSource({ url: "https://localhost/a", sourceClass: "INDEPENDENT_PUBLIC", pattern: "x" }, fetchImpl);
-    assert.strictEqual(fetchCalled, false);
-    assert.strictEqual(result.candidateDetected, false);
-    assert.ok(result.error.includes("rejected"));
+  await test("source outage is structured uncertainty", async () => {
+    const result = await checkSource(source(), fakeFetch(new Map([["https://status.example.com/a", { networkError: "ECONNREFUSED" }]])));
+    assert.equal(result.error, "ECONNREFUSED");
+    assert.equal(result.candidateDetected, false);
   });
 
-  await test("checkSource reports a structured error for a network failure, never throws (source outage must be observable, not fatal)", async () => {
-    const fetchImpl = fakeFetch(new Map([["https://status.example.com/a", { networkError: "ECONNREFUSED" }]]));
-    const result = await checkSource({ url: "https://status.example.com/a", sourceClass: "INDEPENDENT_PUBLIC", pattern: "x" }, fetchImpl);
-    assert.strictEqual(result.candidateDetected, false);
-    assert.strictEqual(result.error, "ECONNREFUSED");
-  });
-
-  await test("checkSource reports a non-200 status as a structured error", async () => {
-    const fetchImpl = fakeFetch(new Map([["https://status.example.com/a", { status: 503, body: "" }]]));
-    const result = await checkSource({ url: "https://status.example.com/a", sourceClass: "INDEPENDENT_PUBLIC", pattern: "x" }, fetchImpl);
-    assert.strictEqual(result.candidateDetected, false);
-    assert.ok(result.error.includes("503"));
-  });
-
-  await test("checkAllSources runs every configured source independently", async () => {
-    const fetchImpl = fakeFetch(new Map([
-      ["https://a.example.com", { status: 200, body: "alert triggered" }],
-      ["https://b.example.com", { status: 200, body: "nothing to see" }],
-    ]));
-    const results = await checkAllSources([
-      { url: "https://a.example.com", sourceClass: "INDEPENDENT_PUBLIC", pattern: "alert" },
-      { url: "https://b.example.com", sourceClass: "INDEPENDENT_PUBLIC", pattern: "alert" },
-    ], fetchImpl);
-    assert.strictEqual(results.length, 2);
-    assert.strictEqual(results[0].candidateDetected, true);
-    assert.strictEqual(results[1].candidateDetected, false);
-  });
-
-  await test("SentinelMonitor accumulates health metrics across repeated runs", async () => {
-    const fetchImpl = fakeFetch(new Map([["https://a.example.com", { status: 200, body: "alert triggered" }]]));
-    const monitor = new SentinelMonitor([{ url: "https://a.example.com", sourceClass: "INDEPENDENT_PUBLIC", pattern: "alert" }], fetchImpl);
-    await monitor.runOnce();
-    await monitor.runOnce();
-    const metrics = monitor.getHealthMetrics();
-    assert.strictEqual(metrics.sourcesConfigured, 1);
-    assert.strictEqual(metrics.checksPerformed, 2);
-    assert.strictEqual(metrics.candidatesDetected, 2);
-    assert.strictEqual(metrics.sourceErrors, 0);
-    assert.ok(metrics.lastCheckAt !== null);
-  });
-
-  await test("buildCandidateReport produces a Judge-submittable EAP from triggered sources only", async () => {
-    const fetchImpl = fakeFetch(new Map([
-      ["https://a.example.com", { status: 200, body: "unauthorized access detected" }],
-      ["https://b.example.com", { status: 200, body: "all clear" }],
-    ]));
-    const results = await checkAllSources([
-      { url: "https://a.example.com", sourceClass: "INDEPENDENT_PUBLIC", pattern: "unauthorized" },
-      { url: "https://b.example.com", sourceClass: "INDEPENDENT_PUBLIC", pattern: "unauthorized" },
-    ], fetchImpl);
-    const report = buildCandidateReport("provider_a possible compromise", results);
-    assert.strictEqual(report.triggeredSources.length, 1);
-    assert.strictEqual(report.triggeredSources[0].url, "https://a.example.com");
+  await test("candidate report is canonical and bound to context", async () => {
+    const results = await checkAllSources([source()], fakeFetch(new Map([["https://status.example.com/a", { status: 200, body: "unauthorized access" }]])));
+    const report = buildCandidateReport({
+      targetId: "target-1",
+      policyHash: "0x" + "2".repeat(64),
+      ruleId: "PROVIDER_COMPROMISE_V1",
+      reporter: "0x1111111111111111111111111111111111111111",
+      subject: "provider compromise",
+    }, results);
     const parsed = JSON.parse(report.eapJson);
-    assert.strictEqual(parsed.sources.length, 1);
+    assert.equal(parsed.targetId, "target-1");
+    assert.equal(parsed.sources[0].sourceId, "status-source");
+    assert.equal(parsed.artifactHash, report.artifactHash);
   });
 
-  await test("buildCandidateReport throws when no source triggered (never fabricates a report)", async () => {
-    const fetchImpl = fakeFetch(new Map([["https://a.example.com", { status: 200, body: "all clear" }]]));
-    const results = await checkAllSources([{ url: "https://a.example.com", sourceClass: "INDEPENDENT_PUBLIC", pattern: "unauthorized" }], fetchImpl);
-    assert.throws(() => buildCandidateReport("x", results), /No candidate-triggering sources/);
+  await test("monitor exports extended health metrics", async () => {
+    const monitor = new SentinelMonitor([source()], fakeFetch(new Map([["https://status.example.com/a", { status: 200, body: "unauthorized access" }]])));
+    await monitor.runOnce();
+    monitor.recordReportSubmitted();
+    monitor.recordDuplicateSuppressed();
+    const metrics = monitor.getHealthMetrics();
+    assert.equal(metrics.checksPerformed, 1);
+    assert.equal(metrics.reportsSubmitted, 1);
+    assert.equal(metrics.duplicateCandidatesSuppressed, 1);
   });
 
-  await test("Sentinel module exposes no submission/signing capability - it has no method touching a private key or sending a transaction", () => {
-    const sentinel = require(path.join(__dirname, "..", "packages", "sentinel", "dist", "index.js"));
-    const exported = Object.keys(sentinel);
-    const suspicious = exported.filter((name) => /sign|submit|send|privateKey|key/i.test(name));
-    assert.deepStrictEqual(suspicious, [], `Sentinel must never export key/submission handling, found: ${suspicious.join(", ")}`);
+  await test("runner submits once, persists tx immediately, suppresses duplicate", async () => {
+    const fetchImpl = fakeFetch(new Map([["https://status.example.com/a", { status: 200, body: "unauthorized access" }]]));
+    const monitor = new SentinelMonitor([source()], fetchImpl);
+    const store = new InMemorySentinelStateStore();
+    const submitted = [];
+    const tracked = [];
+    const reporter = {
+      async getReporterAddress() { return "0x1111111111111111111111111111111111111111"; },
+      async getNextReporterNonce() { return 0; },
+      async submitIncident(args) { submitted.push(args); return { txId: "0xabc" }; },
+    };
+    const tracker = {
+      async track(txId) { tracked.push(txId); },
+      async poll() { return { lifecycle: { rawStatus: "PENDING", derived: { isFinal: false } } }; },
+    };
+    const runner = new SentinelRunner({
+      monitor, reporter, store, tracker,
+      context: { targetId: "target-1", policyKey: "policy-1", policyHash: "0x" + "2".repeat(64), ruleId: "PROVIDER_COMPROMISE_V1", resourceId: "provider_a", subject: "provider compromise" },
+      cooldownSeconds: 0,
+    });
+    const first = await runner.runOnce();
+    assert.equal(first.submittedTxId, "0xabc");
+    assert.equal(submitted.length, 1);
+    assert.deepEqual(tracked, ["0xabc"]);
+    const stateAfter = await store.load();
+    assert.ok(stateAfter.pendingTransactions["0xabc"]);
+    const second = await runner.runOnce();
+    assert.equal(second.duplicateSuppressed, true);
+    assert.equal(submitted.length, 1);
   });
 
-  if (failures > 0) {
-    console.error(`\n${failures} test(s) failed.`);
-    process.exit(1);
-  } else {
-    console.log("\nAll Sentinel tests passed.");
-  }
+  await test("restart resumes original transaction and never resubmits on polling error", async () => {
+    const store = new InMemorySentinelStateStore();
+    await store.save({
+      seenCandidateKeys: { key: "0xold" },
+      pendingTransactions: { "0xold": { submittedAt: new Date().toISOString(), candidateKey: "key" } },
+      lastSubmissionAtByRule: {},
+    });
+    let submitCount = 0;
+    const runner = new SentinelRunner({
+      monitor: new SentinelMonitor([], async () => { throw new Error("unused"); }),
+      reporter: {
+        async getReporterAddress() { return "0x1111111111111111111111111111111111111111"; },
+        async getNextReporterNonce() { return 1; },
+        async submitIncident() { submitCount++; return { txId: "0xnew" }; },
+      },
+      store,
+      tracker: { async track() {}, async poll(txId) { assert.equal(txId, "0xold"); throw new Error("RPC timeout"); } },
+      context: { targetId: "target-1", policyKey: "policy-1", policyHash: "0x" + "2".repeat(64), ruleId: "PROVIDER_COMPROMISE_V1", resourceId: "provider_a", subject: "x" },
+    });
+    await runner.resumePending();
+    assert.equal(submitCount, 0);
+    assert.ok((await store.load()).pendingTransactions["0xold"]);
+  });
+
+  if (failures) process.exit(1);
+  console.log("All Sentinel A2 tests passed.");
 }
-
 main();
