@@ -1,44 +1,39 @@
-Current phase: C1R (Core Hardening, Architectural Correction, and Live-Proof Closure) complete on
-  branch claude/r1-core-hardening -> STOPPED per the owner's explicit instruction, awaiting
-  external review of both A0 (attempt 6) and A1 (attempt 2). C2 has NOT started.
-Phase status: A0 attempts 1-5 (audit targets 69204d5, 82b0d7c, fef26f2, c7ace03, and the fifth
-  submission) are all recorded FAIL - see docs/execution/Audit Register.md for the full finding
-  history. A1 attempt 1 (82421aab595acfda4351c54f6542a071633152ad) is recorded FAIL per the
-  owner's C1R instruction (findings A1-H01..A1-H12). This pass:
-  - closed A0-U01/A0-U02/A0-U03 (F1-v6: canonical ActionEnvelope.boundedParameters restored;
-    RecloseSDK's 14 methods now match the frozen Frontend Contract v1 signatures exactly; a real
-    compile-time bidirectional-assignability parity test replaces the prior overclaiming check) -
-    see docs/execution/audit-packets/A0-attempt-6/;
-  - closed A1-H01..A1-H12 (full AssuranceKernel data-model/security rewrite: trusted-time-only
-    security clock, structural-subset authority-expansion classifier, enforced owner safety
-    overlays, rule-scoped effects, provisional_allowed enforcement, deterministic target-state
-    recomputation, rule_kind-routed remediation/recovery, strict receive_decision binding,
-    canonical identifier/hash validation, a narrowed genvm-lint waiver, an independent
-    reference-model test layer, and a fresh live Studio-dev deployment) - see
-    docs/execution/audit-packets/A1-attempt-2/findings-closure.md for the finding-by-finding
-    closure table, including the one finding (A1-H08, live cross-contract dispatch) that remains
-    open and honestly documented rather than fabricated.
-Owner instruction compliance: no governance document was rewritten outside the six narrowly
-  authorized interface corrections (see docs/execution/Interface Change Log.md); no PASS was
-  self-authored for either A0 or A1; C2 (IncidentJudgeV1, IncentiveVault, Sentinel, frontend) was
-  not started; no private key or deployer password was decrypted, printed, copied, or persisted.
-Authorized scope: C1R hardening only, per the owner's "C1R: Core Hardening, Architectural
-  Correction, and Live-Proof Closure" instruction. C2 remains blocked pending external review of
-  both A0 (attempt 6) and A1 (attempt 2).
-Blocked/dependent phases: C2+ (IncidentJudge, IncentiveVault, Sentinel, frontend product
-  features) remain blocked pending external review of A0 and A1.
-Required gate to advance past A1: external A1 decision from the repository owner (or their
-  designated reviewer), per CLAUDE.md Section 41-42. A0 separately requires its own external
-  decision on attempt 6.
-Latest accepted audit: G0 (externally reviewed and accepted). A0 has one external FAIL decision
-  plus five self-recorded/owner-supplied FAIL corrections; no external decision has yet been
-  rendered on attempt 6. A1 has one owner-supplied FAIL decision (attempt 1); no external
-  decision has yet been rendered on attempt 2.
-Current branch: claude/r1-core-hardening (this C1R pass, branched from the verified remote HEAD
-  of claude/r1-core, commit 4691d58c60d1bd71145adf489fcf9743297eaadb)
-Audit target commit (this C1R pass): 55ee2cbccb1be0404b7e4bfb9f265e868d5b93dc
-Prior (FAILED/superseded) audit target commits: 69204d5bb3db0f9b6381f1ebeb7fc304f20a7433 (A0 #1),
-  82b0d7ce50ad3db62aaa34b677bd6d8927dd7b25 (A0 #2), fef26f2c754e401008a7a0342b5b1bd4a1c0b8ff
-  (A0 #3), c7ace037f63029dccff708cde1ac52372c3f642d (A0 #4), 82421aab595acfda4351c54f6542a071633152ad
-  (A1 #1)
-Updated at: 2026-09-10
+Current phase: C2 (IncidentJudgeV1, IncentiveVault, EAP/rule families, live Studio-dev proof)
+  complete on branch claude/r1-consensus (head 205dff3). C3 (SDK/tracker/policy compiler/
+  evidence builder/CLI/Sentinel/fee profiling/deployment automation/operations runbook) is
+  IN PROGRESS on branch claude/r1-tooling, per the owner's Master Execution Directive (continue
+  without stopping for permission between phases; the only mandatory stop is S1, or a genuine
+  hard technical boundary per CLAUDE.md Section 47).
+
+C2 closure summary (commits fdcf64d, c7e97bf, 1ade0ee, eec684c, 97484f2, 63e0958, 61d6b0f,
+  205dff3):
+  - IncidentJudgeV1: real semantic adjudicator for PROVIDER_COMPROMISE_V1/SERVICE_FAILURE_V1/
+    REMEDIATION_CONFIRMED_V1/RECOVERY_VALIDATED_V1. Deterministic EAP precheck (bounded JSON,
+    HTTPS-only/private-IP-blocked source URLs, governed ADR-011 source classes), nondeterministic
+    judgment via gl.eq_principle.strict_eq (real web fetch + real gl.nondet.exec_prompt inside the
+    re-executed closure, never a schema-only check), strict per-rule condition-code registry,
+    UNDETERMINED handled as a first-class honest outcome.
+  - IncentiveVault: bond/target-bounty-pool/settle/claim/reclaim, zero target-control authority,
+    ordinary REJECTED/UNDETERMINED never truth-slashed.
+  - Kernel deterministic read views for the Judge (get_target_policy_identity/get_policy_rule/
+    get_policy_header/is_policy_resource/get_incident_summary/get_incident_final_outcome).
+  - Judge/Vault circular-construction dependency resolved via a one-time owner-gated set_vault().
+  - Full Direct Mode test suite: 184/184 passing (tests/judge/, tests/vault/, plus the full prior
+    C1-FINAL suite).
+  - Live Studio-dev (chain 61997) proof: full fresh C2 contract stack deployed, wired
+    (set_vault/set_assurance_controller/register_target), and a real policy (policy-c2-002) sealed
+    and activated binding all three Judge rule_ids. See deployment/61997/c2-manifest.json and
+    docs/execution/C2 Live Proof Evidence.md.
+  - HONEST OPEN FINDING (not fabricated as resolved): Judge -> Kernel receive_decision dispatch
+    fails live with SystemError: 2: inval (an AllocationTreeMalformed-class GenVM/Studio-dev
+    runtime limitation, the same class already documented for the Kernel -> Target hop in A1's
+    known-limitations.md item 2, now recurring one hop earlier). The Judge's own deterministic
+    precheck, real web fetch, and real eq_principle LLM judgment ARE live-proven; cross-contract
+    decision dispatch to the Kernel remains proven only via Direct Mode, carried as
+    MITIGATED/UNVERIFIED (not VERIFIED) in Requirements Status.csv (PRD-INC-002/PRD-INC-009).
+  - Also fixed two live-deployment-only CLI scalar-coercion findings in incident_judge_v1.py
+    (int-coerced 0x+hex hash args; JSON-shaped string args auto-parsed into objects) using the
+    same _normalize_*_arg pattern already established in assurance_kernel.py.
+
+Next: C3 tooling build-out on claude/r1-tooling, then A2 checkpoint (stop for external audit,
+  do not self-PASS) before D1-D4/I1-I2 frontend.
