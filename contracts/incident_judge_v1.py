@@ -190,6 +190,24 @@ def _normalize_str_arg(value):
     return value
 
 
+def _normalize_json_arg(value):
+    """Live C2 deployment finding (Studio-dev, chain 61997): the exact pinned genlayer CLI's
+    --args parser auto-detects a token that LOOKS like JSON (starts with '{' or '[') and decodes
+    it into a real JS object/array before it reaches the contract, rather than passing it through
+    as the literal string the EAP parameter type requires - same class of CLI scalar-coercion
+    issue as _normalize_hash_arg/_normalize_str_arg above, confirmed by direct inspection of a
+    live rejected transaction's calldata (evidence_json arrived as an object, not a string,
+    causing E_JDG_006 evidence_json-must-be-a-string to reject an otherwise well-formed EAP).
+    A dict/list arriving here is re-serialized back into the canonical JSON string the parser
+    itself would have produced; this is lossless for well-formed EAPs since the original
+    evidence_json was ALWAYS meant to be exactly the JSON encoding of this same structure."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return value
+
+
 @gl.storage.allow
 class IncidentRecordLocal:
     incident_id: str
@@ -292,6 +310,7 @@ class IncidentJudgeV1(gl.contract.Contract):
         """Deterministic precheck steps 3-6 (Section 33). Returns the parsed, bounds-checked EAP
         dict. Never invokes web/LLM work. Evidence content itself is NEVER trusted as instructions -
         only these bounded, typed fields are read."""
+        evidence_json = _normalize_json_arg(evidence_json)
         self._require(isinstance(evidence_json, str), "E_JDG_006: [JUDGE_EVIDENCE] evidence_json must be a string")
         self._require(len(evidence_json.encode("utf-8")) <= MAX_EAP_JSON_BYTES, "E_JDG_006: [JUDGE_EVIDENCE] EAP exceeds MAX_EAP_JSON_BYTES")
         try:

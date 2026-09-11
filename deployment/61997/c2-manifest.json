@@ -1,0 +1,111 @@
+[
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "ProviderStubA",
+    "contractAddress": "0x0bECC92AFB5e5AEF945545ef302a1b0653bb30BD",
+    "deploymentTxId": "0xf92a5cf96552b49e25bb873fffff82365582a7a21da7350301a1677d8d9d6042",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "1679840f0d2ba75d932c88c74e4467d1ebb40b0a",
+    "constructorArgs": [],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args)",
+    "note": "Fresh C2 deploy - ProviderStubA source unchanged since C1R (verified via git diff), but deployed fresh to avoid ambiguity in the C2 wiring chain. Studio-dev RPC experienced a transient connectivity failure while polling this receipt; confirmed FINALIZED/MAJORITY_AGREE on retry."
+  },
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "ProviderStubB",
+    "contractAddress": "0x1dEb2cd419558D17eC8ea500CC970fE8BD1281D3",
+    "deploymentTxId": "0x3ead72a2d84331f3e57aea0d7ff8cdc918bc410b8fcb42b5e8b274b8c44ac62e",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "1679840f0d2ba75d932c88c74e4467d1ebb40b0a",
+    "constructorArgs": [],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args)",
+    "note": "Reused directly from deployment/61997/c1r-manifest.json - ProviderStubB source unchanged since C1R (verified via git diff), redeploying would have been wasted fees for an identical contract."
+  },
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "AssuranceKernel",
+    "contractAddress": "0x39a3D52Bb89e501FFdb0229C21f0C2ec0CD6195D",
+    "deploymentTxId": "0xe497eedd195bebcdc9cc996f62c1976a153a8094481ae05082b6b91f37faaaa8",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "63e0958",
+    "constructorArgs": [
+      1,
+      60
+    ],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args)",
+    "note": "Fresh C2 deploy - source materially changed since c1r-manifest.json's AssuranceKernel (Kernel read views for the Judge, redispatch, policy replacement holds, THROTTLE/state-priority fixes, stable error codes, etc)."
+  },
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "ReferenceAgentProtocol",
+    "contractAddress": "0x33b843f3578b1C980F99014661e532ce8eeab1d4",
+    "deploymentTxId": "0x9b7a1e1a97e943c2c96db034cf206635b5bb3531c2dfde2a34e68ce5cc874a4a",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "63e0958",
+    "constructorArgs": [
+      "0x24fae7cd031ed702be63bdea8912141805b996bd",
+      "reclose-target-002",
+      "0x0bECC92AFB5e5AEF945545ef302a1b0653bb30BD",
+      "0x1dEb2cd419558D17eC8ea500CC970fE8BD1281D3",
+      "1000000000000000000",
+      "100000000000000000",
+      true
+    ],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args)",
+    "note": "Fresh C2 deploy - source materially changed since c1r-manifest.json's ReferenceAgentProtocol (PROVISIONAL_SAFE_ACTIONS fix, state-priority-rank fix for A1-H19, owner_revoke_provider/owner_restore_provider, override audit log, treasury/purchase_service rewrite, stable error codes). Uses target_id reclose-target-002 (new, distinct from C1R's reclose-target-001) to avoid any registration ambiguity between the two generations of Kernel."
+  },
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "IncidentJudgeV1",
+    "contractAddress": "0xe8642bB4B0b8c8D829EbeAA14e83746018F9cf5C",
+    "deploymentTxId": "0x587f2c1304fdd54bd6130c1017d33f9213d3244569dcb16183bc171a9d71c7a7",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "63e0958",
+    "constructorArgs": [
+      "0x39a3D52Bb89e501FFdb0229C21f0C2ec0CD6195D",
+      1,
+      "0x1111111111111111111111111111111111111111111111111111111111111111"
+    ],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args)",
+    "note": "kernel_address points at the fresh C2 AssuranceKernel above. vault_address intentionally omitted from constructor (circular-dependency fix, see commit 97484f2) - wired post-deploy via set_vault. module_version=1, source_registry_hash is a placeholder governed-source-registry digest for R1 (real source registry population is a later phase)."
+  },
+  {
+    "network": "studio-dev",
+    "chainId": 61997,
+    "contractName": "IncentiveVault",
+    "contractAddress": "0x2D8fd574095d13D9756C279f0972f73D822fd9Ad",
+    "deploymentTxId": "0xf143d8b5aeb240aba4050ac51faa99f31f069d91e8dfe3d8f85e3c235123f7a2",
+    "deployerAddress": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "sourceCommit": "63e0958",
+    "constructorArgs": [
+      "0x39a3D52Bb89e501FFdb0229C21f0C2ec0CD6195D",
+      "0xe8642bB4B0b8c8D829EbeAA14e83746018F9cf5C",
+      1
+    ],
+    "feeDepositWei": "100000000000010352",
+    "lifecycleStatus": "FINALIZED",
+    "executionResult": "FINISHED_WITH_RETURN",
+    "feeConstructionMethod": "genlayer estimate-fees (no positional args)",
+    "note": "kernel_address and judge_address point at the fresh C2 contracts above."
+  }
+]

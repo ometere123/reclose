@@ -228,3 +228,21 @@ def test_constructor_normalizes_int_source_registry_hash(direct_deploy, direct_v
     hash_int = int(hash_str, 16)
     judge = direct_deploy("incident_judge_v1.py", direct_owner, 1, hash_int)
     assert judge.get_source_registry_hash() == hash_str
+
+
+def test_submit_incident_normalizes_dict_evidence_json(judge_harness, direct_vm):
+    """Live C2 deployment finding: the exact pinned genlayer CLI's --args parser auto-detects a
+    '{'-leading token as JSON and decodes it into a real dict/list before it reaches the contract,
+    rather than passing the literal EAP string - confirmed by direct inspection of a rejected live
+    Studio-dev transaction's calldata (evidence_json arrived as an object, triggering E_JDG_006
+    evidence_json-must-be-a-string). Prove the dict form is accepted and processed identically to
+    the string form."""
+    judge, gl, decision_log, config = judge_harness
+    direct_vm.mock_web(EAP_URL, {"method": "GET", "status": 200, "body": "confirmed credential leak"})
+    direct_vm.mock_llm(".*", json.dumps({"condition_code": "CREDENTIAL_COMPROMISE"}))
+
+    eap_as_dict = json.loads(VALID_EAP)
+    incident_id = judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", "0x" + "a" * 64, eap_as_dict, 0, "")
+    assert incident_id != ""
+    assert len(decision_log) == 2
+    assert decision_log[0]["condition_code"] == "CREDENTIAL_COMPROMISE"
