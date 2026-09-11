@@ -72,6 +72,7 @@ def test_trace_provisional_confirm_dual_incident_resolution(kernel_harness, dire
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, CONTRACT_RULE_KIND["INCIDENT"], True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", CONTRACT_ACTION["RESTRICT"], "provider_a", 0, "", CONTRACT_RELEASE_PHASE["RECOVERY"])
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     model.begin_policy("target-001", "policy-1", M1)
@@ -79,6 +80,7 @@ def test_trace_provisional_confirm_dual_incident_resolution(kernel_harness, dire
     model.add_policy_rule("policy-1", "RULE_A", owner_hex, 1, RULE_KIND_INCIDENT, True)
     model.add_policy_effect("policy-1", "RULE_A", "RESTRICT", "provider_a", RELEASE_RECOVERY)
     model.seal_policy("policy-1")
+    model.warp(120)  # matches direct_vm.warp("...T00:02:00Z") on the contract side
     model.activate_policy("policy-1")
 
     for incident_id, ev in (("incident-A", EV_A), ("incident-B", EV_B)):
@@ -108,12 +110,14 @@ def test_trace_final_undetermined_becomes_monitored(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, CONTRACT_RULE_KIND["INCIDENT"], True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", CONTRACT_ACTION["ENTER_SAFE_MODE"], "", 0, "", CONTRACT_RELEASE_PHASE["RECOVERY"])
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     model.begin_policy("target-001", "policy-1", M1)
     model.add_policy_rule("policy-1", "RULE_A", owner_hex, 1, RULE_KIND_INCIDENT, True)
     model.add_policy_effect("policy-1", "RULE_A", "ENTER_SAFE_MODE", "", RELEASE_RECOVERY)
     model.seal_policy("policy-1")
+    model.warp(120)  # matches direct_vm.warp("...T00:02:00Z") on the contract side
     model.activate_policy("policy-1")
 
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "RULE_A", "", owner_addr, EV_A, CONTRACT_OUTCOME[OUTCOME_CONFIRMED], "C1", CONTRACT_STAGE[STAGE_PROVISIONAL], 1)
@@ -142,6 +146,7 @@ def test_trace_confirmed_remediation_recovery_flow(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "REM", owner_addr, 1, CONTRACT_RULE_KIND["REMEDIATION"], True, 0, 0)
     kernel.add_policy_rule("policy-1", "REC", owner_addr, 1, CONTRACT_RULE_KIND["RECOVERY_VALIDATION"], True, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     model.begin_policy("target-001", "policy-1", M1)
@@ -151,6 +156,7 @@ def test_trace_confirmed_remediation_recovery_flow(kernel_harness, direct_vm):
     model.add_policy_rule("policy-1", "REM", owner_hex, 1, RULE_KIND_REMEDIATION, True)
     model.add_policy_rule("policy-1", "REC", owner_hex, 1, RULE_KIND_RECOVERY_VALIDATION, True)
     model.seal_policy("policy-1")
+    model.warp(120)  # matches direct_vm.warp("...T00:02:00Z") on the contract side
     model.activate_policy("policy-1")
 
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "INC", "provider_a", owner_addr, EV_A, CONTRACT_OUTCOME[OUTCOME_CONFIRMED], "C1", CONTRACT_STAGE[STAGE_FINAL], 1)
@@ -184,6 +190,7 @@ def test_trace_disabled_action_suppresses_both(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, CONTRACT_RULE_KIND["INCIDENT"], True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", CONTRACT_ACTION["RESTRICT"], "provider_a", 0, "", CONTRACT_RELEASE_PHASE["RECOVERY"])
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     model.begin_policy("target-001", "policy-1", M1)
@@ -191,6 +198,7 @@ def test_trace_disabled_action_suppresses_both(kernel_harness, direct_vm):
     model.add_policy_rule("policy-1", "RULE_A", owner_hex, 1, RULE_KIND_INCIDENT, True)
     model.add_policy_effect("policy-1", "RULE_A", "RESTRICT", "provider_a", RELEASE_RECOVERY)
     model.seal_policy("policy-1")
+    model.warp(120)  # matches direct_vm.warp("...T00:02:00Z") on the contract side
     model.activate_policy("policy-1")
 
     kernel.disable_action("target-001", CONTRACT_ACTION["RESTRICT"])
@@ -220,6 +228,7 @@ def test_trace_resolve_weaker_first_leaves_stronger(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_B", owner_addr, 1, CONTRACT_RULE_KIND["INCIDENT"], True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_B", CONTRACT_ACTION["RESTRICT"], "provider_a", 0, "", CONTRACT_RELEASE_PHASE["RECOVERY"])
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     model.begin_policy("target-001", "policy-1", M1)
@@ -229,6 +238,7 @@ def test_trace_resolve_weaker_first_leaves_stronger(kernel_harness, direct_vm):
     model.add_policy_rule("policy-1", "RULE_B", owner_hex, 1, RULE_KIND_INCIDENT, True)
     model.add_policy_effect("policy-1", "RULE_B", "RESTRICT", "provider_a", RELEASE_RECOVERY)
     model.seal_policy("policy-1")
+    model.warp(120)  # matches direct_vm.warp("...T00:02:00Z") on the contract side
     model.activate_policy("policy-1")
 
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "RULE_A", "", owner_addr, EV_A, CONTRACT_OUTCOME[OUTCOME_CONFIRMED], "C1", CONTRACT_STAGE[STAGE_PROVISIONAL], 1)

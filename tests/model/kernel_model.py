@@ -56,6 +56,8 @@ class Rule:
     judge_version: int
     rule_kind: str
     provisional_allowed: bool
+    report_bond: int = 0
+    confirmed_bounty: int = 0
     enabled: bool = True
 
 
@@ -82,11 +84,16 @@ class Policy:
     sealed_at: int | None = None
     human_override_enabled: bool = False
 
-    def authority_tuples(self):
-        rule_tuples = {
-            (r.rule_id, r.judge, r.judge_version, r.rule_kind, r.provisional_allowed)
+    def rule_identity_map(self):
+        """rule identity (excluding confirmed_bounty) -> confirmed_bounty. report_bond
+        participates in identity (any report_bond change is always expansion)."""
+        return {
+            (r.rule_id, r.judge, r.judge_version, r.rule_kind, r.provisional_allowed, r.report_bond): r.confirmed_bounty
             for r in self.rules.values() if r.enabled
         }
+
+    def authority_tuples(self):
+        rule_tuples = set(self.rule_identity_map().keys())
         effect_tuples = {
             (e.rule_id, e.action_type, e.resource_id, e.release_phase)
             for e in self.effects if e.enabled
@@ -175,13 +182,13 @@ class Model:
             raise ModelError("DUPLICATE_RESOURCE")
         p.resources.add(resource_id)
 
-    def add_policy_rule(self, policy_key: str, rule_id: str, judge: str, judge_version: int, rule_kind: str, provisional_allowed: bool) -> None:
+    def add_policy_rule(self, policy_key: str, rule_id: str, judge: str, judge_version: int, rule_kind: str, provisional_allowed: bool, report_bond: int = 0, confirmed_bounty: int = 0) -> None:
         p = self.policies[policy_key]
         if p.sealed:
             raise ModelError("SEALED_POLICY")
         if rule_id in p.rules:
             raise ModelError("DUPLICATE_RULE_ID")
-        p.rules[rule_id] = Rule(rule_id, judge, judge_version, rule_kind, provisional_allowed)
+        p.rules[rule_id] = Rule(rule_id, judge, judge_version, rule_kind, provisional_allowed, report_bond, confirmed_bounty)
 
     def add_policy_effect(self, policy_key: str, rule_id: str, action_type: str, resource_id: str, release_phase: str) -> None:
         p = self.policies[policy_key]
@@ -204,14 +211,26 @@ class Model:
         p.sealed_at = self.time
 
     def _is_expansion(self, target: Target, new_policy: Policy) -> bool:
+        """C1-FINAL Section 5/A1-H14: the baseline before a target's first policy is EMPTY, so a
+        first policy granting any executable rule/effect IS an expansion (a no-op first policy is
+        not). Section 8/A1-H20: confirmed_bounty may decrease without being an expansion (all else
+        equal); any other rule-identity change (including report_bond) is always expansion."""
         active_key = target.active_policy_key
         if not active_key or active_key not in self.policies:
-            return False
+            new_rules_first, new_effects_first = new_policy.authority_tuples()
+            return len(new_rules_first) > 0 or len(new_effects_first) > 0
+
         old = self.policies[active_key]
-        new_rules, new_effects = new_policy.authority_tuples()
-        old_rules, old_effects = old.authority_tuples()
-        if not new_rules.issubset(old_rules):
-            return True
+        new_rule_map = new_policy.rule_identity_map()
+        old_rule_map = old.rule_identity_map()
+        for identity, new_bounty in new_rule_map.items():
+            if identity not in old_rule_map:
+                return True
+            if new_bounty > old_rule_map[identity]:
+                return True
+
+        _, new_effects = new_policy.authority_tuples()
+        _, old_effects = old.authority_tuples()
         if not new_effects.issubset(old_effects):
             return True
         if new_policy.human_override_enabled and not old.human_override_enabled:

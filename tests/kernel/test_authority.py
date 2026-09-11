@@ -74,9 +74,14 @@ def test_authority_expansion_timelock_uses_sealed_at_not_created_at(kernel_harne
     kernel.begin_policy("target-001", "policy-1", M1)
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.seal_policy("policy-1")
-    kernel.activate_policy("policy-1")  # first policy: not an expansion, immediate OK
+    # C1-FINAL Section 5/A1-H14: the FIRST policy for a target grants executable authority against
+    # an empty baseline, so it IS an expansion and requires the timelock too - not immediate.
+    with pytest.raises(Exception):
+        kernel.activate_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:01:01Z")  # 61s after seal
+    kernel.activate_policy("policy-1")
 
-    direct_vm.warp("2026-01-01T00:00:10Z")
+    direct_vm.warp("2026-01-01T00:01:10Z")
     kernel.begin_policy("target-001", "policy-2", M2)  # created early
     direct_vm.warp("2026-01-01T00:10:00Z")  # wait a long time before sealing
     kernel.add_policy_rule("policy-2", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
@@ -99,6 +104,7 @@ def test_authority_reduction_is_immediate(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_rule("policy-1", "RULE_B", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.begin_policy("target-001", "policy-2", M2)
@@ -116,6 +122,7 @@ def test_same_count_action_substitution_is_expansion(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 2, "provider_a", 0, "", 1)  # MONITOR
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.begin_policy("target-001", "policy-2", M2)
@@ -133,6 +140,7 @@ def test_same_count_judge_change_is_expansion(kernel_harness, direct_vm, direct_
     kernel.begin_policy("target-001", "policy-1", M1)
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.begin_policy("target-001", "policy-2", M2)
@@ -146,6 +154,7 @@ def test_same_count_provisional_allowed_false_to_true_is_expansion(kernel_harnes
     kernel.begin_policy("target-001", "policy-1", M1)
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, False, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.begin_policy("target-001", "policy-2", M2)
@@ -161,6 +170,7 @@ def test_same_count_resource_change_is_expansion(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)  # RESTRICT provider_a
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.begin_policy("target-001", "policy-2", M2)
@@ -179,6 +189,7 @@ def test_removal_of_effect_is_reduction(kernel_harness, direct_vm):
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
     kernel.add_policy_effect("policy-1", "RULE_A", 2, "", 0, "", 1)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.begin_policy("target-001", "policy-2", M2)
@@ -194,6 +205,7 @@ def test_human_override_true_to_false_is_reduction(kernel_harness, direct_vm):
     kernel.targets["target-001"].human_override_enabled  # sanity - fixture sets True
     kernel.begin_policy("target-001", "policy-1", M1)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
     assert kernel.policy_headers["policy-1"].human_override_enabled is True
 
@@ -209,6 +221,7 @@ def test_stale_policy_key_decision_rejected(kernel_harness, direct_vm):
     kernel.begin_policy("target-001", "policy-1", M1)
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.begin_policy("target-001", "policy-2", M2)
@@ -229,6 +242,7 @@ def test_stale_policy_hash_decision_rejected(kernel_harness, direct_vm):
     kernel.begin_policy("target-001", "policy-1", M1)
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     with pytest.raises(Exception):
@@ -245,6 +259,7 @@ def test_wrong_judge_rejected(kernel_harness, direct_vm, direct_alice):
     kernel.begin_policy("target-001", "policy-1", M1)
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)  # judge = owner_addr
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     direct_vm.sender = direct_alice  # not the configured judge
@@ -262,6 +277,7 @@ def test_wrong_judge_version_rejected(kernel_harness, direct_vm):
     kernel.begin_policy("target-001", "policy-1", M1)
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)  # judge_version=1
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     with pytest.raises(Exception):
@@ -301,6 +317,7 @@ def test_wrong_rule_cannot_execute_another_rules_effects(kernel_harness, direct_
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)  # RESTRICT bound to RULE_A
     kernel.add_policy_rule("policy-1", "RULE_B", owner_addr, 1, INCIDENT_RULE, True, 0, 0)  # no effects
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.receive_decision(
@@ -335,6 +352,7 @@ def test_provisional_disallowed_action_not_applied(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 8, "", 0, "", 1)  # PAUSE
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.receive_decision(
@@ -354,6 +372,7 @@ def test_provisional_allowed_false_suppresses_provisional_effects(kernel_harness
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, False, 0, 0)  # provisional_allowed=False
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)  # RESTRICT
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.receive_decision(
@@ -373,6 +392,7 @@ def test_replayed_decision_is_noop(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     args = ("incident-001", "", "target-001", "policy-1", 1, M1, "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_PROVISIONAL, 1)
@@ -394,6 +414,7 @@ def test_conflicting_replay_rejected(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.receive_decision(
@@ -416,6 +437,7 @@ def test_multi_incident_restriction_composition(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_PROVISIONAL, 1)
@@ -433,6 +455,7 @@ def test_resolving_incident_a_does_not_remove_incident_b_restriction(kernel_harn
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_PROVISIONAL, 1)
@@ -454,6 +477,7 @@ def test_resolve_weaker_first_leaves_stronger_state(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_B", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_B", 3, "provider_a", 0, "", 1)  # RESTRICT
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "RULE_A", "", owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_PROVISIONAL, 1)
@@ -474,6 +498,7 @@ def test_final_undetermined_becomes_monitored(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 7, "", 0, "", 1)  # ENTER_SAFE_MODE
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "RULE_A", "", owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_PROVISIONAL, 1)
@@ -494,6 +519,7 @@ def test_confirmed_remediation_recovery_flow(kernel_harness, direct_vm):
     kernel.add_policy_rule("policy-1", "REMEDIATION_RULE", owner_addr, 1, REMEDIATION_RULE, True, 0, 0)
     kernel.add_policy_rule("policy-1", "RECOVERY_RULE", owner_addr, 1, RECOVERY_RULE, True, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "INCIDENT_RULE", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_FINAL, 1)
@@ -520,6 +546,7 @@ def test_remediation_rejected_does_not_restore_authority(kernel_harness, direct_
     kernel.add_policy_effect("policy-1", "INCIDENT_RULE", 3, "provider_a", 0, "", 2)
     kernel.add_policy_rule("policy-1", "REMEDIATION_RULE", owner_addr, 1, REMEDIATION_RULE, True, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "INCIDENT_RULE", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_FINAL, 1)
 
@@ -537,6 +564,7 @@ def test_remediation_requires_authenticated_judge_not_arbitrary_caller(kernel_ha
     kernel.add_policy_rule("policy-1", "INCIDENT_RULE", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_rule("policy-1", "REMEDIATION_RULE", owner_addr, 1, REMEDIATION_RULE, True, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
     kernel.receive_decision("incident-A", "", "target-001", "policy-1", 1, M1, "INCIDENT_RULE", "", owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_FINAL, 1)
 
@@ -552,6 +580,7 @@ def test_authority_revoked_path(kernel_harness, direct_vm):
     kernel.begin_policy("target-001", "policy-1", M1)
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
     kernel.revoke_authority("target-001")
 
@@ -580,6 +609,7 @@ def test_disabled_action_suppresses_restriction_and_dispatch(kernel_harness, dir
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)  # RESTRICT
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.disable_action("target-001", 3)  # RESTRICT
@@ -599,6 +629,7 @@ def test_disabled_resource_suppresses_revoke_capability(kernel_harness, direct_v
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 5, "provider_a", 0, "", 1)  # REVOKE_CAPABILITY
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
 
     kernel.disable_resource("target-001", "provider_a")
@@ -615,6 +646,7 @@ def test_unrelated_reduction_policy_activation_does_not_clear_overlay(kernel_har
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
     kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-1")
     kernel.disable_action("target-001", 3)  # RESTRICT disabled
 
@@ -628,7 +660,7 @@ def test_unrelated_reduction_policy_activation_does_not_clear_overlay(kernel_har
     kernel.add_policy_rule("policy-3", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-3", "RULE_A", 3, "provider_a", 0, "", 1)
     kernel.seal_policy("policy-3")
-    direct_vm.warp("2026-01-01T00:02:00Z")
+    direct_vm.warp("2026-01-01T00:03:01Z")
     kernel.activate_policy("policy-3")  # expansion (new rule/effect vs current-empty policy-2) - clears overlay this time
 
     kernel.receive_decision("incident-001", "", "target-001", "policy-3", 3, "0x" + "3" * 64, "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "C1", STAGE_PROVISIONAL, 1)
@@ -685,6 +717,7 @@ def test_hash_argument_normalizes_from_int_calldata(kernel_harness, direct_vm):
     kernel.begin_policy("target-001", "policy-int-hash", hash_int)
     kernel.add_policy_rule("policy-int-hash", "R1", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.seal_policy("policy-int-hash")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-int-hash")
     kernel.receive_decision(
         "incident-int-hash", "", "target-001", "policy-int-hash", 1, hash_int,
@@ -709,6 +742,7 @@ def test_empty_str_argument_normalizes_from_int_zero_calldata(kernel_harness, di
     kernel.add_policy_rule("policy-empty-str", "R1", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-empty-str", "R1", 7, 0, 0, 0, 2)  # ENTER_SAFE_MODE, resource_id=int 0
     kernel.seal_policy("policy-empty-str")
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy("policy-empty-str")
     kernel.receive_decision(
         "incident-empty-str", 0, "target-001", "policy-empty-str", 1, M2,
@@ -739,6 +773,7 @@ def test_provisional_safe_action_dispatches(kernel_harness, direct_vm, action_ty
     kernel.add_policy_rule(policy_key, "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect(policy_key, "RULE_A", action_type, resource_id, 0, "", 1)
     kernel.seal_policy(policy_key)
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy(policy_key)
 
     kernel.receive_decision(
@@ -767,6 +802,7 @@ def test_provisional_unsafe_action_rejected(kernel_harness, direct_vm, action_ty
     kernel.add_policy_rule(policy_key, "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect(policy_key, "RULE_A", action_type, resource_id, 0, "", 1)
     kernel.seal_policy(policy_key)
+    direct_vm.warp("2026-01-01T00:02:00Z")  # C1-FINAL Section 5/A1-H14: first policy is an expansion too
     kernel.activate_policy(policy_key)
 
     kernel.receive_decision(
@@ -774,3 +810,108 @@ def test_provisional_unsafe_action_rejected(kernel_harness, direct_vm, action_ty
         "RULE_A", resource_id, owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_PROVISIONAL, 1,
     )
     assert len(dispatch_log) == 0, f"{label} must never be dispatched provisionally"
+
+
+# -- C1-FINAL Section 5: first-policy timelock matrix (A1-H14 closure) --------------------------
+
+@pytest.mark.parametrize("action_type,resource_id,label", [
+    (3, "provider_a", "RESTRICT"),
+    (5, "provider_a", "REVOKE_CAPABILITY"),
+    (7, "", "ENTER_SAFE_MODE"),
+])
+def test_first_policy_with_executable_effect_requires_timelock(kernel_harness, direct_vm, action_type, resource_id, label):
+    """C1-FINAL Section 5 (A1-H14): the authority baseline before a target's first policy is
+    EMPTY, so a first policy granting an executable effect IS an expansion and must respect the
+    timelock from sealed_at - it may NOT activate immediately."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    policy_key = f"policy-first-{label.lower()}"
+    kernel.begin_policy("target-001", policy_key, M1)
+    if resource_id:
+        kernel.add_policy_resource(policy_key, resource_id)
+    kernel.add_policy_rule(policy_key, "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect(policy_key, "RULE_A", action_type, resource_id, 0, "", 1)
+    kernel.seal_policy(policy_key)
+    with pytest.raises(Exception):
+        kernel.activate_policy(policy_key)
+    direct_vm.warp("2026-01-01T00:01:01Z")
+    kernel.activate_policy(policy_key)  # succeeds once the delay has elapsed
+
+
+def test_first_policy_with_confirmed_bounty_requires_timelock(kernel_harness, direct_vm):
+    """C1-FINAL Section 5/8 (A1-H14/A1-H20): a first policy whose only enabled rule introduces a
+    non-zero confirmed_bounty (no effects at all) is still an economic authority expansion and
+    must respect the timelock."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-first-bounty", M1)
+    kernel.add_policy_rule("policy-first-bounty", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 100)  # confirmed_bounty=100
+    kernel.seal_policy("policy-first-bounty")
+    with pytest.raises(Exception):
+        kernel.activate_policy("policy-first-bounty")
+    direct_vm.warp("2026-01-01T00:01:01Z")
+    kernel.activate_policy("policy-first-bounty")
+
+
+def test_first_policy_with_no_effects_activates_immediately(kernel_harness, direct_vm):
+    """C1-FINAL Section 5 (A1-H14): a first policy with no enabled rules/effects grants nothing,
+    so it is NOT an expansion and may activate immediately - a no-op policy is not treated as
+    dangerous merely because it is a target's first policy."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-first-noop", M1)
+    kernel.seal_policy("policy-first-noop")
+    kernel.activate_policy("policy-first-noop")  # no exception - immediate is correct
+
+
+def test_confirmed_bounty_decrease_is_reduction(kernel_harness, direct_vm):
+    """C1-FINAL Section 8 (A1-H20): a confirmed_bounty DECREASE, with everything else identical,
+    is a reduction and may activate immediately - only an increase is an expansion."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-bounty-1", M1)
+    kernel.add_policy_rule("policy-bounty-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 100)
+    kernel.seal_policy("policy-bounty-1")
+    direct_vm.warp("2026-01-01T00:01:01Z")
+    kernel.activate_policy("policy-bounty-1")
+
+    kernel.begin_policy("target-001", "policy-bounty-2", M2)
+    kernel.add_policy_rule("policy-bounty-2", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 50)  # decreased
+    kernel.seal_policy("policy-bounty-2")
+    kernel.activate_policy("policy-bounty-2")  # no exception - bounty decrease is reduction
+
+
+def test_confirmed_bounty_increase_is_expansion(kernel_harness, direct_vm):
+    """C1-FINAL Section 8 (A1-H20): a confirmed_bounty INCREASE is an expansion and requires the
+    timelock, even with everything else identical."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-bounty-1", M1)
+    kernel.add_policy_rule("policy-bounty-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 50)
+    kernel.seal_policy("policy-bounty-1")
+    direct_vm.warp("2026-01-01T00:01:01Z")
+    kernel.activate_policy("policy-bounty-1")
+
+    kernel.begin_policy("target-001", "policy-bounty-2", M2)
+    kernel.add_policy_rule("policy-bounty-2", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 100)  # increased
+    kernel.seal_policy("policy-bounty-2")
+    with pytest.raises(Exception):
+        kernel.activate_policy("policy-bounty-2")
+
+
+def test_report_bond_change_is_expansion(kernel_harness, direct_vm):
+    """C1-FINAL Section 8 (A1-H20): ANY report_bond change (not just an increase) is always an
+    expansion."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-bond-1", M1)
+    kernel.add_policy_rule("policy-bond-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 10, 0)
+    kernel.seal_policy("policy-bond-1")
+    direct_vm.warp("2026-01-01T00:01:01Z")
+    kernel.activate_policy("policy-bond-1")
+
+    kernel.begin_policy("target-001", "policy-bond-2", M2)
+    kernel.add_policy_rule("policy-bond-2", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 5, 0)  # decreased bond
+    kernel.seal_policy("policy-bond-2")
+    with pytest.raises(Exception):
+        kernel.activate_policy("policy-bond-2")  # bond decrease is STILL expansion per Section 8

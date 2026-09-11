@@ -615,8 +615,12 @@ class AssuranceKernel(gl.contract.Contract):
         self.policy_headers[policy_key] = header
         self._audit(f"SEAL_POLICY policy_key={policy_key} is_expansion={is_expansion}")
 
-    def _rule_tuples(self, policy_key: str, header: PolicyHeader) -> set:
-        out = set()
+    def _rule_identity_map(self, policy_key: str, header: PolicyHeader) -> dict:
+        """Maps each enabled rule's non-economic identity (rule_id, judge, judge_version,
+        rule_kind, provisional_allowed, report_bond) to its confirmed_bounty. report_bond
+        participates in identity (any report_bond change is always expansion, Section 8); only
+        confirmed_bounty is allowed to differ for a rule to still be considered "covered"."""
+        out = {}
         for i in range(int(header.rule_count)):
             key = _ck(policy_key, str(i))
             if key not in self.policy_rules:
@@ -624,7 +628,8 @@ class AssuranceKernel(gl.contract.Contract):
             r = self.policy_rules[key]
             if not r.enabled:
                 continue
-            out.add((r.rule_id, r.judge.as_hex, int(r.judge_version), int(r.rule_kind), r.provisional_allowed))
+            identity = (r.rule_id, r.judge.as_hex, int(r.judge_version), int(r.rule_kind), r.provisional_allowed, str(r.report_bond))
+            out[identity] = int(r.confirmed_bounty)
         return out
 
     def _effect_tuples(self, policy_key: str, header: PolicyHeader) -> set:
@@ -640,20 +645,32 @@ class AssuranceKernel(gl.contract.Contract):
         return out
 
     def _classify_expansion(self, target: TargetRecord, new_header: PolicyHeader) -> bool:
-        """Conservative authority-subset comparator (C1R A1-H03/instruction Section 5): a new
-        policy is a REDUCTION only when every enabled rule/effect tuple it carries is IDENTICAL to
-        one already granted by the currently active policy, and human_override has not expanded
+        """Conservative authority-subset comparator (C1R A1-H03/A1-H14/A1-H20, instruction
+        Sections 5/8): a new policy is a REDUCTION only when every enabled rule/effect it carries
+        is already covered by the currently active policy, and human_override has not expanded
         false->true. Anything else - a same-count substitution, a changed judge, a changed param,
-        a changed resource - is classified EXPANSION. A target's first policy (nothing active yet)
-        cannot expand relative to nothing, so it activates immediately."""
+        a changed resource, an increased/new confirmed_bounty, any report_bond change - is
+        classified EXPANSION.
+
+        The authority baseline before a target's FIRST policy is EMPTY (Section 5/A1-H14): a
+        first policy that grants ANY executable rule or effect is therefore an expansion and must
+        be timelocked; a first policy with no enabled rules/effects (a no-op policy) may activate
+        immediately, since it grants nothing."""
         active_key = target.active_policy_key
         if active_key == "" or active_key not in self.policy_headers:
-            return False
+            new_rules_first = self._rule_identity_map(new_header.policy_key, new_header)
+            new_effects_first = self._effect_tuples(new_header.policy_key, new_header)
+            return len(new_rules_first) > 0 or len(new_effects_first) > 0
+
         old_header = self.policy_headers[active_key]
-        new_rules = self._rule_tuples(new_header.policy_key, new_header)
-        old_rules = self._rule_tuples(active_key, old_header)
-        if not new_rules.issubset(old_rules):
-            return True
+        new_rules = self._rule_identity_map(new_header.policy_key, new_header)
+        old_rules = self._rule_identity_map(active_key, old_header)
+        for identity, new_bounty in new_rules.items():
+            if identity not in old_rules:
+                return True  # new/changed rule identity (incl. any report_bond change) = expansion
+            if new_bounty > old_rules[identity]:
+                return True  # confirmed_bounty increased = expansion
+
         new_effects = self._effect_tuples(new_header.policy_key, new_header)
         old_effects = self._effect_tuples(active_key, old_header)
         if not new_effects.issubset(old_effects):
