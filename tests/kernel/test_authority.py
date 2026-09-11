@@ -1167,3 +1167,101 @@ def test_seal_succeeds_when_target_supports_all_effects(kernel_harness, direct_v
     kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
     kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
     kernel.seal_policy("policy-1")  # no exception
+
+
+# -- C1-FINAL Section 14: bounded final action redispatch (A1-H21 closure) -----------------------
+
+def test_redispatch_final_restriction_action_succeeds_while_still_active(kernel_harness, direct_vm):
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)  # RESTRICT
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    kernel.receive_decision(
+        "incident-001", "", "target-001", "policy-1", 1, M1,
+        "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_FINAL, 1,
+    )
+    assert len(dispatch_log) == 1
+    action_id = dispatch_log[0]["action_id"]
+
+    # Simulate a caller (anyone - permissionless) redispatching after the original delivery
+    # supposedly failed on the target side.
+    kernel.redispatch_final_action(action_id)
+    assert len(dispatch_log) == 2
+    assert dispatch_log[1]["action_id"] == action_id  # exact same canonical action, nothing caller-supplied
+
+
+def test_redispatch_unknown_action_id_rejected(kernel_harness, direct_vm):
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    with pytest.raises(Exception):
+        kernel.redispatch_final_action("no-such-action")
+
+
+def test_redispatch_rejected_after_restriction_released(kernel_harness, direct_vm):
+    """Once the underlying restriction is released (e.g. via remediation), a stale redispatch of
+    the original RESTRICT action must be rejected - it is no longer authorized."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "INC", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "INC", 3, "provider_a", 0, "", 1)  # RESTRICT, REMEDIATION-phase
+    kernel.add_policy_rule("policy-1", "REM", owner_addr, 1, REMEDIATION_RULE, True, 0, 0)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    kernel.receive_decision(
+        "incident-A", "", "target-001", "policy-1", 1, M1,
+        "INC", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_FINAL, 1,
+    )
+    action_id = dispatch_log[-1]["action_id"]
+
+    kernel.receive_decision(
+        "rem-1", "incident-A", "target-001", "policy-1", 1, M1,
+        "REM", "", owner_addr, EV_B, OUTCOME_CONFIRMED, "COND_2", STAGE_FINAL, 1,
+    )
+    with pytest.raises(Exception):
+        kernel.redispatch_final_action(action_id)
+
+
+def test_redispatch_resource_restore_rejected_when_resource_re_restricted(kernel_harness, direct_vm):
+    """A resource-scoped RESTORE redispatch must be rejected if, since the original dispatch, a
+    NEW incident has re-restricted the same resource - the aggregate count is no longer zero."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "RULE_A", 5, "provider_a", 0, "", 1)  # REVOKE_CAPABILITY
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    kernel.receive_decision(
+        "incident-A", "", "target-001", "policy-1", 1, M1,
+        "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_PROVISIONAL, 1,
+    )
+    # incident-A's FINAL outcome is REJECTED - releases its own (provisional) restriction, and
+    # aggregate count reaches zero, dispatching a resource RESTORE.
+    kernel.receive_decision(
+        "incident-A", "", "target-001", "policy-1", 1, M1,
+        "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_REJECTED, "COND_1", STAGE_FINAL, 1,
+    )
+    restore_actions = [d for d in dispatch_log if d["action_type"] == 10 and d["resource_id"] == "provider_a"]
+    assert len(restore_actions) == 1
+    action_id = restore_actions[0]["action_id"]
+
+    # A NEW incident re-restricts provider_a before the redispatch is attempted.
+    kernel.receive_decision(
+        "incident-B", "", "target-001", "policy-1", 1, M1,
+        "RULE_A", "provider_a", owner_addr, EV_B, OUTCOME_CONFIRMED, "COND_2", STAGE_FINAL, 1,
+    )
+    with pytest.raises(Exception):
+        kernel.redispatch_final_action(action_id)  # aggregate count is no longer zero

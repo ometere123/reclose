@@ -278,6 +278,23 @@ class RestrictionRecord:
 
 
 @gl.storage.allow
+class ActionDispatchRecord:
+    """C1-FINAL Section 14 (A1-H21): the stored canonical semantic action a FINAL-stage effect
+    dispatch corresponds to. Exists so redispatch_final_action() can re-emit ONLY this exact,
+    previously-authorized action - a permissionless caller can never supply target/policy/action/
+    resource/parameters/stage themselves, only the action_id to look one of these up by."""
+    action_id: str
+    target_id: str
+    incident_id: str
+    policy_key: str
+    action_type: gl.u8
+    resource_id: str
+    param_u256: gl.u256
+    param_str: str
+    dispatch_attempts: gl.u32
+
+
+@gl.storage.allow
 class IncidentRecord:
     incident_id: str
     parent_incident_id: str
@@ -353,6 +370,9 @@ class AssuranceKernel(gl.contract.Contract):
     # the provisional child failed. The ReferenceAgentProtocol's own processed_action_ids remains
     # the authoritative idempotency boundary against duplicate ECONOMIC effect.
     processed_action_dispatch_count: gl.storage.TreeMap[str, gl.u32]
+    # C1-FINAL Section 14 (A1-H21): stored canonical FINAL-stage actions, keyed by action_id, for
+    # permissionless bounded redispatch_final_action() - never populated for PROVISIONAL effects.
+    action_dispatch_records: gl.storage.TreeMap[str, ActionDispatchRecord]
 
     audit_sequence: gl.u64
     audit_records: gl.storage.TreeMap[gl.u64, str]
@@ -1289,6 +1309,22 @@ class AssuranceKernel(gl.contract.Contract):
         # real idempotency boundary against duplicate economic/state effect.
         self.processed_action_dispatch_count[attempt_key] = gl.u32(attempts + 1)
 
+        if int(decision_stage) == int(DECISION_STAGE_FINAL):
+            # C1-FINAL Section 14 (A1-H21): store the canonical FINAL action so a later
+            # permissionless redispatch_final_action() call can re-emit exactly this, never
+            # anything caller-supplied. Never stored for PROVISIONAL - no provisional redispatch.
+            record = ActionDispatchRecord()
+            record.action_id = action_id
+            record.target_id = target_id
+            record.incident_id = incident_id
+            record.policy_key = policy_key
+            record.action_type = action_type
+            record.resource_id = resource_id
+            record.param_u256 = param_u256
+            record.param_str = param_str
+            record.dispatch_attempts = gl.u32(attempts + 1)
+            self.action_dispatch_records[action_id] = record
+
         # Implementation Specification Section 29: provisional messages use on='accepted'; final
         # actions use on='finalized'.
         on = "accepted" if int(decision_stage) == int(DECISION_STAGE_PROVISIONAL) else "finalized"
@@ -1303,6 +1339,56 @@ class AssuranceKernel(gl.contract.Contract):
             param_str,
             int(decision_stage),
         )
+
+    def _restriction_still_active(self, incident: IncidentRecord, action_type: gl.u8, resource_id: str) -> bool:
+        for i in range(int(incident.restriction_count)):
+            rid = _ck(incident.incident_id, str(i))
+            if rid not in self.restrictions:
+                continue
+            rec = self.restrictions[rid]
+            if rec.active and int(rec.action_type) == int(action_type) and rec.resource_id == resource_id:
+                return True
+        return False
+
+    @gl.public.write
+    def redispatch_final_action(self, action_id: str) -> None:
+        """C1-FINAL Section 14 (A1-H21): bounded, permissionless redelivery of a previously
+        stored FINAL semantic action - safe because the caller supplies ONLY action_id and every
+        other field (target/policy/action/resource/parameters) comes from the stored canonical
+        record, never from the caller. Before redispatching, independently revalidates that the
+        action remains authorized under CURRENT state:
+          - a restriction action (RESTRICT/REVOKE_CAPABILITY/etc): the corresponding restriction
+            must still be active;
+          - resource-scoped RESTORE: the resource's aggregate restriction count must be zero;
+          - target-wide RESTORE (empty resource): the stored desired state must still equal the
+            Kernel's currently recomputed state;
+          - ENTER_RECOVERY: the parent incident must still be in RECOVERY.
+        Also requires the target's live controller/revocation state to still be active (Section 7)
+        - a target that revoked Reclose cannot have a stale action redelivered to it either."""
+        self._require(action_id in self.action_dispatch_records, "UNKNOWN_ACTION_ID")
+        record = self.action_dispatch_records[action_id]
+        target = self.targets[record.target_id]
+        self._require_live_controller_active(record.target_id, target)
+
+        incident = self.incidents[record.incident_id] if record.incident_id in self.incidents else None
+        action = int(record.action_type)
+
+        if action in (int(ACTION_RESTRICT), int(ACTION_THROTTLE), int(ACTION_REVOKE_CAPABILITY), int(ACTION_REROUTE), int(ACTION_MONITOR), int(ACTION_ENTER_SAFE_MODE), int(ACTION_PAUSE)):
+            self._require(incident is not None, "UNKNOWN_INCIDENT")
+            self._require(self._restriction_still_active(incident, record.action_type, record.resource_id), "RESTRICTION_NO_LONGER_ACTIVE")
+        elif action == int(ACTION_RESTORE):
+            if record.resource_id != "":
+                rkey = _ck(target.target_address.as_hex, record.resource_id)
+                current_count = int(self.resource_restriction_counts[rkey]) if rkey in self.resource_restriction_counts else 0
+                self._require(current_count == 0, "RESOURCE_STILL_RESTRICTED: aggregate count has not reached zero")
+            else:
+                current_state = self._recompute_target_state(record.target_id)
+                self._require(int(current_state) == int(record.param_u256), "STALE_DESIRED_STATE: current recomputed state no longer matches the stored redispatch value")
+        elif action == int(ACTION_ENTER_RECOVERY):
+            self._require(incident is not None, "UNKNOWN_INCIDENT")
+            self._require(int(incident.status) == int(INCIDENT_STATUS_RECOVERY), "PARENT_NOT_IN_RECOVERY")
+
+        self._dispatch_action(record.target_id, record.incident_id, record.policy_key, record.action_type, record.resource_id, record.param_u256, record.param_str, DECISION_STAGE_FINAL)
 
     def _dispatch_restore(self, target_id: str, incident_id: str, policy_key: str, resource_id: str, param_u256: gl.u256) -> None:
         self._dispatch_action(target_id, incident_id, policy_key, ACTION_RESTORE, resource_id, param_u256, "", DECISION_STAGE_FINAL)
