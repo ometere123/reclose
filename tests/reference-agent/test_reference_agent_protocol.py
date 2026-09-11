@@ -134,3 +134,55 @@ def test_target_provisional_unsafe_action_rejected(direct_deploy, direct_vm, dir
     direct_vm.sender = kernel_stub
     with pytest.raises(Exception):
         target.apply_assurance_action(f"a-unsafe-{label}", "i1", "p1", action_type, resource_id, 0, "", 1)  # PROVISIONAL
+
+
+# -- C1-FINAL Section 13/19: explicit state priority, not raw enum ordering (A1-H19 closure) -----
+
+def test_recovery_does_not_weaken_active_restrict(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    """RECOVERY(5) is numerically higher than RESTRICTED(2) but semantically WEAKER - entering
+    RECOVERY must never overwrite an already-active stronger RESTRICTED state."""
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    direct_vm.sender = kernel_stub
+    target.apply_assurance_action("a1", "i1", "p1", 3, "provider_a", 0, "", 2)  # FINAL RESTRICT
+    assert int(target.get_state()) == 2  # RESTRICTED
+    target.apply_assurance_action("a2", "i2", "p1", 9, "", 0, "", 2)  # FINAL ENTER_RECOVERY
+    assert int(target.get_state()) == 2  # still RESTRICTED - not weakened to RECOVERY
+
+
+def test_recovery_does_not_weaken_active_safe_mode(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    direct_vm.sender = kernel_stub
+    target.apply_assurance_action("a1", "i1", "p1", 7, "", 0, "", 2)  # FINAL ENTER_SAFE_MODE
+    assert int(target.get_state()) == 3  # SAFE_MODE
+    target.apply_assurance_action("a2", "i2", "p1", 9, "", 0, "", 2)  # FINAL ENTER_RECOVERY
+    assert int(target.get_state()) == 3  # still SAFE_MODE - not weakened
+
+
+def test_monitored_does_not_weaken_active_restrict(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    direct_vm.sender = kernel_stub
+    target.apply_assurance_action("a1", "i1", "p1", 3, "provider_a", 0, "", 2)  # FINAL RESTRICT
+    target.apply_assurance_action("a2", "i2", "p1", 2, "", 0, "", 2)  # FINAL MONITOR
+    assert int(target.get_state()) == 2  # still RESTRICTED - not weakened to MONITORED
+
+
+def test_paused_cannot_be_weakened_by_any_raising_action(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    direct_vm.sender = kernel_stub
+    target.apply_assurance_action("a1", "i1", "p1", 8, "", 0, "", 2)  # FINAL PAUSE
+    assert int(target.get_state()) == 4  # PAUSED
+    for i, (action_type, resource_id) in enumerate([(2, ""), (3, "provider_a"), (5, "provider_a"), (7, ""), (9, "")], start=2):
+        target.apply_assurance_action(f"a{i}", f"i{i}", "p1", action_type, resource_id, 0, "", 2)
+        assert int(target.get_state()) == 4  # PAUSED never weakened by any of these

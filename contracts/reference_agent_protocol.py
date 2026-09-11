@@ -161,6 +161,31 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         if not condition:
             raise gl.vm.UserError(message)
 
+    def _state_priority_rank(self, state: gl.u8) -> int:
+        """C1-FINAL Section 13/19 (A1-H19): explicit security priority, NOT raw enum-number
+        comparison. The raw AssuranceState enum values (RECOVERY=5 is numerically highest) do NOT
+        match severity order - RECOVERY is semantically WEAKER than RESTRICTED/SAFE_MODE/PAUSED.
+        Mirrors the Kernel's own _recompute_target_state priority exactly: PAUSED > SAFE_MODE >
+        RESTRICTED > RECOVERY > MONITORED > NORMAL."""
+        s = int(state)
+        if s == int(ASSURANCE_STATE_PAUSED):
+            return 5
+        if s == int(ASSURANCE_STATE_SAFE_MODE):
+            return 4
+        if s == int(ASSURANCE_STATE_RESTRICTED):
+            return 3
+        if s == int(ASSURANCE_STATE_RECOVERY):
+            return 2
+        if s == int(ASSURANCE_STATE_MONITORED):
+            return 1
+        return 0  # NORMAL
+
+    def _raise_state(self, candidate: gl.u8) -> None:
+        """Only ever moves state UP in priority rank, never down - a weaker incoming action can
+        never silently overwrite (and thereby weaken) a stronger already-active state."""
+        if self._state_priority_rank(candidate) > self._state_priority_rank(self.state):
+            self.state = candidate
+
     def _require_kernel(self) -> None:
         self._require(self.assurance_controller_set, "NO_CONTROLLER: assurance controller not set")
         self._require(gl.message.sender_address == self.kernel, "UNAUTHORIZED_CALLER: only the Kernel may apply assurance actions")
@@ -211,29 +236,26 @@ class ReferenceAgentProtocol(gl.contract.Contract):
 
         if int(action_type) == int(ACTION_MONITOR):
             self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER: MONITOR takes no parameters")
-            if int(self.state) < int(ASSURANCE_STATE_MONITORED):
-                self.state = ASSURANCE_STATE_MONITORED
+            self._raise_state(ASSURANCE_STATE_MONITORED)
         elif int(action_type) == int(ACTION_RESTRICT) or int(action_type) == int(ACTION_THROTTLE):
             self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
-            if int(self.state) < int(ASSURANCE_STATE_RESTRICTED):
-                self.state = ASSURANCE_STATE_RESTRICTED
+            self._raise_state(ASSURANCE_STATE_RESTRICTED)
         elif int(action_type) == int(ACTION_REVOKE_CAPABILITY):
             self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
             if resource_id == RESOURCE_PROVIDER_A:
                 self.provider_a_enabled = False
             elif resource_id == RESOURCE_PROVIDER_B:
                 self.provider_b_enabled = False
-            if int(self.state) < int(ASSURANCE_STATE_RESTRICTED):
-                self.state = ASSURANCE_STATE_RESTRICTED
+            self._raise_state(ASSURANCE_STATE_RESTRICTED)
         elif int(action_type) == int(ACTION_ENTER_SAFE_MODE):
             self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
-            self.state = ASSURANCE_STATE_SAFE_MODE
+            self._raise_state(ASSURANCE_STATE_SAFE_MODE)
         elif int(action_type) == int(ACTION_PAUSE):
             self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
-            self.state = ASSURANCE_STATE_PAUSED
+            self._raise_state(ASSURANCE_STATE_PAUSED)
         elif int(action_type) == int(ACTION_ENTER_RECOVERY):
             self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
-            self.state = ASSURANCE_STATE_RECOVERY
+            self._raise_state(ASSURANCE_STATE_RECOVERY)
         elif int(action_type) == int(ACTION_RESTORE):
             # C1R Section 11: RESTORE is FINAL-only; already enforced above for PROVISIONAL. The
             # only C1R action that intentionally uses param_u256 is this one, carrying the exact
