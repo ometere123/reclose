@@ -218,3 +218,13 @@ def test_set_vault_is_owner_only_and_one_time(direct_deploy, direct_vm, direct_o
     judge.set_vault(direct_owner)
     with pytest.raises(Exception):
         judge.set_vault(direct_owner)  # already set
+
+
+def test_constructor_normalizes_int_source_registry_hash(direct_deploy, direct_vm, direct_owner):
+    """C2 live-deployment finding: the exact pinned genlayer CLI's --args scalar parser coerces
+    any 0x+hex token to an int before it reaches the contract - same CLI quirk found in
+    contracts/assurance_kernel.py. Prove the int form round-trips losslessly."""
+    hash_str = "0x" + "3" * 64
+    hash_int = int(hash_str, 16)
+    judge = direct_deploy("incident_judge_v1.py", direct_owner, 1, hash_int)
+    assert judge.get_source_registry_hash() == hash_str

@@ -161,6 +161,35 @@ def _valid_hash(value: str) -> bool:
     return all(c in "0123456789abcdef" for c in hex_part)
 
 
+def _normalize_hash_arg(value):
+    """Defensive lossless normalization for canonical Keccak-256 hash-shaped calldata arguments -
+    same verified CLI-tooling finding as contracts/assurance_kernel.py::_normalize_hash_arg (the
+    exact pinned genlayer CLI 0.40.0-rc.3's --args scalar parser always coerces a 0x+hex token to
+    a BigInt/int, with no CLI escape to keep it a string). See that function's docstring for the
+    full justification; kept identical here rather than shared to avoid a cross-contract import
+    (GenVM contracts are single-file deployable units)."""
+    if isinstance(value, str):
+        return value
+    try:
+        as_int = int(value)
+    except (TypeError, ValueError):
+        return value
+    if as_int < 0 or as_int >= (1 << 256):
+        return value
+    return "0x" + format(as_int, "064x")
+
+
+def _normalize_str_arg(value):
+    """Defensive normalization for optional/empty str-typed calldata arguments - same verified CLI
+    finding as contracts/assurance_kernel.py::_normalize_str_arg (Number("") === 0 in JavaScript,
+    so an intentionally empty string is CLI-side coerced to the int 0)."""
+    if isinstance(value, str):
+        return value
+    if value == 0:
+        return ""
+    return value
+
+
 @gl.storage.allow
 class IncidentRecordLocal:
     incident_id: str
@@ -198,6 +227,7 @@ class IncidentJudgeV1(gl.contract.Contract):
         self.vault_set = False
         self._require(int(module_version) != 0, "E_JDG_000: module_version must be non-zero")
         self.module_version = module_version
+        source_registry_hash = _normalize_hash_arg(source_registry_hash)
         self._require(_valid_hash(source_registry_hash), "E_JDG_000: invalid source_registry_hash")
         self.source_registry_hash = source_registry_hash
 
@@ -382,6 +412,9 @@ class IncidentJudgeV1(gl.contract.Contract):
         self, target_id: str, policy_key: str, rule_id: str, resource_id: str,
         evidence_hash: str, evidence_json: str, reporter_nonce: gl.u64, bond_id: str,
     ) -> str:
+        resource_id = _normalize_str_arg(resource_id)
+        evidence_hash = _normalize_hash_arg(evidence_hash)
+        bond_id = _normalize_str_arg(bond_id)
         self._require(rule_id in (RULE_PROVIDER_COMPROMISE_V1, RULE_SERVICE_FAILURE_V1), "E_JDG_POLICY: submit_incident only accepts INCIDENT-kind rules")
         reporter = gl.message.sender_address
         self._check_and_bump_nonce(reporter, reporter_nonce)
@@ -444,6 +477,9 @@ class IncidentJudgeV1(gl.contract.Contract):
         self, parent_incident_id: str, policy_key: str, rule_id: str,
         evidence_hash: str, evidence_json: str, reporter_nonce: gl.u64, expected_kind: gl.u8, bond_id: str,
     ) -> str:
+        parent_incident_id = _normalize_str_arg(parent_incident_id)
+        evidence_hash = _normalize_hash_arg(evidence_hash)
+        bond_id = _normalize_str_arg(bond_id)
         self._require(_valid_identifier(parent_incident_id, 96), "E_JDG_INPUT: invalid parent_incident_id")
         self._require(parent_incident_id in self.incidents, "E_JDG_INPUT: unknown parent_incident_id")
         parent = self.incidents[parent_incident_id]
