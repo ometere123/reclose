@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reclose.internal/schemas/evidence/EvidenceArtifactPackage.schema.json",
+  "title": "Evidence Artifact Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "targetId",
+    "policyHash",
+    "ruleId",
+    "subject",
+    "reporter",
+    "observedAt",
+    "sources",
+    "sourceClasses",
+    "retrievedAt",
+    "contentHashes",
+    "snapshotRefs",
+    "artifactHash"
+  ],
+  "properties": {
+    "schema": { "const": "reclose-eap-v1" },
+    "targetId": { "type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[A-Za-z0-9_.:-]+$" },
+    "policyHash": { "$ref": "#/$defs/hash" },
+    "ruleId": {
+      "enum": [
+        "PROVIDER_COMPROMISE_V1",
+        "SERVICE_FAILURE_V1",
+        "REMEDIATION_CONFIRMED_V1",
+        "RECOVERY_VALIDATED_V1"
+      ]
+    },
+    "subject": { "type": "string", "maxLength": 256 },
+    "reporter": { "type": "string", "pattern": "^0x[0-9A-Fa-f]{40}$" },
+    "observedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+    "retrievedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "sourceClasses": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/sourceClass" }
+    },
+    "contentHashes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/hash" }
+    },
+    "snapshotRefs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": { "type": "string", "maxLength": 2048 }
+    },
+    "artifactHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^0x[0-9a-f]{64}$" },
+    "sourceClass": {
+      "enum": [
+        "AUTHORITATIVE_SIGNED",
+        "AUTHORITATIVE_PUBLIC",
+        "ONCHAIN",
+        "INDEPENDENT_PUBLIC",
+        "CONTENT_ADDRESSED_SNAPSHOT",
+        "DERIVED_DETERMINISTIC"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "url", "sourceClass", "extractedText", "contentHash", "snapshotRef", "retrievedAt"],
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9_.:-]+$" },
+        "url": { "type": "string", "minLength": 1, "maxLength": 2048, "pattern": "^https://" },
+        "sourceClass": { "$ref": "#/$defs/sourceClass" },
+        "extractedText": { "type": "string", "maxLength": 16000 },
+        "contentHash": { "$ref": "#/$defs/hash" },
+        "snapshotRef": { "type": "string", "maxLength": 2048 },
+        "retrievedAt": { "type": "string", "format": "date-time", "maxLength": 40 }
+      }
+    }
+  }
+}
