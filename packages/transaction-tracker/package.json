@@ -1,0 +1,19 @@
+{
+  "name": "@reclose/transaction-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "C3: tracks GenLayer transactions (and their triggered child transactions) through the lifecycle, persisting tx IDs immediately so they survive refresh/navigation and are never blindly resubmitted on a timeout (CLAUDE.md Section 31). Built on @reclose/protocol-sdk's lifecycle mapping; the tracker never invents its own status semantics.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@reclose/protocol-sdk": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "22.10.2"
+  }
+}
