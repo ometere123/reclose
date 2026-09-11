@@ -1,0 +1,19 @@
+{
+  "name": "@reclose/evidence-builder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "C3: builds and validates the Evidence Artifact Package (EAP) JSON string the Judge's submit_incident/submit_remediation/submit_recovery_validation expect, mirroring contracts/incident_judge_v1.py::_valid_source_url/_parse_and_validate_eap's deterministic bounds client-side for fast-fail UX (CLAUDE.md Section 15). The Judge remains the sole authority on acceptance - this package never accepts something the Judge would reject, and documents every bound's on-chain origin so the two never silently drift.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@reclose/protocol-sdk": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "22.10.2"
+  }
+}
