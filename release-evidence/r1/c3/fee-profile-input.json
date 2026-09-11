@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Kernel.begin_policy (single-contract write, representative Kernel-only branch)",
+    "address": "0x39a3D52Bb89e501FFdb0229C21f0C2ec0CD6195D",
+    "functionName": "begin_policy",
+    "args": ["reclose-target-002", "policy-fee-profile-001", "0x3333333333333333333333333333333333333333333333333333333333333333"],
+    "value": "0",
+    "notes": "Single-hop Kernel write, no cross-contract dispatch. Representative baseline branch."
+  },
+  {
+    "name": "IncentiveVault.fund_target_pool (single-contract payable write)",
+    "address": "0x2D8fd574095d13D9756C279f0972f73D822fd9Ad",
+    "functionName": "fund_target_pool",
+    "args": [],
+    "value": "1000000000000000000",
+    "notes": "Single-hop Vault write, permissionless, no cross-contract dispatch."
+  },
+  {
+    "name": "IncidentJudgeV1.submit_incident (Judge -> Kernel cross-contract branch, KNOWN live limitation - see docs/execution/C2 Live Proof Evidence.md Finding 2)",
+    "address": "0x0A519837D3983272A14710d5b6b2108bC27D2D96",
+    "functionName": "submit_incident",
+    "args": ["reclose-target-002", "policy-c2-002", "PROVIDER_COMPROMISE_V1", "provider_a", "0x4444444444444444444444444444444444444444444444444444444444444444", "{\"subject\":\"fee profiling probe\",\"sources\":[{\"url\":\"https://example.com/a\",\"sourceClass\":\"INDEPENDENT_PUBLIC\",\"extractedText\":\"probe\"}]}", 0, ""],
+    "value": "0",
+    "notes": "Representative Judge->Kernel dispatch branch (CLAUDE.md Section 34: profile Judge->Kernel->Target branches). Included deliberately even though the underlying dispatch is known to fail live - an honest fee profile reports this, not a curated-to-succeed subset."
+  }
+]

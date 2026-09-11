@@ -88,6 +88,54 @@ Judge -> Kernel decision dispatch (`receive_decision`) remains proven only via D
 passing, including the full Judge/Vault/Kernel-reconciliation test matrix) and is NOT proven live
 end-to-end, pending upstream GenVM resolution of the internal-message allocation issue.**
 
+## Finding 2 UPDATE (same session, C3 fee-profiling automation): root cause narrowed from a generic
+## GenVM error to a specific fee-allocation-routing failure on the CHILD transaction, not the parent
+
+While building and running `scripts/fee-profile.mjs` (C3 Section 34) against the live Judge, the
+**targeted** `estimateTransactionFeesForWrite` simulation for `submit_incident` returned a
+successful estimate WITH a discovered `messageAllocations` entry (recipient = the Kernel address,
+`callKey` decoding to `receive_decision`) - unlike the bare-baseline fee object originally used in
+Finding 2's first writeup. Submitting `submit_incident` live with that discovered allocation tree
+(via `scripts/studio-dev-write.sh`) produced a DIFFERENT and much more informative result than the
+original `SystemError: 2: inval`:
+
+- The **parent** transaction (`submit_incident` itself) now completes successfully end-to-end:
+  reporter nonce bumps correctly (0->1, then 1->2 across two live attempts), a real EAP is parsed,
+  a real web fetch + real `gl.eq_principle.strict_eq` LLM judgment runs (condition_code
+  `INSUFFICIENT_EVIDENCE`, outcome `UNDETERMINED` - an honest result for deliberately thin "probe"
+  evidence, not a fabricated confirmation), and the incident record persists on the Judge with
+  that condition_code/outcome. Verified live via `get_incident_condition_code`/
+  `get_incident_outcome` on incident_id `reclose-target-002:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:1`
+  (tx `0x002f88dd66900960d1b1cfdf0272768a6c93b5cb2d1cc134fcd8fd0e262a7b2a`, FINALIZED/MAJORITY_AGREE).
+  **This is new, stronger live evidence than the original Finding 2 writeup had**: the Judge's
+  full internal pipeline (precheck -> EAP parse -> real fetch -> real LLM judgment -> state
+  commit) is now proven live end-to-end, not just up to the point of dispatch.
+- `submit_incident` DOES correctly trigger a genuine child transaction for the
+  `receive_decision` dispatch - confirmed via `client.getTriggeredTransactionIds({hash: <parent>})`
+  returning exactly one child (`0x2ec7301866a8d6c1ac773c6ca0585f97749c6bf65f5c1bc844262a69b35ff0f6`,
+  FINALIZED/MAJORITY_AGREE at the CONSENSUS level) - so the cross-contract message mechanism
+  itself (GenVM's async parent/child transaction model, CLAUDE.md 9.5) is working as designed.
+- That CHILD transaction's own leader/validator execution result is `ERROR`, with the exact
+  payload `fee no_matching_allocation # internal` - a SPECIFIC fee-routing failure (the consensus
+  contract could not find a matching fee allocation for this internal message when the child
+  transaction actually executed), not the generic, uninformative `SystemError: 2: inval` seen in
+  the original attempt against a bare-baseline fee object. Confirmed the Kernel's own
+  `get_incident_summary` for this incident_id is still empty, consistent with `receive_decision`
+  never actually completing on the Kernel side.
+
+**Revised conclusion**: this is narrower and more specific than originally characterized. It is
+NOT that the Judge->Kernel dispatch mechanism is broken, and it is NOT that the Judge's own logic
+is unproven live - both of those are now live-proven. The remaining gap is specifically that the
+fee-allocation tree the estimator discovers for the PARENT call does not correctly cover/propagate
+to the CHILD transaction's own execution-time fee lookup, which then fails the child with
+`no_matching_allocation`. This is still an external GenVM/Studio-dev fee-system finding, not a
+Reclose contract-logic defect (the contract's `receive_decision` call site is unchanged and
+already Direct-Mode-proven) - but it is a more precise, more actionable characterization than the
+original Finding 2 writeup, and should guide any future investigation (e.g. whether a child-level
+`--fees`/allocation override exists in a newer CLI/SDK version) rather than re-deriving this from
+scratch. Carry forward as MITIGATED/UNVERIFIED (live cross-contract dispatch) exactly as before -
+this update sharpens the finding, it does not close it.
+
 This must be carried forward as `MITIGATED / UNVERIFIED (live cross-contract dispatch)` in
 `Requirements Status.csv` for the affected requirement(s), exactly as A1's precedent did for the
 Kernel-internal case - not silently marked VERIFIED, and not worked around by weakening the

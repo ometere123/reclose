@@ -33,7 +33,8 @@
     "genvm-lint-wrapper:selftest": "node scripts/test-genvm-lint-wrapper.js",
     "verify:py": "bash scripts/py-verify.sh",
     "a0-integrity": "node scripts/a0-integrity-check.js",
-    "estimate-studio-dev-write": "node scripts/estimate-studio-dev-write.mjs"
+    "estimate-studio-dev-write": "node scripts/estimate-studio-dev-write.mjs",
+    "fee-profile": "node scripts/fee-profile.mjs"
   },
   "devDependencies": {
     "ajv": "8.20.0",

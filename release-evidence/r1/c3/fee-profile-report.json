@@ -1,0 +1,56 @@
+{
+  "network": "studio-dev",
+  "chainId": 61997,
+  "generatedAt": "2026-09-11T22:44:43.933Z",
+  "profiles": [
+    {
+      "name": "Kernel.begin_policy (single-contract write, representative Kernel-only branch)",
+      "address": "0x39a3D52Bb89e501FFdb0229C21f0C2ec0CD6195D",
+      "functionName": "begin_policy",
+      "notes": "Single-hop Kernel write, no cross-contract dispatch. Representative baseline branch.",
+      "status": "ESTIMATION_FAILED",
+      "error": "Missing or invalid parameters.\nDouble check you have provided the correct parameters.\n\nDetails: execution failed\nVersion: viem@2.56.3"
+    },
+    {
+      "name": "IncentiveVault.fund_target_pool (single-contract payable write)",
+      "address": "0x2D8fd574095d13D9756C279f0972f73D822fd9Ad",
+      "functionName": "fund_target_pool",
+      "notes": "Single-hop Vault write, permissionless, no cross-contract dispatch.",
+      "status": "ESTIMATION_FAILED",
+      "error": "Missing or invalid parameters.\nDouble check you have provided the correct parameters.\n\nDetails: execution failed\nVersion: viem@2.56.3"
+    },
+    {
+      "name": "IncidentJudgeV1.submit_incident (Judge -> Kernel cross-contract branch, KNOWN live limitation - see docs/execution/C2 Live Proof Evidence.md Finding 2)",
+      "address": "0x0A519837D3983272A14710d5b6b2108bC27D2D96",
+      "functionName": "submit_incident",
+      "notes": "Representative Judge->Kernel dispatch branch (CLAUDE.md Section 34: profile Judge->Kernel->Target branches). Included deliberately even though the underlying dispatch is known to fail live - an honest fee profile reports this, not a curated-to-succeed subset.",
+      "status": "ESTIMATED",
+      "feeValue": "120627324000020704",
+      "distribution": {
+        "leaderTimeunitsAllocation": "100",
+        "validatorTimeunitsAllocation": "200",
+        "appealRounds": "0",
+        "executionBudgetPerRound": "156831000000000",
+        "executionConsumed": "0",
+        "totalMessageFees": "120000000000010352",
+        "rotations": [
+          "3"
+        ],
+        "maxPriceGenPerTimeUnit": "2",
+        "storageFeeMaxGasPrice": "300000000",
+        "receiptFeeMaxGasPrice": "300000000"
+      },
+      "messageAllocations": [
+        {
+          "messageType": 1,
+          "onAcceptance": false,
+          "parentIndex": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+          "recipient": "0x39a3d52bb89e501ffdb0229c21f0c2ec0cd6195d",
+          "callKey": "0x726563656976655f6465636973696f6e00000000000000000000000000000000",
+          "budget": "120000000000010352",
+          "feeParams": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006a94d74f430000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a30000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000003"
+        }
+      ]
+    }
+  ]
+}
