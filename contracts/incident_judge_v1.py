@@ -178,21 +178,35 @@ class IncidentRecordLocal:
 
 
 class IncidentJudgeV1(gl.contract.Contract):
+    owner: gl.Address
     kernel: gl.Address
     vault: gl.Address
+    vault_set: bool
     module_version: gl.u32
     source_registry_hash: str
 
     reporter_nonces: gl.storage.TreeMap[str, gl.u64]
     incidents: gl.storage.TreeMap[str, IncidentRecordLocal]
 
-    def __init__(self, kernel_address: gl.Address, vault_address: gl.Address, module_version: gl.u32, source_registry_hash: str) -> None:
+    def __init__(self, kernel_address: gl.Address, module_version: gl.u32, source_registry_hash: str) -> None:
+        # Vault is wired post-construction via set_vault() (owner-only, one-time) - Judge and
+        # Vault each need the OTHER's address, so neither can be a constructor argument for both;
+        # deploy Judge first, then Vault (with the real Judge address), then wire set_vault().
+        self.owner = gl.message.sender_address
         self.kernel = gl.Address(kernel_address)
-        self.vault = gl.Address(vault_address)
+        self.vault = gl.Address("0x" + "0" * 40)
+        self.vault_set = False
         self._require(int(module_version) != 0, "E_JDG_000: module_version must be non-zero")
         self.module_version = module_version
         self._require(_valid_hash(source_registry_hash), "E_JDG_000: invalid source_registry_hash")
         self.source_registry_hash = source_registry_hash
+
+    @gl.public.write
+    def set_vault(self, vault_address: gl.Address) -> None:
+        self._require(gl.message.sender_address == self.owner, "E_JDG_001: UNAUTHORIZED_CALLER: only owner may set the vault")
+        self._require(not self.vault_set, "E_JDG_002: VAULT_ALREADY_SET")
+        self.vault = gl.Address(vault_address)
+        self.vault_set = True
 
     # -- Internal helpers -------------------------------------------------------------------
 
@@ -232,6 +246,7 @@ class IncidentJudgeV1(gl.contract.Contract):
         if bond_id == "":
             return
         self._require(_valid_identifier(bond_id, 96), "E_JDG_INPUT: invalid bond_id")
+        self._require(self.vault_set, "E_JDG_003: VAULT_NOT_SET: cannot open a bond before set_vault() has been called")
         vault_contract = gl.contract.get_at(self.vault)
         vault_contract.emit(value=int(gl.message.value), on="accepted").open_bond(
             bond_id, target_id, policy_key, policy_version, rule_id, reporter_nonce, incident_id,

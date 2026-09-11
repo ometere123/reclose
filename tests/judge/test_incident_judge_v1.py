@@ -206,3 +206,15 @@ def test_submit_incident_zero_bond_skips_vault(judge_harness, direct_vm):
     judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", "0x" + "a" * 64, VALID_EAP, 0, "")
     bond_opens = [d for d in decision_log if d.get("_bond_open")]
     assert len(bond_opens) == 0
+
+
+def test_set_vault_is_owner_only_and_one_time(direct_deploy, direct_vm, direct_owner, direct_alice):
+    judge = direct_deploy("incident_judge_v1.py", direct_owner, 1, "0x" + "2" * 64)
+    with pytest.raises(Exception):
+        direct_vm.sender = direct_alice
+        judge.set_vault(direct_alice)  # not owner
+
+    direct_vm.sender = direct_owner
+    judge.set_vault(direct_owner)
+    with pytest.raises(Exception):
+        judge.set_vault(direct_owner)  # already set

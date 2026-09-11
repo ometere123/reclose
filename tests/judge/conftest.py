@@ -98,9 +98,10 @@ def judge_harness(direct_deploy, direct_owner):
             "resources": resources or set(),
         }
 
-    judge = direct_deploy("incident_judge_v1.py", direct_owner, direct_owner, 1, "0x" + "2" * 64)
+    judge = direct_deploy("incident_judge_v1.py", direct_owner, 1, "0x" + "2" * 64)
     mod = sys.modules[type(judge).__module__]
     gl = mod.gl
+    judge.set_vault(direct_owner)  # placeholder vault address for tests that don't exercise bonds
 
     decision_log = []
     config = _make()
