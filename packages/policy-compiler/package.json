@@ -1,0 +1,19 @@
+{
+  "name": "@reclose/policy-compiler",
+  "version": "0.1.0",
+  "private": true,
+  "description": "C3: compiles a human-authored policy manifest (JSON) into the exact ordered AssuranceKernel write-call sequence (begin_policy/add_policy_resource/add_policy_rule/add_policy_effect/seal_policy), with the same deterministic validation the Kernel itself enforces applied client-side for fast-fail UX. The Kernel remains the sole authority - this package never disagrees with or bypasses it (CLAUDE.md Section 13).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@reclose/protocol-sdk": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "22.10.2"
+  }
+}
