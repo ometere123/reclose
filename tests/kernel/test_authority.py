@@ -1129,3 +1129,41 @@ def test_recovery_validation_decrements_before_recompute(kernel_harness, direct_
         "REC", "", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_3", STAGE_FINAL, 1,
     )
     assert int(kernel.get_target_state("target-001")) == 0  # NORMAL - fully resolved
+
+
+# -- C1-FINAL Section 10: target capability handshake before seal (new closure) ------------------
+
+def test_seal_rejects_effect_target_does_not_support(kernel_harness, direct_vm):
+    """A policy whose effect the live target would deterministically reject must fail to SEAL,
+    not silently seal and fail later at decision-execution time."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    dispatch_log.unsupported_actions.add(3)  # target does not support RESTRICT
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
+    with pytest.raises(Exception):
+        kernel.seal_policy("policy-1")
+
+
+def test_seal_rejects_effect_with_unsupported_resource(kernel_harness, direct_vm):
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    dispatch_log.unsupported_resources.add("provider_a")
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "RULE_A", 5, "provider_a", 0, "", 1)  # REVOKE_CAPABILITY
+    with pytest.raises(Exception):
+        kernel.seal_policy("policy-1")
+
+
+def test_seal_succeeds_when_target_supports_all_effects(kernel_harness, direct_vm):
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)
+    kernel.seal_policy("policy-1")  # no exception

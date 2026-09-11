@@ -26,7 +26,7 @@ import pytest
 class FakeTargetProxy:
     """Stands in for a live Target contract during Kernel-only Direct Mode tests."""
 
-    def __init__(self, owner_addr, kernel_addr, dispatch_log, target_id="target-001", revoked_flag=None, controller_addr=None):
+    def __init__(self, owner_addr, kernel_addr, dispatch_log, target_id="target-001", revoked_flag=None, controller_addr=None, unsupported_actions=None, unsupported_resources=None):
         self._owner_addr = owner_addr
         self._kernel_addr = kernel_addr
         self._dispatch_log = dispatch_log
@@ -35,6 +35,10 @@ class FakeTargetProxy:
         # after the proxy is constructed, simulating target-side revocation mid-test.
         self._revoked_flag = revoked_flag if revoked_flag is not None else [False]
         self._controller_addr = controller_addr if controller_addr is not None else [kernel_addr]
+        # C1-FINAL Section 10: mutable sets so tests can simulate a target that does NOT support
+        # a given action/resource combination.
+        self._unsupported_actions = unsupported_actions if unsupported_actions is not None else set()
+        self._unsupported_resources = unsupported_resources if unsupported_resources is not None else set()
 
     def view(self):
         return self
@@ -53,6 +57,16 @@ class FakeTargetProxy:
 
     def is_assurance_authority_revoked(self):
         return self._revoked_flag[0]
+
+    def supports_assurance_action(self, action_type, resource_id):
+        """C1-FINAL Section 10: defaults to True (matches every existing test's assumption that
+        the fake target supports whatever effect is registered) unless a test explicitly narrows
+        it via unsupported_actions/unsupported_resources."""
+        if int(action_type) in self._unsupported_actions:
+            return False
+        if resource_id in self._unsupported_resources:
+            return False
+        return True
 
     def emit(self, **kwargs):
         return self
@@ -105,9 +119,12 @@ def kernel_harness(direct_deploy, direct_owner):
     dispatch_log = DispatchLog()
     dispatch_log.revoked_flag = [False]
     dispatch_log.controller_addr = [kernel.address]
+    dispatch_log.unsupported_actions = set()
+    dispatch_log.unsupported_resources = set()
     orig_get_at = gl.contract.get_at
     gl.contract.get_at = lambda addr: FakeTargetProxy(
-        owner_addr, kernel.address, dispatch_log, "target-001", dispatch_log.revoked_flag, dispatch_log.controller_addr
+        owner_addr, kernel.address, dispatch_log, "target-001", dispatch_log.revoked_flag, dispatch_log.controller_addr,
+        dispatch_log.unsupported_actions, dispatch_log.unsupported_resources,
     )
 
     yield kernel, gl, owner_addr, dispatch_log

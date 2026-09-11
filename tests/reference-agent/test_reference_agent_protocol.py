@@ -186,3 +186,32 @@ def test_paused_cannot_be_weakened_by_any_raising_action(direct_deploy, direct_v
     for i, (action_type, resource_id) in enumerate([(2, ""), (3, "provider_a"), (5, "provider_a"), (7, ""), (9, "")], start=2):
         target.apply_assurance_action(f"a{i}", f"i{i}", "p1", action_type, resource_id, 0, "", 2)
         assert int(target.get_state()) == 4  # PAUSED never weakened by any of these
+
+
+# -- C1-FINAL Section 10: target capability handshake (new closure) ------------------------------
+
+def test_supports_assurance_action_matrix(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie)
+    assert bool(target.supports_assurance_action(2, "")) is True   # MONITOR
+    assert bool(target.supports_assurance_action(3, "provider_a")) is True   # RESTRICT
+    assert bool(target.supports_assurance_action(5, "provider_a")) is True   # REVOKE_CAPABILITY
+    assert bool(target.supports_assurance_action(7, "")) is True    # ENTER_SAFE_MODE
+    assert bool(target.supports_assurance_action(8, "")) is True    # PAUSE
+    assert bool(target.supports_assurance_action(9, "")) is True    # ENTER_RECOVERY
+    assert bool(target.supports_assurance_action(10, "provider_a")) is True  # RESTORE
+    assert bool(target.supports_assurance_action(4, "provider_a")) is False  # THROTTLE
+    assert bool(target.supports_assurance_action(6, "provider_a")) is False  # REROUTE
+    assert bool(target.supports_assurance_action(0, "")) is False   # NO_ACTION
+    assert bool(target.supports_assurance_action(1, "")) is False   # ALERT
+
+
+def test_throttle_is_genuinely_unsupported_by_dispatch(direct_deploy, direct_vm, direct_owner, direct_alice, direct_bob, direct_charlie):
+    """C1-FINAL Section 10: THROTTLE is not target-executable - apply_assurance_action must reject
+    it, not silently alias it to RESTRICT."""
+    kernel_stub = direct_bob
+    target = _deploy(direct_deploy, direct_vm, direct_owner, direct_alice, kernel_stub, direct_charlie)
+    direct_vm.sender = direct_owner
+    target.set_assurance_controller(kernel_stub)
+    direct_vm.sender = kernel_stub
+    with pytest.raises(Exception):
+        target.apply_assurance_action("a1", "i1", "p1", 4, "provider_a", 0, "", 2)  # FINAL THROTTLE

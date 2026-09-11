@@ -635,6 +635,7 @@ class AssuranceKernel(gl.contract.Contract):
         target = self.targets[header.target_id]
         self._require_live_owner(header.target_id, target)
         self._require(not header.sealed, "ALREADY_SEALED")
+        self._require_target_supports_all_effects(policy_key, header, target)
         header.sealed = True
         header.sealed_at = self._tx_time_seconds()
         # Section 3.1: the authority-expansion delay begins at sealed_at, not created_at - an
@@ -643,6 +644,25 @@ class AssuranceKernel(gl.contract.Contract):
         header.activation_not_before = header.sealed_at if not is_expansion else gl.u64(int(header.sealed_at) + int(self.minimum_policy_delay_seconds))
         self.policy_headers[policy_key] = header
         self._audit(f"SEAL_POLICY policy_key={policy_key} is_expansion={is_expansion}")
+
+    def _require_target_supports_all_effects(self, policy_key: str, header: PolicyHeader, target: TargetRecord) -> None:
+        """C1-FINAL Section 10: before a policy may seal, every target-DISPATCHED enabled effect
+        must be confirmed supported by the LIVE target via supports_assurance_action(). ALERT/
+        NO_ACTION are Kernel-local semantics only and are never dispatched, so they're exempt. A
+        policy that would deterministically be rejected by the target at execution time must never
+        be allowed to seal in the first place."""
+        target_view = gl.contract.get_at(target.target_address)
+        for i in range(int(header.effect_count)):
+            key = _ck(policy_key, str(i))
+            if key not in self.policy_effects:
+                continue
+            effect = self.policy_effects[key]
+            if not effect.enabled:
+                continue
+            if int(effect.action_type) in (int(ACTION_ALERT), int(ACTION_NO_ACTION)):
+                continue
+            supported = target_view.view().supports_assurance_action(effect.action_type, effect.resource_id)
+            self._require(supported, f"TARGET_DOES_NOT_SUPPORT_EFFECT: action_type={int(effect.action_type)} resource_id={effect.resource_id}")
 
     def _rule_identity_map(self, policy_key: str, header: PolicyHeader) -> dict:
         """Maps each enabled rule's non-economic identity (rule_id, judge, judge_version,

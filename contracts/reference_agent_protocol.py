@@ -155,6 +155,24 @@ class ReferenceAgentProtocol(gl.contract.Contract):
     def get_state(self) -> gl.u8:
         return self.state
 
+    @gl.public.view
+    def supports_assurance_action(self, action_type: gl.u8, resource_id: str) -> bool:
+        """C1-FINAL Section 10: the Kernel calls this BEFORE sealing a policy, so a policy whose
+        effects the target will deterministically reject can never be constructed in the first
+        place - failing at policy-construction time, not silently at decision-execution time.
+        This reference target implements exactly MONITOR/RESTRICT/REVOKE_CAPABILITY/
+        ENTER_SAFE_MODE/PAUSE/ENTER_RECOVERY/RESTORE (see apply_assurance_action's own dispatch);
+        THROTTLE/REROUTE/ALERT/NO_ACTION are NOT target-executable here (ALERT/NO_ACTION remain
+        Kernel-local semantics only, per the owner directive)."""
+        a = int(action_type)
+        if a in (int(ACTION_MONITOR), int(ACTION_ENTER_SAFE_MODE), int(ACTION_PAUSE), int(ACTION_ENTER_RECOVERY)):
+            return resource_id == ""
+        if a in (int(ACTION_RESTRICT), int(ACTION_REVOKE_CAPABILITY)):
+            return resource_id in (RESOURCE_PROVIDER_A, RESOURCE_PROVIDER_B)
+        if a == int(ACTION_RESTORE):
+            return resource_id in (RESOURCE_PROVIDER_A, RESOURCE_PROVIDER_B, "")
+        return False
+
     # -- Internal helpers -------------------------------------------------------------------
 
     def _require(self, condition: bool, message: str) -> None:
@@ -237,7 +255,7 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         if int(action_type) == int(ACTION_MONITOR):
             self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER: MONITOR takes no parameters")
             self._raise_state(ASSURANCE_STATE_MONITORED)
-        elif int(action_type) == int(ACTION_RESTRICT) or int(action_type) == int(ACTION_THROTTLE):
+        elif int(action_type) == int(ACTION_RESTRICT):
             self._require(int(param_u256) == 0 and param_str == "", "UNUSED_PARAMETER")
             self._raise_state(ASSURANCE_STATE_RESTRICTED)
         elif int(action_type) == int(ACTION_REVOKE_CAPABILITY):
