@@ -1,16 +1,18 @@
 {
   "directive": "Reclose R1 Master Execution",
   "status": "IN_PROGRESS",
-  "current_major_phase": "C1-FINAL",
-  "current_section": 18,
-  "current_task": "reference agent treasury (investigate safe autonomous spending)",
-  "last_completed_section": 17,
-  "last_completed_commit": "7cfd339",
+  "current_major_phase": "C2",
+  "current_section": 23,
+  "current_task": "IncidentJudgeV1 identity/constructor (Section 24)",
+  "last_completed_section": 22,
+  "last_completed_commit": "40e9de1",
+  "c1_final_head_commit": "40e9de1",
+  "c1_final_ci_run": "34611072036",
   "owner_permission_required": false,
   "mandatory_final_stop": "S1",
   "phases": {
-    "C1-FINAL": "IN_PROGRESS",
-    "C2": "NOT_STARTED",
+    "C1-FINAL": "DONE",
+    "C2": "IN_PROGRESS",
     "C3": "NOT_STARTED",
     "A2": "NOT_STARTED",
     "D1": "NOT_STARTED",
@@ -26,8 +28,10 @@
     "R1": "NOT_STARTED",
     "S1": "NOT_STARTED"
   },
-  "c1_final_sections_done": [4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17],
-  "c1_final_sections_remaining": [9, 18, 19, 20, 21, 22],
+  "c1_final_sections_done": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
   "hard_blockers": [],
-  "next_action": "Section 18: investigate genlayer-js/genvm support for reference-agent autonomous treasury spending (fund_treasury/purchase_service without caller-supplied value); if unsafe/unsupported, document as C3 limitation per the directive's own fallback clause and move to Section 19-22 (linter/F1 review, fee estimator script, expanded model verification), then branch to claude/r1-consensus for C2."
+  "known_open_findings": [
+    "InsufficientFees/AllocationTreeMalformed live cross-contract dispatch boundary (documented, not fabricated as resolved, does not block C2/C3 per directive Section 11/21)"
+  ],
+  "next_action": "Create branch claude/r1-consensus from claude/r1-core-final HEAD 40e9de1. Implement contracts/incident_judge_v1.py: constructor binds kernel_address/vault_address/module_version/source_registry_hash; views get_module_type/get_module_version/get_kernel/get_vault/get_source_registry_hash. Then Section 25 (submit_incident/submit_remediation/submit_recovery_validation), Section 26 (EAP), Section 27 (source security/URL validation), Section 28 (rule registry), Section 29-31 (nondeterministic judgment + failure handling + prompt injection), Section 32 (Kernel read views), Section 33 (IncentiveVault), Section 34 (C2 test matrix), Section 35 (C2 live proof) - then branch claude/r1-tooling for C3."
 }
