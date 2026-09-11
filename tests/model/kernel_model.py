@@ -288,6 +288,14 @@ class Model:
                         target.disabled_resources.discard(e.resource_id)
         target.active_policy_key = policy_key
 
+        # C1-FINAL Section 12 (A1-H17): this activation IS the "subsequent reviewed policy
+        # version" that RELEASE_AT_POLICY_REPLACEMENT holds wait for.
+        for r in self.restrictions:
+            if r.active and r.release_phase == RELEASE_POLICY_REPLACEMENT:
+                inc = self.incidents.get(r.incident_id)
+                if inc is not None and inc.target_id == p.target_id:
+                    r.active = False
+
     # -- decisions --
 
     def receive_decision(

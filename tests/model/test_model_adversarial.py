@@ -279,3 +279,37 @@ def test_model_receive_decision_rejects_target_side_revocation():
     m.target_side_revoke("t1")
     with pytest.raises(ModelError):
         m.receive_decision("i1", "", "t1", "p1", 1, M1, "R1", "", JUDGE, OUTCOME_CONFIRMED, STAGE_FINAL, 1)
+
+
+def test_model_policy_replacement_releases_monitor_hold():
+    m = _fresh()
+    m.begin_policy("t1", "p1", M1)
+    m.add_policy_rule("p1", "R1", JUDGE, 1, RULE_KIND_INCIDENT, True)
+    m.seal_policy("p1")
+    m.warp(60)
+    m.activate_policy("p1")
+    m.receive_decision("i1", "", "t1", "p1", 1, M1, "R1", "", JUDGE, "UNDETERMINED", STAGE_FINAL, 1)
+    assert m.target_state("t1") == 1  # MONITORED
+
+    m.begin_policy("t1", "p2", M2)
+    m.seal_policy("p2")
+    m.activate_policy("p2")  # reduction (no rules) - releases the hold too
+    assert m.target_state("t1") == 0  # NORMAL
+
+
+def test_model_policy_replacement_does_not_release_remediation_phase():
+    m = _fresh()
+    m.begin_policy("t1", "p1", M1)
+    m.add_policy_resource("p1", "r")
+    m.add_policy_rule("p1", "R1", JUDGE, 1, RULE_KIND_INCIDENT, True)
+    m.add_policy_effect("p1", "R1", "RESTRICT", "r", RELEASE_RECOVERY)
+    m.seal_policy("p1")
+    m.warp(60)
+    m.activate_policy("p1")
+    m.receive_decision("i1", "", "t1", "p1", 1, M1, "R1", "r", JUDGE, OUTCOME_CONFIRMED, STAGE_FINAL, 1)
+    assert m.target_state("t1") == 2  # RESTRICTED
+
+    m.begin_policy("t1", "p2", M2)
+    m.seal_policy("p2")
+    m.activate_policy("p2")
+    assert m.target_state("t1") == 2  # still RESTRICTED

@@ -1004,3 +1004,57 @@ def test_receive_decision_rejects_when_target_no_longer_recognizes_kernel(kernel
             "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_PROVISIONAL, 1,
         )
     assert len(dispatch_log) == 0
+
+
+# -- C1-FINAL Section 12: policy-replacement MONITOR hold release (A1-H17 closure) ---------------
+
+def test_policy_replacement_releases_monitor_hold_on_next_activation(kernel_harness, direct_vm):
+    """FINAL UNDETERMINED creates a Kernel-owned MONITOR hold with RELEASE_AT_POLICY_REPLACEMENT.
+    It must persist through unrelated activity and be released exactly when the owner activates a
+    subsequent reviewed policy - not before, and not via any other path."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    kernel.receive_decision(
+        "incident-001", "", "target-001", "policy-1", 1, M1,
+        "RULE_A", "", owner_addr, EV_A, OUTCOME_UNDETERMINED, "COND_1", STAGE_FINAL, 1,
+    )
+    assert int(kernel.get_target_state("target-001")) == 1  # MONITORED
+
+    # A reduction-only policy activation is ALSO "a subsequent reviewed policy version" - it must
+    # release the hold too (reductions don't need the timelock, so this proves release doesn't
+    # depend on expansion having occurred).
+    kernel.begin_policy("target-001", "policy-2", M2)
+    kernel.seal_policy("policy-2")
+    kernel.activate_policy("policy-2")
+    assert int(kernel.get_target_state("target-001")) == 0  # NORMAL - hold released
+
+
+def test_policy_replacement_does_not_release_remediation_phase_restriction(kernel_harness, direct_vm):
+    """A policy activation must release ONLY RELEASE_AT_POLICY_REPLACEMENT holds - a still-active
+    RELEASE_AT_REMEDIATION_CONFIRMED restriction from a different incident must survive."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 1)  # RESTRICT, RELEASE_AT_REMEDIATION_CONFIRMED
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:02:00Z")
+    kernel.activate_policy("policy-1")
+
+    kernel.receive_decision(
+        "incident-remediation", "", "target-001", "policy-1", 1, M1,
+        "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_FINAL, 1,
+    )
+    assert int(kernel.get_target_state("target-001")) == 2  # RESTRICTED
+
+    kernel.begin_policy("target-001", "policy-2", M2)
+    kernel.seal_policy("policy-2")
+    kernel.activate_policy("policy-2")
+    assert int(kernel.get_target_state("target-001")) == 2  # still RESTRICTED - remediation-phase untouched

@@ -334,6 +334,13 @@ class AssuranceKernel(gl.contract.Contract):
     # number of incidents on this target currently in RECOVERY (Section 10 priority level).
     recovery_incident_counts: gl.storage.TreeMap[str, gl.u32]
 
+    # C1-FINAL Section 12 (A1-H17): bounded, indexed per-target tracking of incidents holding an
+    # active RELEASE_AT_POLICY_REPLACEMENT MONITOR hold (created on FINAL UNDETERMINED), so a
+    # subsequent policy activation can release exactly these - never an unbounded storage scan.
+    # Keyed by target_id -> count; entries at _ck(target_id, str(i)) -> incident_id.
+    policy_replacement_hold_count: gl.storage.TreeMap[str, gl.u32]
+    policy_replacement_hold_incidents: gl.storage.TreeMap[str, str]
+
     # Replay protection (CLAUDE.md Section 7 invariants 8-9; TM-AUTH-006, TM-LIFE-*).
     # processed_decisions maps decision_key -> canonical fingerprint of the FIRST accepted decision
     # for that key (C1R A1-H11/Section 7): an exact-duplicate resend is a no-op success; a
@@ -768,6 +775,13 @@ class AssuranceKernel(gl.contract.Contract):
         target.active_policy_key = policy_key
         target.policy_generation = gl.u32(int(target.policy_generation) + 1)
         self.targets[target_id] = target
+
+        # C1-FINAL Section 12 (A1-H17): this activation IS the "subsequent reviewed policy
+        # version" that RELEASE_AT_POLICY_REPLACEMENT holds wait for - release them now. Must run
+        # AFTER target.active_policy_key/policy_generation are updated so _recompute_target_state
+        # (called inside the release path) reflects the new policy's authority, not the old one's.
+        self._release_policy_replacement_holds(target_id)
+
         self._audit(f"ACTIVATE_POLICY policy_key={policy_key} target_id={target_id} expansion={is_expansion}")
 
     # -- Immediate safety overlays (Section 22 / C1R Section 6) ---------------------------------
@@ -976,6 +990,35 @@ class AssuranceKernel(gl.contract.Contract):
         if applied_any:
             incident.status = INCIDENT_STATUS_PROVISIONAL_APPLIED
 
+    def _track_policy_replacement_hold(self, target_id: str, incident_id: str) -> None:
+        """C1-FINAL Section 12 (A1-H17): records that this incident now holds an active
+        RELEASE_AT_POLICY_REPLACEMENT MONITOR restriction, in a bounded per-target index so a
+        later policy activation can release exactly these without an unbounded scan."""
+        idx = int(self.policy_replacement_hold_count[target_id]) if target_id in self.policy_replacement_hold_count else 0
+        self.policy_replacement_hold_incidents[_ck(target_id, str(idx))] = incident_id
+        self.policy_replacement_hold_count[target_id] = gl.u32(idx + 1)
+
+    def _release_policy_replacement_holds(self, target_id: str) -> None:
+        """C1-FINAL Section 12 (A1-H17): called on every successful policy activation - a newly
+        activated policy IS "a subsequent reviewed policy version" per the release-phase
+        semantics, so every RELEASE_AT_POLICY_REPLACEMENT hold for this target is released now.
+        Does NOT touch remediation-phase or recovery-phase restrictions, or unrelated incidents'
+        non-policy-replacement restrictions - _release_restrictions_by_phase only releases
+        records whose release_phase matches exactly."""
+        count = int(self.policy_replacement_hold_count[target_id]) if target_id in self.policy_replacement_hold_count else 0
+        if count == 0:
+            return
+        for i in range(count):
+            key = _ck(target_id, str(i))
+            if key not in self.policy_replacement_hold_incidents:
+                continue
+            incident_id = self.policy_replacement_hold_incidents[key]
+            if incident_id not in self.incidents:
+                continue
+            incident = self.incidents[incident_id]
+            self._release_restrictions_by_phase(incident, RELEASE_AT_POLICY_REPLACEMENT)
+        self.policy_replacement_hold_count[target_id] = gl.u32(0)
+
     def _apply_final_incident(self, incident: IncidentRecord, rule: PolicyRuleRecord, outcome: gl.u8, policy_key: str, header: PolicyHeader) -> None:
         incident.final_outcome = outcome
         if int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
@@ -1003,6 +1046,7 @@ class AssuranceKernel(gl.contract.Contract):
             self._apply_restriction(incident, rule.rule_id, gl.u16(0xFFFF), monitor_effect, decision_stage=DECISION_STAGE_FINAL)
             incident.status = INCIDENT_STATUS_CLOSED
             incident.closed_at = self._tx_time_seconds()
+            self._track_policy_replacement_hold(incident.target_id, incident.incident_id)
         else:
             raise gl.vm.UserError("INVALID_OUTCOME")
 
