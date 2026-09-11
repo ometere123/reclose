@@ -1,0 +1,18 @@
+{
+  "schema": "reclose-fee-profile-coverage-v1",
+  "requiredProfiles": [
+    "kernel-deploy",
+    "judge-deploy",
+    "vault-deploy",
+    "target-deploy",
+    "judge-report-no-provisional",
+    "judge-report-with-provisional",
+    "judge-to-kernel",
+    "kernel-to-target-one-effect",
+    "kernel-to-target-two-effects",
+    "remediation",
+    "recovery-validation",
+    "vault-payout",
+    "reference-agent-provider-payment"
+  ]
+}
