@@ -36,7 +36,8 @@
     "a0-integrity": "node scripts/a0-integrity-check.js",
     "estimate-studio-dev-write": "node scripts/estimate-studio-dev-write.mjs",
     "fee-profile": "node scripts/fee-profile.mjs",
-    "fee-profile:coverage": "node scripts/check-fee-profile-coverage.mjs"
+    "fee-profile:coverage": "node scripts/check-fee-profile-coverage.mjs",
+    "fee-profile:final-check": "node scripts/check-final-fee-profile.mjs"
   },
   "devDependencies": {
     "ajv": "8.20.0",
