@@ -1,0 +1,31 @@
+{
+  "runId": "REPLACE_WITH_UNIQUE_RUN_ID",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "cleanDeployment": true,
+  "deploymentManifest": "release-evidence/r1/e1/REPLACE/deployment-manifest.json",
+  "sourceCommit": "REPLACE_WITH_EXACT_SHA",
+  "startedAt": null,
+  "completedAt": null,
+  "steps": [
+    {"id":"DEPLOY_VERIFY","status":"NOT_RUN","txIds":[],"evidence":null},
+    {"id":"REGISTER_TARGET","status":"NOT_RUN","txIds":[],"evidence":null},
+    {"id":"ACTIVATE_POLICY","status":"NOT_RUN","txIds":[],"evidence":null},
+    {"id":"FUND_REFERENCE_AGENT","status":"NOT_RUN","txIds":[],"evidence":null},
+    {"id":"PURCHASE_PROVIDER_A","status":"NOT_RUN","txIds":[],"providerUsed":null,"valueMoved":null,"evidence":null},
+    {"id":"SUBMIT_COMPROMISE_REPORT","status":"NOT_RUN","txIds":[],"evidence":null},
+    {"id":"OBSERVE_GENLAYER_LIFECYCLE","status":"NOT_RUN","txIds":[],"evidence":null},
+    {"id":"PROVISIONAL_CONTAINMENT","status":"NOT_RUN","txIds":[],"evidence":null},
+    {"id":"FINAL_CONFIRMED","status":"NOT_RUN","txIds":[],"childExecutionResult":null,"evidence":null},
+    {"id":"VERIFY_A_RESTRICTED_SAFE_MODE","status":"NOT_RUN","txIds":[],"providerARestricted":null,"assuranceState":null,"evidence":null},
+    {"id":"AUTO_PURCHASE_PROVIDER_B","status":"NOT_RUN","txIds":[],"providerUsed":null,"valueMoved":null,"evidence":null},
+    {"id":"SUBMIT_REMEDIATION","status":"NOT_RUN","txIds":[],"evidence":null},
+    {"id":"ENTER_RECOVERY","status":"NOT_RUN","txIds":[],"assuranceState":null,"evidence":null},
+    {"id":"VALIDATE_RECOVERY","status":"NOT_RUN","txIds":[],"evidence":null},
+    {"id":"RESTORE_PROVIDER_A_NORMAL","status":"NOT_RUN","txIds":[],"providerAAvailable":null,"assuranceState":null,"evidence":null},
+    {"id":"FINAL_AUTO_PURCHASE","status":"NOT_RUN","txIds":[],"providerUsed":null,"valueMoved":null,"evidence":null},
+    {"id":"CAPTURE_CAUSAL_TRACE","status":"NOT_RUN","txIds":[],"evidence":null}
+  ],
+  "knownLimitations": [],
+  "notes": "Do not change NOT_RUN/BLOCKED/FAIL to PASS unless the referenced transaction/post-state evidence supports it."
+}
