@@ -1,0 +1,55 @@
+A3 product/integration implementation and evidence set
+
+Product/design:
+frontend/index.html
+frontend/app.js
+frontend/styles.css
+frontend/README.md
+frontend/lib/adapters.js
+frontend/lib/domain.js
+frontend/lib/mock-data.js
+frontend/lib/persistence.js
+docs/design/Product UI Specification.md
+
+SDK/integration truth hardening:
+packages/protocol-sdk/src/client.ts
+packages/protocol-sdk/src/genlayerAdapter.ts
+scripts/test-sdk-product-truth.js
+
+Product/security tests:
+scripts/test-frontend-product.js
+scripts/test-agent-skill.js
+skill.md
+
+Benchmark/hardening:
+benchmark/r1-scenarios.json
+benchmark/README.md
+scripts/check-r1-benchmark.js
+
+E1 preparation:
+scripts/check-e1-evidence.mjs
+release-evidence/r1/e1/run-template.json
+release-evidence/r1/e1/README.md
+
+Root verification wiring:
+package.json
+
+A2/A3 execution/audit records:
+docs/execution/Current Phase.md
+docs/execution/Audit Register.md
+docs/execution/audit-packets/A2-attempt-2/AUDIT_DECISION.md
+docs/execution/audit-packets/A3/README.md
+docs/execution/audit-packets/A3/scope.md
+docs/execution/audit-packets/A3/tests.md
+docs/execution/audit-packets/A3/security-self-review.md
+docs/execution/audit-packets/A3/known-limitations.md
+docs/execution/audit-packets/A3/open-questions.md
+docs/execution/audit-packets/A3/screenshots-recordings-index.md
+docs/execution/audit-packets/A3/requirements.csv
+docs/execution/audit-packets/A3/threat-delta.md
+docs/execution/audit-packets/A3/compatibility-findings.md
+docs/execution/audit-packets/A3/architecture-deviations.md
+docs/execution/audit-packets/A3/files-changed.txt
+docs/execution/audit-packets/A3/evidence-index.md
+
+The immutable A3 audit-target SHA and CI run are recorded only after the final substantive A3 candidate is green. Historical governance and earlier audit packets are not rewritten as part of A3.
