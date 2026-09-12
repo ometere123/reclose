@@ -1,6 +1,6 @@
 # A3 Tests
 
-Canonical gate: `npm run verify` on the immutable A3 candidate.
+Canonical source gate: `npm run verify` on the immutable A3 candidate.
 
 Product-specific checks wired into the root gate:
 
@@ -21,14 +21,34 @@ Product-specific checks wired into the root gate:
   - focus/reduced-motion/non-colour status baseline;
   - malicious evidence is escaped;
   - ACCEPTED-as-final and execution-failure-as-success contradictions are rejected;
-  - generic AI/Web3 visual language guard.
+  - generic AI/Web3 visual-language guard.
+- `npm run agent-skill:test`
+  - chain 61997 lock;
+  - safe read surface;
+  - non-custodial report preparation;
+  - explicit authority-expansion/owner/Judge mutation prohibitions;
+  - lifecycle/decision/execution truth separation;
+  - current live child limitation disclosure.
+- `npm run cli-report:test`
+  - incident preparation delegates to the canonical SDK builder exactly once;
+  - recovery preparation delegates to the canonical SDK builder exactly once;
+  - builder/fee failure returns non-zero without hidden retry/resubmission.
 - `npm run benchmark:check`
-  - 50+ adversarial cases;
+  - >=50 adversarial cases;
   - threat mapping;
   - evidence references;
-  - explicit live BLOCKED/NOT_RUN statuses;
+  - explicit live BLOCKED_EXTERNAL/NOT_RUN statuses;
   - zero hard-release targets.
 
-Existing root verification also covers schemas, lifecycle truth, network guard, F1 parity, action envelope, canonical hashes, policy compiler, evidence builder, transaction tracker, CLI, Sentinel, contract discovery, GenVM-lint wrapper and Python Direct Mode tests.
+Existing root verification also covers schemas, lifecycle truth, network guard, F1 parity, action envelope, canonical hashes, policy compiler, evidence builder, transaction tracker, existing CLI flows, Sentinel, contract discovery, GenVM-lint wrapper and Python Direct Mode tests.
 
-Browser-run accessibility, keyboard walkthrough, responsive screenshots and a deployed live frontend must be added as external/manual evidence. They are not claimed by static source tests.
+## Evidence-only release gates
+
+The following are intentionally **not** part of ordinary source CI because they must fail until external/live evidence exists:
+
+- `npm run fee-profile:final-check`
+- `npm run e1:evidence:check`
+
+A failing release-evidence gate is not fixed by weakening the checker or adding placeholders.
+
+Browser-run accessibility, keyboard walkthrough, responsive screenshots and any hosted/deployed frontend evidence must be added externally. They are not claimed by source tests.
