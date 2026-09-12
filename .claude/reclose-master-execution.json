@@ -3,7 +3,7 @@
   "status": "AWAITING_EXTERNAL_REVIEW",
   "current_major_phase": "A3",
   "current_attempt": 2,
-  "current_task": "A3 attempt 2 submitted (source remediation + exact-target CI + browser evidence complete). Awaiting owner/external decision before proceeding to live fee-profile closure, A2-C01 retest, E1 x2, H1, A4, R1/S1.",
+  "current_task": "A3 attempt 2 second remediation sub-pass submitted (H02/H07/H12 fully closed; H04 second hop code-complete/unit-tested but not live-proven due to A2-C01; H08/H09 partially closed). Awaiting owner/external decision before proceeding to live fee-profile closure, A2-C01 retest, E1 x2, H1, A4, R1/S1.",
   "branch": "claude/r1-product-final",
   "base_branch": "chatgpt/r1-product-release",
   "base_branch_tip_at_directive_issue": "967ab3742f8230398aa67386e367cdaffae75b87",
@@ -15,49 +15,49 @@
     "decision_doc": "docs/execution/audit-packets/A3/AUDIT_DECISION.md"
   },
   "a3_attempt_2": {
-    "target_sha": "7f032af5921eff258c4c69a2f381861b003bd898",
+    "target_sha": "ad38a3920892c5c0681e4d603afc8ef07254228d",
     "branch": "claude/r1-product-final",
-    "ci_run_id": "34686497909",
+    "ci_run_id": "34707671490",
     "ci_result": "SUCCESS",
+    "ci_url": "https://github.com/ometere123/reclose/actions/runs/34707671490",
     "status": "AWAITING_EXTERNAL_REVIEW",
     "packet": "docs/execution/audit-packets/A3-attempt-2/",
     "browser_evidence": "docs/execution/audit-packets/A3-attempt-2/browser-evidence-index.md",
     "findings_closed": [
-      "A3-H01",
-      "A3-H03",
-      "A3-H05",
-      "A3-H06",
-      "A3-H10",
-      "A3-H11"
+      "A3-H01", "A3-H02", "A3-H03", "A3-H05", "A3-H06", "A3-H07", "A3-H10", "A3-H11", "A3-H12"
+    ],
+    "findings_closed_not_live_proven": [
+      "A3-H04 (code-complete and unit-tested for both the Judge->Kernel and Kernel->Target hops; live proof blocked by A2-C01, since a failed first hop never triggers a second)"
     ],
     "findings_partially_closed": [
-      "A3-H02",
-      "A3-H04",
-      "A3-H12"
+      "A3-H08 (per-incident audit-trail export done; policy-level/cross-incident export not attempted)",
+      "A3-H09 (packet-local requirements.csv expanded; canonical 156-row R1 ledger deliberately deferred to R1-wide reconciliation per master directive sequencing)"
     ],
-    "findings_not_closed": [
-      "A3-H07",
-      "A3-H08",
-      "A3-H09"
-    ],
+    "findings_not_closed": [],
     "superseded_checkpoint": {
+      "target_sha": "7f032af5921eff258c4c69a2f381861b003bd898",
+      "ci_run_id": "34686497909",
+      "findings_closed_at_that_checkpoint": ["A3-H01", "A3-H03", "A3-H05", "A3-H06", "A3-H10", "A3-H11"],
+      "findings_partially_closed_at_that_checkpoint": ["A3-H02", "A3-H04", "A3-H12"]
+    },
+    "earlier_superseded_checkpoint": {
       "target_sha": "7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e",
       "ci_run_id": "34684832850"
     }
   },
-  "local_verification_at_a3_attempt_2": {
-    "npm_run_verify_js": "ALL PASS",
-    "python_pytest": "197/197 passed",
-    "genvm_lint": "clean (one documented narrow waiver, run_nondet_default reachability)"
+  "local_verification_at_a3_attempt_2_subpass": {
+    "npm_run_verify_js": "ALL PASS (24/24 frontend A3-remediation checks, 8 new this sub-pass)",
+    "python_pytest": "not completed locally on this Windows host this sub-pass - pre-existing host-specific gltest PermissionError (os.unlink of a temp file held open by the GenVM subprocess loader), unrelated to any source change in this sub-pass and reproduced deterministically; CI (Linux) npm run verify, which includes the Python suite, is green at 34707671490",
+    "genvm_lint": "unchanged - no contract source touched this sub-pass"
   },
   "hard_blockers": [],
   "open_external_blockers": [
-    "A2-C01: Studio-dev Judge -> Kernel triggered child fails live with 'fee no_matching_allocation # internal' - independently blocks E1/R1 closure, unresolved by this A3 pass",
+    "A2-C01: Studio-dev Judge -> Kernel triggered child fails live with 'fee no_matching_allocation # internal' - independently blocks E1/R1 closure, and as of this sub-pass also transitively blocks live proof of A3-H04's Kernel->Target second hop",
     "A2-C02: final live fee profile still requires real final-deployment arguments/output",
     "E1: not started this pass - requires A3 to pass first per FINAL_REMEDIATION.md Section 17"
   ],
   "pending_studio_dev_transactions": [],
   "pending_ci": [],
-  "next_exact_action": "Await owner/external A3 attempt 2 decision. If PASS or explicit owner authorization to continue: proceed to (1) live fee-profile closure with final addresses, (2) A2-C01 Judge->Kernel child-routing investigation using estimator-produced allocation data (never hand-bisected), (3) E1 run A from a fresh clean deployment, (4) E1 run B from a second independent clean deployment, (5) H1 live-scenario execution, (6) A4 packet, (7) R1 requirements/threat reconciliation, (8) release/r1-agent-tank-candidate branch freeze (S1). If further A3 remediation is requested: close A3-H02/H07/H08/H09/H11 and the partial H04/H12 items, freeze a new attempt-3 SHA, capture fresh browser evidence against it.",
+  "next_exact_action": "Await owner/external A3 attempt 2 decision. If PASS or explicit owner authorization to continue: proceed to (1) live fee-profile closure with final addresses, (2) A2-C01 Judge->Kernel child-routing investigation using estimator-produced allocation data (never hand-bisected) - resolving this also unblocks live proof of A3-H04's second hop, (3) E1 run A from a fresh clean deployment, (4) E1 run B from a second independent clean deployment, (5) H1 live-scenario execution, (6) A4 packet, (7) R1 requirements/threat reconciliation (this is where the canonical 156-row ledger gets reconciled), (8) release/r1-agent-tank-candidate branch freeze (S1). If further A3 remediation is requested: close A3-H08's remaining scope and/or pull the canonical ledger reconciliation forward if the owner wants it, freeze a new SHA, capture fresh browser evidence against it.",
   "resume_instructions": "Read this file, docs/execution/Current Phase.md, and docs/execution/R1 Master Execution Ledger.md FIRST in any new session before re-deriving context. Do not rediscover the programme from scratch."
 }

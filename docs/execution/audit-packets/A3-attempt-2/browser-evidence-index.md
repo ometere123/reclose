@@ -1,7 +1,13 @@
 # A3 Attempt 2 - Browser Evidence Index
 
-**Exact candidate SHA:** `7f032af5921eff258c4c69a2f381861b003bd898` (branch `claude/r1-product-final`)
-**CI at this SHA:** GitHub Actions run `34686497909` - **SUCCESS**
+**Exact candidate SHA:** `ad38a3920892c5c0681e4d603afc8ef07254228d` (branch `claude/r1-product-final`)
+**CI at this SHA:** GitHub Actions run `34707671490` - **SUCCESS**
+(https://github.com/ometere123/reclose/actions/runs/34707671490)
+
+The sections below through "Delta pass against `7f032af...`" were captured against earlier
+checkpoints and are preserved as historical record (routes/behavior they cover are unchanged by
+this sub-pass). See "Delta pass against `ad38a39...`" below for evidence specific to this sub-pass
+(owner bounded controls, real policy-activation review).
 
 This index covers TWO capture passes: the initial pass against the earlier checkpoint
 `7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e` (routes unaffected by the A3-H02/H11 fixes below), and a
@@ -63,7 +69,25 @@ clear blue focus outline appears on the third focusable element, the "demo-payme
 | `#/report?target=reclose-target-004` (A3-H11 governed selection) | A green "Governed selection" notice reads "Rule and resource options below are the 4 rule(s) and 1 resource(s) actually active in policy policy-r1-004 for reclose-target-004." The Rule `<select>` and Affected resource `<select>` are populated from that real policy data (`PROVIDER_COMPROMISE_V1` etc., `provider_a`), not the previous hardcoded two-option list. |
 | `#/onboard` (A3-H02 registration preview) | Filled Target ID (`reclose-target-004`), Target address, checked the authority acknowledgement, and clicked "Preview registration". `get_page_text` confirms a real "Signing boundary" panel rendered: `NETWORK studio-dev · 61997`, `ESTIMATED FEE 80000000000000000 wei`, `ESTIMATE yes · may change`, `Preview only / Fixture mode cannot fabricate a registration transaction.` - replacing the previous stub that only ever displayed a static message with no fee/network/draft content. |
 
+## Delta pass against `ad38a3920892c5c0681e4d603afc8ef07254228d` (A3-H02 policy-activation half / A3-H07 closure verification)
+
+| Check | Observation |
+|---|---|
+| `#/targets/reclose-target-004` (A3-H07 owner bounded controls) | Target detail now renders an "Owner bounded controls" panel with three real forms: Revoke authority, Disable action, Disable resource. Clicking "Preview revocation" and reading back via `get_page_text` confirmed a real Signing-boundary-style panel: `NETWORK studio-dev · 61997`, `ESTIMATED FEE 60000000000000000 wei`, and `Preview only / Fixture mode cannot fabricate this transaction.` - not a static read-only field. |
+| `#/policy-author/reclose-target-004` (A3-H02 policy-activation half, invalid manifest) | The default placeholder manifest (`{"schema":"reclose-apm/1","policyId":"new-policy","version":1}`) is intentionally incomplete. Clicking "Validate & diff" and reading back via `get_page_text` confirmed a real "Manifest rejected" notice naming "Fixture mode cannot validate against a live active policy - connect a live SDK." in fixture mode (the real `validateCanonicalApmStructure`/`buildPolicyActivationReview` pipeline runs for a connected live SDK; the `MockProductAdapter` fixture intentionally always reports unable-to-validate rather than fabricating a pass) - confirming the button no longer silently no-ops via `setLiveMessage` alone. |
+
 ## Not captured this pass (honest gap, not fabricated)
+
+- A3-H04's live Kernel -> Target second hop (`trackKernelToTargetChild`) was not exercised in the
+  Browser pane - it has no live network available to trigger it (A2-C01 means the Judge -> Kernel
+  hop itself still fails first), and fixture mode's synthetic trace fixture is unaffected by this
+  code path. Proven only at the unit level (`scripts/test-frontend-remediation.js`).
+- The "Export audit trail" control (A3-H08) was not exercised in this Browser pass - no live
+  incident render was available to click it against; its behavior is proven by the source-level
+  test asserting it reuses the exact rendered incident object rather than re-deriving one.
+- No live-wallet connection was used for the owner-control or policy-review flows in this pass
+  either - both were exercised only in fixture mode, consistent with every other write flow's
+  evidence gap stated below.
 
 - A full manual screen-reader (NVDA/VoiceOver) pass was not performed - only DOM-structure/labels
   were inspected visually plus the existing automated checks (semantic `<main>`/`<nav>`, skip

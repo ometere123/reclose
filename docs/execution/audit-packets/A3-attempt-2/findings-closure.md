@@ -1,6 +1,7 @@
 # A3 Attempt 2 - Findings Closure (A3-H01 through A3-H12)
 
-Target SHA: `PENDING_NEW_SHA` (second remediation sub-pass on top of the prior attempt-2 checkpoint
+Target SHA: `ad38a3920892c5c0681e4d603afc8ef07254228d` (exact-target CI: GitHub Actions run
+`34707671490` - SUCCESS; second remediation sub-pass on top of the prior attempt-2 checkpoint
 `7f032af5921eff258c4c69a2f381861b003bd898`, which itself superseded
 `7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e` - see `AUDIT_TARGET_SHA.txt`). Status reported honestly
 per finding - H01/H02/H03/H05/H06/H07/H09/H10/H11/H12 are closed (H02/H09 partially, per their own
