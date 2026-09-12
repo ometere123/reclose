@@ -75,8 +75,16 @@ export function recordRows(rows) {
   return `<dl class="record-list">${rows.map(([label, value, className = ""]) => `<div class="record-row"><dt>${escapeHtml(label)}</dt><dd class="${className}">${value}</dd></div>`).join("")}</dl>`;
 }
 
+/**
+ * Bug found while wiring A3-H11 (governed report selection): a query string (e.g.
+ * `#/report?target=reclose-target-004`, used by the "Report incident" link on target detail)
+ * was never stripped before splitting on "/", so the whole "report?target=..." string became the
+ * route and never matched the `report` case - this link has always 404'd. Strip the query string
+ * first; `queryParams()` below reads it from `location.hash` directly and is unaffected.
+ */
 export function routeFromHash(hash = location.hash) {
-  const clean = hash.replace(/^#\/?/, "");
+  const withoutQuery = hash.split("?")[0];
+  const clean = withoutQuery.replace(/^#\/?/, "");
   const [route = "overview", ...parts] = clean.split("/").filter(Boolean);
   return { route, parts };
 }

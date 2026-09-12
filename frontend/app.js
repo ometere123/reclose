@@ -29,9 +29,11 @@ const state = {
  */
 const draftRegistry = createDraftRegistry();
 
+const PREVIEW_ELEMENT_IDS = { incident: "incident-preview", recovery: "recovery-preview", registerTarget: "onboard-preview" };
+
 function invalidateDraft(kind) {
   draftRegistry.invalidateDraft(kind);
-  const el = document.getElementById(kind === "incident" ? "incident-preview" : "recovery-preview");
+  const el = document.getElementById(PREVIEW_ELEMENT_IDS[kind] || `${kind}-preview`);
   if (el && !el.classList.contains("empty")) {
     el.className = "empty";
     el.innerHTML = "Reviewed input changed - preview again before signing.";
@@ -219,16 +221,43 @@ function queryParams() {
   return new URLSearchParams(idx >= 0 ? hash.slice(idx + 1) : "");
 }
 
+/**
+ * A3-H11: the ordinary report path must select rule/resource from the ACTIVE governed policy,
+ * not arbitrary free text. When a target is known (via ?target=), the rule/resource selects are
+ * populated from that target's real active policy (rules[].ruleId / effects[].resourceId) - the
+ * only "expert" path left is typing an unlisted target ID, which the SDK itself then verifies
+ * (buildIncidentReport throws if the rule is not active for that target) before any preview/sign
+ * step, per FINAL_REMEDIATION.md Section 12 ("verify every ID against protocol state before
+ * preparing or signing").
+ */
 async function renderReport() {
   const params = queryParams();
   const target = params.get("target") || "";
+  let policy = null;
+  let policyError = null;
+  if (target) {
+    try { policy = await adapter.getPolicy(target); } catch (error) { policyError = error.message; }
+  }
+  const ruleOptions = policy?.rules?.length
+    ? policy.rules.map((r) => `<option value="${escapeHtml(r.ruleId)}">${escapeHtml(r.ruleId)}</option>`).join("")
+    : `<option>PROVIDER_COMPROMISE_V1</option><option>SERVICE_FAILURE_V1</option>`;
+  const resourceIds = policy?.effects?.length ? [...new Set(policy.effects.map((e) => e.resourceId).filter(Boolean))] : [];
+  const resourceField = resourceIds.length
+    ? `<select id="report-resource" name="resourceId">${resourceIds.map((r) => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join("")}</select>`
+    : `<input id="report-resource" name="resourceId" value="provider_a" required>`;
+  const governedNotice = target
+    ? (policy
+        ? notice("Governed selection", `Rule and resource options below are the ${policy.rules.length} rule(s) and ${resourceIds.length} resource(s) actually active in policy ${policy.summary.policyKey} for ${target}.`, "success")
+        : notice("No active policy found", policyError || `Could not resolve an active policy for ${target} - free-text fields below will be independently verified against protocol state before signing.`, "warning"))
+    : notice("No target selected", "Enter a target ID to load its governed rules/resources, or the SDK will verify your selection against protocol state before signing.", "warning");
   return `${pageHead("write flow", "Report incident", "Evidence is built and fee/bond requirements are previewed before any signing step.")}
     ${adapter.mode === "mock" ? notice("No mock writes", "Fixture mode can preview this flow but will never fabricate a submitted transaction.", "warning") : ""}
+    ${governedNotice}
     <div class="grid">${panel("Incident report", `<form id="incident-form" novalidate>
       <div id="incident-errors" class="error-summary" hidden></div>
       <div class="field"><label for="report-target">Target ID</label><input id="report-target" name="targetId" value="${escapeHtml(target)}" required autocomplete="off"></div>
-      <div class="field"><label for="report-rule">Rule</label><select id="report-rule" name="ruleId"><option>PROVIDER_COMPROMISE_V1</option><option>SERVICE_FAILURE_V1</option></select></div>
-      <div class="field"><label for="report-resource">Affected resource</label><input id="report-resource" name="resourceId" value="provider_a" required></div>
+      <div class="field"><label for="report-rule">Rule</label><select id="report-rule" name="ruleId">${ruleOptions}</select></div>
+      <div class="field"><label for="report-resource">Affected resource</label>${resourceField}</div>
       <div class="field"><label for="report-url">Evidence URL</label><input id="report-url" name="url" type="url" value="https://status.example.com/incident" required><span class="hint">Public HTTPS only. Evidence content is never rendered as HTML.</span></div>
       <div class="field"><label for="report-class">Source class</label><select id="report-class" name="sourceClass"><option>AUTHORITATIVE_PUBLIC</option><option>INDEPENDENT_PUBLIC</option><option>ONCHAIN</option><option>CONTENT_ADDRESSED_SNAPSHOT</option></select></div>
       <div class="form-actions"><button class="button primary" type="submit">Preview fee & bond</button></div>
@@ -249,7 +278,15 @@ async function renderRecovery(parts) {
 
 async function renderOnboard() {
   return `${pageHead("write flow", "Onboard target", "Registration succeeds only when the target independently reports the same owner, controller and target ID.")}
-    ${panel("Target handshake", `<form id="onboard-form"><div class="field"><label for="onboard-id">Target ID</label><input id="onboard-id" name="targetId" required></div><div class="field"><label for="onboard-address">Target address</label><input id="onboard-address" name="targetAddress" pattern="^0x[a-fA-F0-9]{40}$" required></div><fieldset><legend>Authority acknowledgement</legend><label><input style="width:auto;min-height:auto" type="checkbox" name="ack" required> I understand registration does not grant arbitrary execution. The target must already recognise the Kernel through its narrow assurance-controller interface.</label></fieldset><div class="form-actions"><button class="button primary" type="submit">Review registration</button></div></form>`, "span-8")}`;
+    ${adapter.mode === "mock" ? notice("No mock writes", "Fixture mode can preview this flow but will never fabricate a submitted transaction.", "warning") : ""}
+    <div class="grid">${panel("Target handshake", `<form id="onboard-form" novalidate>
+      <div id="onboard-errors" class="error-summary" hidden></div>
+      <div class="field"><label for="onboard-id">Target ID</label><input id="onboard-id" name="targetId" required autocomplete="off"></div>
+      <div class="field"><label for="onboard-address">Target address</label><input id="onboard-address" name="targetAddress" pattern="^0x[a-fA-F0-9]{40}$" required></div>
+      <div class="field"><label for="onboard-override">Human override</label><select id="onboard-override" name="humanOverrideEnabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
+      <fieldset><legend>Authority acknowledgement</legend><label><input style="width:auto;min-height:auto" type="checkbox" name="ack" required> I understand registration does not grant arbitrary execution. The target must already recognise the Kernel through its narrow assurance-controller interface.</label></fieldset>
+      <div class="form-actions"><button class="button primary" type="submit">Preview registration</button></div>
+    </form>`, "span-7")}${panel("Signing boundary", `<div id="onboard-preview" class="empty">No registration preview yet.</div>`, "span-5")}</div>`;
 }
 
 async function renderPolicyAuthor(parts) {
@@ -378,6 +415,34 @@ async function handleRecoverySubmit(event) {
   bindDynamicButtons();
 }
 
+async function handleOnboardSubmit(event) {
+  event.preventDefault();
+  invalidateDraft("registerTarget");
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const input = Object.fromEntries(data.entries());
+  const errors = [];
+  if (!input.targetId) errors.push("Target ID is required.");
+  if (!/^0x[a-fA-F0-9]{40}$/.test(input.targetAddress || "")) errors.push("Target address must be a 0x-prefixed 20-byte address.");
+  formError("onboard-errors", errors);
+  if (errors.length) return;
+  const preview = await adapter.previewRegistration({ targetId: input.targetId, targetAddress: input.targetAddress, humanOverrideEnabled: input.humanOverrideEnabled === "true" });
+  const el = document.getElementById("onboard-preview");
+  el.className = "";
+  draftRegistry.registerDraft("registerTarget", preview.draft);
+  invalidateDraftOnEdit(form, "registerTarget");
+  const draftHtml = preview.draft?.reviewHash
+    ? recordRows([
+        ["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`],
+        ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`],
+        ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`],
+      ])
+    : "";
+  el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate a registration transaction.", "warning") : '<button class="button primary" type="button" data-action="submit-registerTarget">Sign & submit registration</button>'}`;
+  setLiveMessage("Registration preview ready. The exact reviewed draft will be signed.");
+  bindDynamicButtons();
+}
+
 async function submitLiveWrite(kind) {
   const draft = draftRegistry.getDraft(kind);
   if (!draft) {
@@ -406,6 +471,7 @@ async function submitLiveWrite(kind) {
 function bindDynamicButtons() {
   document.querySelector('[data-action="submit-incident"]')?.addEventListener("click", () => submitLiveWrite("incident"));
   document.querySelector('[data-action="submit-recovery"]')?.addEventListener("click", () => submitLiveWrite("recovery"));
+  document.querySelector('[data-action="submit-registerTarget"]')?.addEventListener("click", () => submitLiveWrite("registerTarget"));
 }
 
 function bindShellEvents() {
@@ -420,7 +486,7 @@ function bindEvents() {
   bindShellEvents();
   document.getElementById("incident-form")?.addEventListener("submit", handleIncidentSubmit);
   document.getElementById("recovery-form")?.addEventListener("submit", handleRecoverySubmit);
-  document.getElementById("onboard-form")?.addEventListener("submit", (event) => { event.preventDefault(); setLiveMessage(adapter.mode === "mock" ? "Target registration reviewed. Fixture mode does not submit." : "Target registration requires the connected writer."); });
+  document.getElementById("onboard-form")?.addEventListener("submit", handleOnboardSubmit);
   document.querySelector('[data-action="policy-review"]')?.addEventListener("click", () => setLiveMessage("Policy review uses canonical compiler validation in live integration. No activation has been submitted."));
   bindDynamicButtons();
 }

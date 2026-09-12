@@ -398,11 +398,54 @@ export class DirectRecloseClient implements RecloseSDK {
     };
   }
 
-  private async feePreview(functionName: string, args: unknown[]): Promise<FeeTransactionPreview> {
+  private async feePreview(functionName: string, args: unknown[], contractAddress: string = this.addresses.judge): Promise<FeeTransactionPreview> {
     await this.ensureNetwork();
     if (!this.transport.estimateTransactionFeesForWrite) throw new Error("Transport does not support fee estimation");
-    const estimate = await this.transport.estimateTransactionFeesForWrite({ address: this.addresses.judge, functionName, args, value: 0n });
+    const estimate = await this.transport.estimateTransactionFeesForWrite({ address: contractAddress, functionName, args, value: 0n });
     return { network: "studio-dev", chainId: RECLOSE_CANONICAL_CHAIN_ID, estimatedFeeValueWei: String(estimate.feeValue ?? "0"), isEstimate: true, distributionSummary: null };
+  }
+
+  /**
+   * A3-H02: target onboarding must be a real bounded governed write, not a presentation-only
+   * form. Not one of the frozen 14 RecloseSDK methods (that boundary is a minimum read/build
+   * surface, not an exhaustive list) - purely additive, the frozen methods are unchanged.
+   * Verifies the target independently reports the SAME owner/controller the caller expects
+   * before ever producing a signable draft, per CLAUDE.md's registration-handshake requirement -
+   * the Kernel itself re-verifies this on-chain regardless; this is a fast pre-sign check, not a
+   * second authority.
+   */
+  async buildTargetRegistration(input: {
+    targetId: string;
+    targetAddress: string;
+    humanOverrideEnabled: boolean;
+    expectedOwner?: string;
+    targetReadContract?: { getOwner(): Promise<string> };
+  }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
+    if (!/^0x[0-9a-fA-F]{40}$/.test(input.targetAddress)) throw new Error("targetAddress must be a 20-byte 0x-prefixed address");
+    if (!/^[A-Za-z0-9_.:-]{1,96}$/.test(input.targetId)) throw new Error("targetId is not a valid identifier");
+    if (input.expectedOwner && input.targetReadContract) {
+      const observedOwner = await input.targetReadContract.getOwner();
+      if (observedOwner.toLowerCase() !== input.expectedOwner.toLowerCase()) {
+        throw new Error(`Target handshake failed: target reports owner ${observedOwner}, expected ${input.expectedOwner}. Registration will not be prepared.`);
+      }
+    }
+
+    const args: unknown[] = [input.targetId, input.targetAddress, input.humanOverrideEnabled];
+    const feeEstimate = await this.feePreview("register_target", args, this.addresses.kernel);
+
+    const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
+      schemaVersion: "1.0.0",
+      chainId: RECLOSE_CANONICAL_CHAIN_ID,
+      contractAddress: this.addresses.kernel,
+      functionName: "register_target",
+      args,
+      valueWei: "0",
+      feeEstimate,
+      semanticKind: "TARGET_REGISTRATION" as PreparedWriteSemanticKind,
+    };
+    const { feeEstimate: _omitted, ...forHash } = draft;
+    const report: PreparedRecloseWrite = { ...draft, reviewHash: computeReviewHash(forHash) };
+    return { report, feePreview: feeEstimate };
   }
 
   /** Builds the canonical EAP for either submission kind, binding it to the reporter/policy/

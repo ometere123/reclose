@@ -61,6 +61,10 @@ export class MockProductAdapter {
     await delay();
     return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "100000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
   }
+  async previewRegistration(input) {
+    await delay();
+    return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "80000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
+  }
   async submitWrite() {
     throw new Error("Fixture mode never submits transactions. Switch to a host-provided live Reclose SDK writer.");
   }
@@ -169,6 +173,15 @@ export class SdkProductAdapter {
   }
   async previewRecovery(input) {
     const built = await this.sdk.buildRecoveryReport(input);
+    return { ...built.feePreview, draft: built.report, synthetic: false };
+  }
+  /** A3-H02: onboarding is a real bounded governed write with the same review-to-sign guarantee
+   * as incident/recovery - never presentation-only. */
+  async previewRegistration(input) {
+    if (typeof this.sdk.buildTargetRegistration !== "function") {
+      throw new Error("Connected SDK does not support target registration preparation");
+    }
+    const built = await this.sdk.buildTargetRegistration(input);
     return { ...built.feePreview, draft: built.report, synthetic: false };
   }
 

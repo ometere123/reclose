@@ -165,7 +165,57 @@ async function main() {
     assert.match(adapter, /NOT_YET_AVAILABLE/, "an unresolved child link must render as an explicit unavailable marker, never be silently omitted");
   });
 
-  const total = 12;
+  await test("A3-H02: target onboarding is a real bounded governed write, not presentation-only", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /handleOnboardSubmit/, "onboard-form must be wired to a real submit handler");
+    assert.doesNotMatch(app, /onboard-form.*Fixture mode does not submit/s, "onboarding must not remain a setLiveMessage-only stub");
+    assert.match(app, /adapter\.previewRegistration/, "onboarding must call a real preview method before signing");
+    const adapter = read("frontend/lib/adapters.js");
+    assert.match(adapter, /buildTargetRegistration/, "the live adapter must delegate registration preparation to the SDK, not fabricate it");
+  });
+
+  await test("protocol-sdk buildTargetRegistration produces a real register_target draft and enforces the owner handshake", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract() { throw new Error("not used by buildTargetRegistration"); },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "42", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const { report } = await client.buildTargetRegistration({ targetId: "target-1", targetAddress: "0x" + "1".repeat(40), humanOverrideEnabled: true });
+    assert.strictEqual(report.functionName, "register_target");
+    assert.strictEqual(report.contractAddress, "0xKernel");
+    assert.deepStrictEqual(report.args, ["target-1", "0x" + "1".repeat(40), true]);
+    assert.match(report.reviewHash, /^0x[0-9a-f]{64}$/);
+
+    await assert.rejects(
+      () => client.buildTargetRegistration({
+        targetId: "target-1", targetAddress: "0x" + "1".repeat(40), humanOverrideEnabled: true,
+        expectedOwner: "0x" + "2".repeat(40),
+        targetReadContract: { async getOwner() { return "0x" + "3".repeat(40); } },
+      }),
+      /handshake failed/i,
+      "registration must not be preparable when the target reports a different owner than expected"
+    );
+  });
+
+  await test("routing bug found while wiring A3-H11: routeFromHash must strip query strings before matching a route", () => {
+    assert.deepStrictEqual(domain.routeFromHash("#/report?target=reclose-target-004"), { route: "report", parts: [] });
+    assert.deepStrictEqual(domain.routeFromHash("#/incidents/abc?x=1"), { route: "incidents", parts: ["abc"] });
+    assert.deepStrictEqual(domain.routeFromHash("#/overview"), { route: "overview", parts: [] });
+  });
+
+  await test("A3-H11: report flow requests the active policy for a known target and offers only its real rules/resources", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /adapter\.getPolicy\(target\)/, "renderReport must load the target's real active policy");
+    assert.match(app, /Governed selection/, "a governed-selection notice must confirm the options come from real policy state");
+  });
+
+  const total = 16;
   console.log(`\n${total - failures}/${total} frontend A3-remediation checks passed.`);
   if (failures) process.exit(1);
 }
