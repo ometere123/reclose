@@ -51,9 +51,18 @@ The subsequent C1R/C1-FINAL hardening work moved semantic decisions through auth
 
 The PASS WITH CONDITIONS was justified by the materially implemented Judge evidence binding/source registry/independent validation, Kernel authority/replay/recovery controls, Reporter-owned policy-derived Vault economics, concrete SDK/tooling/Sentinel implementation, green exact-target GitHub CI, and a fresh Studio-dev deployment proving deploy/wiring/APM readback/activation and Judge-side real web/LLM execution. It explicitly did **not** claim the downstream live triggered-child path was successful.
 
+## A3 - External Product & Integration Audit
+
+| Attempt | Audit target commit (full SHA) | Decision | Decision source | Notes |
+|---|---|---|---|---|
+| 1 | `264c14af8f83cbd2bcf0176c87d9950baf0b275a` (`chatgpt/r1-product-release`) | **AWAITING EXTERNAL REVIEW** | - | exact target CI run `34682294856` SUCCESS; packet at `docs/execution/audit-packets/A3/`; browser/accessibility captures remain NOT RUN and must not be fabricated |
+
+The A3 target contains D1-D4/I1-I2 product implementation, SDK product-truth corrections, fixture/live adapter boundary, transaction persistence rules, malicious-evidence rendering protection, bounded agent `skill.md`, CLI incident/recovery preparation wrappers, and the threat-linked benchmark gate. Source CI success is recorded, but source CI is not a substitute for the browser/product evidence required by the Master Plan.
+
+A3 does not close A2-C01. The Studio-dev Judge -> Kernel child limitation continues to block canonical E1 completion.
+
 ## Later gates
 
 | Gate | Status | Decision date | Decision source | Commit reviewed | Notes |
 |---|---|---|---|---|---|
-| A3 | not yet independently reviewed | - | - | - | product integration packet may be prepared only from actual D1-D4/I1-I2 evidence |
-| A4 | not yet reached | - | - | - | final pre-release audit remains external |
+| A4 | NOT READY FOR EXTERNAL REVIEW | - | - | - | pre-staged packet explicitly waits for A3 decision, browser evidence, final fee profile, H1/E1 evidence and ledger reconciliation |
