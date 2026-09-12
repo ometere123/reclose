@@ -1,0 +1,70 @@
+{
+  "schema": "reclose-deployment-manifest-v1",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "deployer": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+  "note": "Fresh R1 deployment under the A2-remediation hardened Judge/Kernel/Vault semantics, commit 5564f01 on claude/a2-remediation-integration. The prior C2 addresses (deployment/61997/c2-manifest.json) are obsolete. The Judge and Vault were each redeployed FOUR times during this session as three distinct live calldata-coercion bugs were found and fixed one at a time (Address serialization, hash-int mismatch, empty-string-to-zero coercion) - only the FINAL addresses below are current/live.",
+  "contracts": {
+    "ProviderStubA": {
+      "address": "0x088430851fBFD581DA329A262FD9C0aEd7b4AD2E",
+      "txHash": "0x23f1e9beb8d04a18f4eb816505fb231fa556b4afa174384497276f7a690d90cc"
+    },
+    "ProviderStubB": {
+      "address": "0x4b55607312E045FcAd21b836702247F6d65844A8",
+      "txHash": "0x8a7c0a2767fdd7729417d568edc604a4b70aa2691cc0ae013a0fd95eca1e94ae"
+    },
+    "AssuranceKernel": {
+      "address": "0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621",
+      "txHash": "0xe200b8ff20babc5f8dadc01079fc9419f95578b47f3e10688b5e177a8ef8233c",
+      "constructorArgs": [1, 60],
+      "note": "ACTION_ENTER_RECOVERY redispatch guard restored this session."
+    },
+    "ReferenceAgentProtocol": {
+      "address": "0x7B423D9787aeACC303467dE82A2D193D77155f0f",
+      "txHash": "0xb8515b4be00ac5d91e5e1c2fbbdce34b8e60ad54e5f0023310374412014ad40f"
+    },
+    "IncidentJudgeV1_FINAL": {
+      "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
+      "txHash": "0x661275e7d1b0ccfea9576aff618520b32181f986207b789f1814a1020524b13d",
+      "constructorArgs": [
+        "0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621", 1,
+        "0xee530fbc066a21ada6825573bf57e86c35505c9af713a2c31d0dee41511dede9",
+        "config/source-registry-r1.json"
+      ],
+      "supersededGenerations": [
+        { "address": "0xe40CEA40bE5a6648C94c21d7824dE967CcAa4dAF", "reason": "pre-reporter-Address-fix" },
+        { "address": "0x133E94eD02eD49F96A7e4e6fd71a734B6CDE6F6c", "reason": "vault accidentally set to wrong (old) vault before discovering the need for a fresh vault" },
+        { "address": "0xEac80E69B266a1be7D1fCEE6c2D09d94DeC00F34", "reason": "pre-hash-int-and-empty-string-coercion fix" }
+      ]
+    },
+    "IncentiveVault_FINAL": {
+      "address": "0xB3476a8881e8866a6d92c8252a840a08004d02c3",
+      "txHash": "0x260baadb03344a823f77baff7e7e539962990491094281e96c9dc2d8fe2355dd",
+      "constructorArgs": ["0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621", "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0", 1]
+    }
+  },
+  "wiring": {
+    "IncidentJudgeV1.set_vault": { "args": ["0xB3476a8881e8866a6d92c8252a840a08004d02c3"] },
+    "ReferenceAgentProtocol.set_assurance_controller": { "args": ["0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621"] },
+    "AssuranceKernel.register_target": { "args": ["reclose-target-003", "0x7B423D9787aeACC303467dE82A2D193D77155f0f", true] }
+  },
+  "policy": {
+    "policyKey": "policy-r1-004",
+    "manifestHash": "0xa6d317b0bf867b3cb7e561d84a7338a12b662d7939092e7a8cc8cc2e1754b34b",
+    "apmSource": "deployment/61997/apm-r1-004.json",
+    "readbackResult": "release-evidence/r1/c3/readback-result-004.json",
+    "verified": true
+  },
+  "targetId": "reclose-target-003",
+  "liveProofs": {
+    "zeroBondReport_UNDETERMINED": {
+      "txHash": "0x3675242c50ef385d3f6032b73ff4041b2cf16989c1f34b0d7d5bb685df4e1501",
+      "incidentId": "reclose-target-003:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0",
+      "conditionCode": "INSUFFICIENT_EVIDENCE",
+      "outcome": "UNDETERMINED",
+      "judgeExecution": "FULL SUCCESS - real web fetch + real eq_principle-equivalent LLM judgment + state persisted on Judge",
+      "kernelDispatchChildTx": "0x00d59204565f14677eb5f46bb3877efede739ce91e0bfc73fba836063b9e3087",
+      "kernelDispatchResult": "FAILED - fee no_matching_allocation # internal (external GenVM limitation, see C2/R1 Live Proof Evidence.md)"
+    }
+  }
+}

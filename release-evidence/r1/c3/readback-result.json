@@ -1,0 +1,86 @@
+{
+  "policyKey": "policy-r1-001",
+  "verified": true,
+  "manifestHashMatches": true,
+  "mismatches": [],
+  "observed": {
+    "version": 1,
+    "manifestHash": "0x103dd06b09596405f7f601827baffa4ca770fcc18dfdba4f527942043f0a635b",
+    "sealed": true,
+    "active": false,
+    "resources": [
+      "provider_a",
+      "provider_b"
+    ],
+    "rules": [
+      {
+        "ruleId": "PROVIDER_COMPROMISE_V1",
+        "judge": "0xe40cea40be5a6648c94c21d7824de967ccaa4daf",
+        "judgeVersion": 1,
+        "ruleKind": 1,
+        "provisionalAllowed": true,
+        "enabled": true,
+        "reportBond": "0",
+        "confirmedBounty": "0"
+      },
+      {
+        "ruleId": "REMEDIATION_CONFIRMED_V1",
+        "judge": "0xe40cea40be5a6648c94c21d7824de967ccaa4daf",
+        "judgeVersion": 1,
+        "ruleKind": 2,
+        "provisionalAllowed": false,
+        "enabled": true,
+        "reportBond": "0",
+        "confirmedBounty": "0"
+      },
+      {
+        "ruleId": "RECOVERY_VALIDATED_V1",
+        "judge": "0xe40cea40be5a6648c94c21d7824de967ccaa4daf",
+        "judgeVersion": 1,
+        "ruleKind": 3,
+        "provisionalAllowed": false,
+        "enabled": true,
+        "reportBond": "0",
+        "confirmedBounty": "0"
+      }
+    ],
+    "effects": [
+      {
+        "ruleId": "PROVIDER_COMPROMISE_V1",
+        "actionType": 3,
+        "resourceId": "provider_a",
+        "paramU256": "0",
+        "paramStr": "",
+        "releasePhase": 1,
+        "enabled": true
+      },
+      {
+        "ruleId": "PROVIDER_COMPROMISE_V1",
+        "actionType": 7,
+        "resourceId": "",
+        "paramU256": "0",
+        "paramStr": "",
+        "releasePhase": 1,
+        "enabled": true
+      },
+      {
+        "ruleId": "REMEDIATION_CONFIRMED_V1",
+        "actionType": 9,
+        "resourceId": "",
+        "paramU256": "0",
+        "paramStr": "",
+        "releasePhase": 1,
+        "enabled": true
+      },
+      {
+        "ruleId": "RECOVERY_VALIDATED_V1",
+        "actionType": 10,
+        "resourceId": "",
+        "paramU256": "0",
+        "paramStr": "",
+        "releasePhase": 2,
+        "enabled": true
+      }
+    ]
+  }
+}
