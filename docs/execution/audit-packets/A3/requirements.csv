@@ -1,6 +1,6 @@
 requirement_id,status,implementation_ref,test_or_evidence_ref,remaining_verification
-PRD-ACC-001,IMPLEMENTED / UNVERIFIED,frontend/app.js public read routes;s fixture/live adapters,scripts/test-frontend-product.js,real browser walkthrough
-PRD-ACC-002,IMPLEMENTED / UNVERIFIED,frontend/app.js read/write separation;s frontend/lib/adapters.js,scripts/test-frontend-product.js,real wallet/browser walkthrough
+PRD-ACC-001,IMPLEMENTED / UNVERIFIED,frontend/app.js public read routes; frontend/lib/adapters.js,scripts/test-frontend-product.js,real browser walkthrough
+PRD-ACC-002,IMPLEMENTED / UNVERIFIED,frontend/app.js read/write separation; frontend/lib/adapters.js,scripts/test-frontend-product.js,real wallet/browser walkthrough
 PRD-ACC-003,IMPLEMENTED / UNVERIFIED,packages/protocol-sdk/src/networkGuard.ts; frontend write-state presentation,scripts/test-network-guard.js; scripts/test-frontend-product.js,real wrong-network browser/write attempt
 PRD-ACC-004,IMPLEMENTED / UNVERIFIED,frontend/app.js onboarding route,scripts/test-frontend-product.js,guided wallet/browser flow
 PRD-ACC-005,IMPLEMENTED / UNVERIFIED,frontend/app.js onboarding/product-boundary copy,scripts/test-frontend-product.js,copy review in browser
@@ -23,5 +23,5 @@ PRD-DEV-004,VERIFIED,packages/protocol-sdk/src/client.ts::getIncident/getDecisio
 PRD-DEV-005,VERIFIED,packages/protocol-sdk canonical/hash/diff methods; packages/policy-compiler,scripts/test-canonical-hashing.js; scripts/test-policy-compiler.js; F1 parity,none for implemented helper semantics
 PRD-DEV-006,IMPLEMENTED / UNVERIFIED,packages/protocol-sdk buildIncidentReport/buildRecoveryReport; non-custodial transport boundary,F1 SDK parity; fee preview tests,live caller-wallet construction/submission evidence
 PRD-DEV-007,IN PROGRESS,packages/cli/,scripts/test-cli.js,CLI still requires final end-to-end validation of all PRD-listed operations such as recovery/Sentinel/benchmark execution where applicable
-PRD-DEV-008,NOT STARTED,no skill.md artifact found,,publish and review safe agent-facing skill.md before R1 closure
-PRD-DEV-009,IMPLEMENTED / UNVERIFIED,ordinary RecloseSDK/agent-facing surface omits owner/policy-activation authority,F1 SDK parity; source review,external machine-interface review
+PRD-DEV-008,VERIFIED,skill.md,scripts/test-agent-skill.js,none for artifact existence and bounded content guard
+PRD-DEV-009,VERIFIED,skill.md; ordinary RecloseSDK agent-facing surface,scripts/test-agent-skill.js; F1 SDK parity,none for source-level ordinary-agent authority boundary
