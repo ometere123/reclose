@@ -15,40 +15,41 @@
     "decision_doc": "docs/execution/audit-packets/A3/AUDIT_DECISION.md"
   },
   "a3_attempt_2": {
-    "target_sha": "ad38a3920892c5c0681e4d603afc8ef07254228d",
+    "target_sha": "fa76e8409940dc836bc12fc0dc1144196d2531ee",
     "branch": "claude/r1-product-final",
-    "ci_run_id": "34707671490",
+    "ci_run_id": "34710541702",
     "ci_result": "SUCCESS",
-    "ci_url": "https://github.com/ometere123/reclose/actions/runs/34707671490",
+    "ci_url": "https://github.com/ometere123/reclose/actions/runs/34710541702",
     "status": "AWAITING_EXTERNAL_REVIEW",
     "packet": "docs/execution/audit-packets/A3-attempt-2/",
     "browser_evidence": "docs/execution/audit-packets/A3-attempt-2/browser-evidence-index.md",
+    "independent_audit_response": "This checkpoint directly responds to an independent audit's findings against ad38a39...: fixed decisionId-displayed-as-txId, action tracking keyed by bare incidentId instead of real per-effect action_id, a policy diff missing bounty/parameter/release-phase changes, no browser wallet/reporter-identity path, and a single-button policy construction sequence with no real multi-transaction journey behind it.",
     "findings_closed": [
       "A3-H01", "A3-H02", "A3-H03", "A3-H05", "A3-H06", "A3-H07", "A3-H10", "A3-H11", "A3-H12"
     ],
     "findings_closed_not_live_proven": [
-      "A3-H04 (code-complete and unit-tested for both the Judge->Kernel and Kernel->Target hops; live proof blocked by A2-C01, since a failed first hop never triggers a second)"
+      "A3-H04 (code-complete and unit-tested for both hops including real per-effect action_id derivation; live proof blocked by A2-C01, since a failed first hop never triggers a second)"
     ],
     "findings_partially_closed": [
-      "A3-H08 (per-incident audit-trail export done; policy-level/cross-incident export not attempted)",
-      "A3-H09 (packet-local requirements.csv expanded; canonical 156-row R1 ledger deliberately deferred to R1-wide reconciliation per master directive sequencing)"
+      "A3-H08 (per-incident audit-trail export + real restriction-based recovery reads done; policy-level/cross-incident export AND the remediation-chain protocol read-gap - no parent_incident_id/child-incident Kernel view - remain open)",
+      "A3-H09 (packet-local requirements.csv now mirrors the full canonical set for every Section 16 category, 117 rows; canonical 156-row R1 ledger deliberately deferred to R1-wide reconciliation)"
     ],
     "findings_not_closed": [],
     "superseded_checkpoint": {
-      "target_sha": "7f032af5921eff258c4c69a2f381861b003bd898",
-      "ci_run_id": "34686497909",
-      "findings_closed_at_that_checkpoint": ["A3-H01", "A3-H03", "A3-H05", "A3-H06", "A3-H10", "A3-H11"],
-      "findings_partially_closed_at_that_checkpoint": ["A3-H02", "A3-H04", "A3-H12"]
+      "target_sha": "ad38a3920892c5c0681e4d603afc8ef07254228d",
+      "ci_run_id": "34707671490",
+      "note": "an independent audit against this checkpoint found the real defects this new checkpoint fixes"
     },
-    "earlier_superseded_checkpoint": {
-      "target_sha": "7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e",
-      "ci_run_id": "34684832850"
-    }
+    "earlier_superseded_checkpoints": [
+      { "target_sha": "7f032af5921eff258c4c69a2f381861b003bd898", "ci_run_id": "34686497909" },
+      { "target_sha": "7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e", "ci_run_id": "34684832850" }
+    ]
   },
   "local_verification_at_a3_attempt_2_subpass": {
-    "npm_run_verify_js": "ALL PASS (24/24 frontend A3-remediation checks, 8 new this sub-pass)",
-    "python_pytest": "not completed locally on this Windows host this sub-pass - pre-existing host-specific gltest PermissionError (os.unlink of a temp file held open by the GenVM subprocess loader), unrelated to any source change in this sub-pass and reproduced deterministically; CI (Linux) npm run verify, which includes the Python suite, is green at 34707671490",
-    "genvm_lint": "unchanged - no contract source touched this sub-pass"
+    "npm_run_verify_js": "ALL PASS (39/39 frontend A3-remediation checks, 15 new this sub-pass)",
+    "python_pytest": "covered by exact-target CI (Linux) npm run verify, which includes the Python suite and is green at 34710541702; a pre-existing host-specific gltest PermissionError blocks a full local run on this Windows host, unrelated to any source change",
+    "genvm_lint": "unchanged - no contract source touched this sub-pass",
+    "next_exact_action_update": "next_exact_action below still describes the path AFTER an A3 decision is supplied; unchanged by this sub-pass"
   },
   "hard_blockers": [],
   "open_external_blockers": [

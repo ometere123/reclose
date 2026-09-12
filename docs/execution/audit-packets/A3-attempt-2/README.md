@@ -4,8 +4,9 @@
 **Attempt:** 2 (third remediation sub-pass - response to an independent audit)
 **Audit status:** **AWAITING EXTERNAL REVIEW — OWNER EXECUTION OVERRIDE**
 **Branch:** `claude/r1-product-final`
-**Audited substantive target:** `PENDING_NEW_SHA`
-**Exact target CI:** PENDING
+**Audited substantive target:** `fa76e8409940dc836bc12fc0dc1144196d2531ee`
+**Exact target CI:** GitHub Actions run `34710541702` - **SUCCESS**
+(https://github.com/ometere123/reclose/actions/runs/34710541702)
 (supersedes the prior attempt-2 checkpoint `ad38a3920892c5c0681e4d603afc8ef07254228d`, CI run
 `34707671490`, SUCCESS - an independent audit of that checkpoint found several real defects,
 addressed in this sub-pass - see `findings-closure.md`'s addendum and `known-limitations.md`.

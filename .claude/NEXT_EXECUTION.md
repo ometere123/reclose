@@ -7,19 +7,26 @@ picks this up cold.
 
 ## Where things stand
 
-- A3 attempt 2 target SHA: `ad38a3920892c5c0681e4d603afc8ef07254228d` on `claude/r1-product-final`
-  (second remediation sub-pass).
-- Exact-target CI: GitHub Actions run `34707671490` - SUCCESS
-  (https://github.com/ometere123/reclose/actions/runs/34707671490).
+- A3 attempt 2 target SHA: `fa76e8409940dc836bc12fc0dc1144196d2531ee` on `claude/r1-product-final`
+  (third remediation sub-pass - response to an independent audit against `ad38a39...`).
+- Exact-target CI: GitHub Actions run `34710541702` - SUCCESS
+  (https://github.com/ometere123/reclose/actions/runs/34710541702).
 - Full packet: `docs/execution/audit-packets/A3-attempt-2/`.
 - Findings CLOSED: A3-H01 (CRITICAL), A3-H02, A3-H03, A3-H05, A3-H06, A3-H07, A3-H10, A3-H11,
   A3-H12.
-- A3-H04: code-complete and unit-tested (both Judge->Kernel and Kernel->Target hops), but NOT
-  live-proven - blocked by the independent A2-C01 Studio-dev limitation (a failed first hop never
-  triggers a second).
-- Findings PARTIALLY CLOSED: A3-H08 (per-incident audit-trail export done; policy-level/cross-
-  incident export not attempted), A3-H09 (packet-local requirements.csv expanded; canonical
-  156-row R1 ledger deliberately deferred to R1-wide reconciliation).
+- A3-H04: code-complete and unit-tested (both hops, including real per-effect action_id
+  derivation), but NOT live-proven - blocked by the independent A2-C01 Studio-dev limitation (a
+  failed first hop never triggers a second).
+- Findings PARTIALLY CLOSED: A3-H08 (per-incident audit-trail export + real restriction-based
+  recovery reads done; policy-level/cross-incident export AND a genuine Kernel read-gap - no
+  parent_incident_id/child-incident view, blocking remediation-chain reconstruction - remain
+  open), A3-H09 (packet-local requirements.csv now mirrors the full canonical set for every
+  Section 16 category, 117 rows; canonical 156-row R1 ledger deliberately deferred).
+- This checkpoint directly fixed real defects an independent audit found in the prior checkpoint:
+  a decisionId-displayed-as-txId bug, action tracking keyed by the bare incidentId instead of a
+  real derived action_id, a policy diff missing bounty/parameter/release-phase changes, no browser
+  wallet/reporter-identity path at all, and a single-button policy "construction" with no real
+  multi-transaction journey behind it. See findings-closure.md's addendum.
 
 ## If resuming without a new owner decision on A3 attempt 2 yet
 
