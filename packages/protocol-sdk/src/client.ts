@@ -46,6 +46,24 @@ function deriveIncidentId(targetId: string, reporterAddress: string, reporterNon
   return `${targetId}:${reporterAddress.toLowerCase()}:${reporterNonce}`;
 }
 
+/** Mirrors contracts/assurance_kernel.py::_ck exactly - length-prefixed concatenation, used by the
+ * Kernel for every composite storage/identity key including action_id. Client-side replication is
+ * required because action_id is never returned by any Kernel view method; it must be derived from
+ * already-known inputs (incident_id, policy_key, action_type ordinal, resource_id) to correctly
+ * track the real dispatched action instead of substituting the incident_id itself. */
+function ck(...parts: string[]): string {
+  return parts.map((p) => `${p.length}:${p}`).join("");
+}
+
+/** Mirrors contracts/assurance_kernel.py::_dispatch_action's action_id derivation:
+ * `_ck(incident_id, policy_key, str(int(action_type)), resource_id)`. One action_id exists PER
+ * dispatched effect (an incident's final decision may dispatch up to MAX_EFFECTS_PER_DECISION
+ * effects at once) - there is no single "the" action_id for an incident, so this must be computed
+ * per effect, never approximated by the bare incident_id. */
+function computeActionId(incidentId: string, policyKey: string, actionTypeOrdinal: number, resourceId: string): string {
+  return ck(incidentId, policyKey, String(actionTypeOrdinal), resourceId);
+}
+
 export interface RecloseAddresses {
   kernel: string;
   judge: string;
@@ -104,6 +122,8 @@ const RELEASE_PHASES: Record<number, PolicyEffect["releasePhase"]> = {
 };
 const OUTCOMES: Record<number, CanonicalDecisionOutcome | null> = { 0: null, 1: "CONFIRMED", 2: "REJECTED", 3: "UNDETERMINED" };
 const INCIDENT_STATUSES: Record<number, IncidentStatus> = { 0: "OPEN", 1: "PROVISIONAL_APPLIED", 2: "FINAL_CONFIRMED", 3: "RECOVERY", 4: "CLOSED" };
+const ACTION_TYPE_ORDINALS: Record<string, number> = Object.fromEntries(ACTION_TYPES.map((a, i) => [a, i]));
+const MAX_EFFECTS_PER_DECISION = 4;
 
 function tuple(value: unknown): unknown[] {
   if (!Array.isArray(value)) throw new Error("Expected contract view tuple");
@@ -157,55 +177,163 @@ export function validateCanonicalApmStructure(apm: unknown): string[] {
   return errors;
 }
 
-function authoritySnapshot(apm: unknown): { resources: Set<string>; actions: Set<string>; judges: Set<string>; humanOverride: boolean } {
-  const obj = (apm && typeof apm === "object" ? apm : {}) as Record<string, any>;
-  const resources = new Set<string>();
-  const actions = new Set<string>();
-  const judges = new Set<string>();
-  for (const r of Array.isArray(obj.protectedResources) ? obj.protectedResources : []) {
-    if (typeof r === "string") resources.add(r);
-    else if (r && typeof r.resourceId === "string") resources.add(r.resourceId);
-    else if (r && typeof r.id === "string") resources.add(r.id);
-  }
-  for (const collection of [obj.capabilities, obj.actionBounds, obj.authority]) {
-    const entries = Array.isArray(collection) ? collection : collection && typeof collection === "object" ? Object.values(collection) : [];
-    for (const item of entries) {
-      if (typeof item === "string") actions.add(item);
-      else if (item && typeof item.actionType === "string") actions.add(item.actionType);
-      else if (item && typeof item.action === "string") actions.add(item.action);
-    }
-  }
-  for (const judge of Array.isArray(obj.judgeModules) ? obj.judgeModules : []) {
-    if (typeof judge === "string") judges.add(judge);
-    else if (judge && typeof judge.address === "string") judges.add(`${judge.address}:${String(judge.version ?? "")}`);
-  }
-  const humanOverride = obj.humanOverride === true || obj.humanOverride?.enabled === true;
-  return { resources, actions, judges, humanOverride };
+const RULE_KIND_ORDINALS: Record<string, number> = { INCIDENT: 1, REMEDIATION: 2, RECOVERY_VALIDATION: 3 };
+const RELEASE_PHASE_ORDINALS: Record<string, number> = { REMEDIATION_CONFIRMED: 1, RECOVERY_VALIDATED: 2, PROVISIONAL: 3 };
+
+interface KernelRuleIdentity {
+  ruleId: string;
+  judge: string;
+  judgeVersion: number;
+  ruleKind: number;
+  provisionalAllowed: boolean;
+  reportBond: string;
+  confirmedBounty: bigint;
+  enabled: boolean;
+}
+interface KernelEffectTuple {
+  ruleId: string;
+  actionType: number;
+  resourceId: string;
+  paramU256: string;
+  paramStr: string;
+  releasePhase: number;
+  enabled: boolean;
 }
 
+function ruleIdentityKey(r: Pick<KernelRuleIdentity, "ruleId" | "judge" | "judgeVersion" | "ruleKind" | "provisionalAllowed" | "reportBond">): string {
+  return [r.ruleId, r.judge.toLowerCase(), r.judgeVersion, r.ruleKind, r.provisionalAllowed, r.reportBond].join("|");
+}
+function effectTupleKey(e: Pick<KernelEffectTuple, "ruleId" | "actionType" | "resourceId" | "paramU256" | "paramStr" | "releasePhase">): string {
+  return [e.ruleId, e.actionType, e.resourceId, e.paramU256, e.paramStr, e.releasePhase].join("|");
+}
+
+/**
+ * Extracts the EXACT same rule/effect identity model contracts/assurance_kernel.py::
+ * _rule_identity_map/_effect_tuples operate on, from either shape this SDK encounters: an
+ * already-read on-chain `PolicyDetail` (rules[]/effects[], each with an explicit `enabled` flag),
+ * or a raw canonical APM object (`semanticRules[]`, each carrying nested `effects[]`, judge
+ * resolved via `judgeModules` by id - mirroring packages/policy-compiler/src/canonicalApm.ts's own
+ * resolution exactly, since a freshly-authored APM's effects are implicitly enabled=true until an
+ * owner overlay disables one post-activation). Malformed/partial entries are skipped rather than
+ * thrown on, since diffAPM's frozen public signature accepts arbitrary caller-supplied objects.
+ */
+function extractKernelRuleEffectModel(candidate: unknown): { rules: KernelRuleIdentity[]; effects: KernelEffectTuple[]; humanOverride: boolean } {
+  const obj = (candidate && typeof candidate === "object" ? candidate : {}) as Record<string, any>;
+  const rules: KernelRuleIdentity[] = [];
+  const effects: KernelEffectTuple[] = [];
+
+  // Shape 1: PolicyDetail (already-read on-chain policy).
+  if (Array.isArray(obj.rules) && Array.isArray(obj.effects) && !Array.isArray(obj.semanticRules)) {
+    for (const r of obj.rules) {
+      if (!r || typeof r.ruleId !== "string" || typeof r.judge !== "string") continue;
+      rules.push({
+        ruleId: r.ruleId, judge: r.judge, judgeVersion: 0, ruleKind: RULE_KIND_ORDINALS[r.ruleKind] ?? 0,
+        provisionalAllowed: Boolean(r.provisionalAllowed), reportBond: String(r.reportBond ?? "0"),
+        confirmedBounty: BigInt(String(r.confirmedBounty ?? "0") || "0"), enabled: r.enabled !== false,
+      });
+    }
+    for (const e of obj.effects) {
+      if (!e || typeof e.ruleId !== "string" || typeof e.actionType !== "string") continue;
+      effects.push({
+        ruleId: e.ruleId, actionType: ACTION_TYPE_ORDINALS[e.actionType] ?? -1, resourceId: String(e.resourceId ?? ""),
+        paramU256: String(e.paramU256 ?? "0"), paramStr: String(e.paramStr ?? ""),
+        releasePhase: RELEASE_PHASE_ORDINALS[e.releasePhase] ?? 0, enabled: e.enabled !== false,
+      });
+    }
+    const humanOverride = obj.summary?.humanOverrideEnabled === true;
+    return { rules, effects, humanOverride };
+  }
+
+  // Shape 2: raw canonical APM (semanticRules[] with nested effects[], judgeModules[] by id).
+  const judgesById = new Map<string, { address?: string; version?: number }>();
+  for (const j of Array.isArray(obj.judgeModules) ? obj.judgeModules : []) {
+    if (j && typeof (j.moduleId ?? j.id) === "string") judgesById.set(j.moduleId ?? j.id, j);
+  }
+  for (const rule of Array.isArray(obj.semanticRules) ? obj.semanticRules : []) {
+    if (!rule || typeof rule.ruleId !== "string") continue;
+    const judge = judgesById.get(rule.judgeModuleId ?? rule.judgeId);
+    rules.push({
+      ruleId: rule.ruleId, judge: String(judge?.address ?? ""), judgeVersion: Number(judge?.version ?? 0),
+      ruleKind: RULE_KIND_ORDINALS[rule.ruleKind] ?? 0, provisionalAllowed: Boolean(rule.provisionalAllowed),
+      reportBond: String(rule.reportBond ?? "0"), confirmedBounty: BigInt(String(rule.confirmedBounty ?? "0") || "0"), enabled: true,
+    });
+    for (const effect of Array.isArray(rule.effects) ? rule.effects : []) {
+      if (!effect || typeof effect.actionType !== "string") continue;
+      effects.push({
+        ruleId: rule.ruleId, actionType: ACTION_TYPE_ORDINALS[effect.actionType] ?? -1, resourceId: String(effect.resourceId ?? ""),
+        paramU256: String(effect.paramU256 ?? "0"), paramStr: String(effect.paramStr ?? ""),
+        releasePhase: RELEASE_PHASE_ORDINALS[effect.releasePhase] ?? 0, enabled: true,
+      });
+    }
+  }
+  const humanOverride = obj.humanOverride === true || obj.humanOverride?.enabled === true;
+  return { rules, effects, humanOverride };
+}
+
+/**
+ * Mirrors contracts/assurance_kernel.py::_classify_expansion EXACTLY (not a reduced resource/
+ * action/judge/human-override-only proxy): a rule identity is
+ * (ruleId, judge, judgeVersion, ruleKind, provisionalAllowed, reportBond) mapped to
+ * confirmedBounty; expansion if any new identity is unseen OR its bounty increased. An effect is
+ * the tuple (ruleId, actionType, resourceId, paramU256, paramStr, releasePhase) - ANY change to
+ * ANY of these fields produces a DIFFERENT tuple, so a parameter, resource, or release-phase
+ * change on an otherwise-identical effect is conservatively treated as expansion (the Kernel
+ * itself draws no "this specific field change is obviously a reduction" distinction - this SDK
+ * must not either). Only ENABLED rules/effects participate, exactly like `_rule_identity_map`/
+ * `_effect_tuples`. No active/"from" policy at all is treated exactly like the Kernel's own
+ * `_classify_expansion` first-policy branch: expansion iff the new policy has any enabled rule or
+ * effect at all.
+ */
 export function diffCanonicalApm(fromApm: unknown, toApm: unknown): PolicySecurityDiff {
-  const from = authoritySnapshot(fromApm);
-  const to = authoritySnapshot(toApm);
+  const from = extractKernelRuleEffectModel(fromApm);
+  const to = extractKernelRuleEffectModel(toApm);
   const changes: PolicySecurityDiffChange[] = [];
-  const diffSet = (
-    before: Set<string>,
-    after: Set<string>,
-    addedKind: PolicySecurityDiffChange["kind"],
-    removedKind: PolicySecurityDiffChange["kind"],
-    label: string,
-  ): void => {
-    for (const item of after) if (!before.has(item)) changes.push({ kind: addedKind, description: `${label} added: ${item}`, isExpansion: true });
-    for (const item of before) if (!after.has(item)) changes.push({ kind: removedKind, description: `${label} removed: ${item}`, isExpansion: false });
-  };
-  diffSet(from.resources, to.resources, "RESOURCE_ADDED", "RESOURCE_REMOVED", "resource");
-  diffSet(from.actions, to.actions, "ACTION_ADDED", "ACTION_REMOVED", "action");
-  for (const judge of to.judges) if (!from.judges.has(judge)) changes.push({ kind: "JUDGE_CHANGED", description: `judge added/changed: ${judge}`, isExpansion: true });
-  if (from.humanOverride !== to.humanOverride) changes.push({ kind: "HUMAN_OVERRIDE_CHANGED", description: `human override ${from.humanOverride} -> ${to.humanOverride}`, isExpansion: to.humanOverride });
+
+  const oldRules = new Map(from.rules.filter((r) => r.enabled).map((r) => [ruleIdentityKey(r), r.confirmedBounty]));
+  const newRules = to.rules.filter((r) => r.enabled);
+  const hasActiveBaseline = from.rules.some((r) => r.enabled) || from.effects.some((e) => e.enabled);
+
+  for (const rule of newRules) {
+    const key = ruleIdentityKey(rule);
+    if (!oldRules.has(key)) {
+      changes.push({ kind: "ACTION_ADDED", description: `rule added or changed identity: ${rule.ruleId} (judge ${rule.judge || "unresolved"}, kind ordinal ${rule.ruleKind}, provisionalAllowed=${rule.provisionalAllowed}, reportBond=${rule.reportBond})`, isExpansion: true });
+    } else if (rule.confirmedBounty > (oldRules.get(key) ?? 0n)) {
+      changes.push({ kind: "BOUND_WIDENED", description: `rule ${rule.ruleId} confirmedBounty increased to ${rule.confirmedBounty} (economic expansion)`, isExpansion: true });
+    }
+  }
+  for (const [key, bounty] of [...new Map(from.rules.filter((r) => r.enabled).map((r) => [ruleIdentityKey(r), r] as const)).entries()]) {
+    const stillPresent = newRules.some((r) => ruleIdentityKey(r) === key);
+    if (!stillPresent) changes.push({ kind: "ACTION_REMOVED", description: `rule removed or changed identity: ${bounty.ruleId}`, isExpansion: false });
+  }
+
+  const oldEffectKeys = new Set(from.effects.filter((e) => e.enabled).map((e) => effectTupleKey(e)));
+  const newEffects = to.effects.filter((e) => e.enabled);
+  const newEffectKeys = new Set(newEffects.map((e) => effectTupleKey(e)));
+  let effectsExpand = false;
+  for (const effect of newEffects) {
+    if (!oldEffectKeys.has(effectTupleKey(effect))) {
+      effectsExpand = true;
+      changes.push({
+        kind: "ACTION_ADDED",
+        description: `effect added or changed (rule ${effect.ruleId}, actionType ordinal ${effect.actionType}, resource "${effect.resourceId || "(target-wide)"}", paramU256=${effect.paramU256}, paramStr="${effect.paramStr}", releasePhase ordinal ${effect.releasePhase}) - any field change on an effect is conservatively treated as a distinct, potentially-expanding effect, per Kernel _effect_tuples subset semantics`,
+        isExpansion: true,
+      });
+    }
+  }
+  for (const effect of from.effects.filter((e) => e.enabled)) {
+    if (!newEffectKeys.has(effectTupleKey(effect))) changes.push({ kind: "ACTION_REMOVED", description: `effect removed: rule ${effect.ruleId}, actionType ordinal ${effect.actionType}, resource "${effect.resourceId || "(target-wide)"}"`, isExpansion: false });
+  }
+
+  if (to.humanOverride && !from.humanOverride) changes.push({ kind: "HUMAN_OVERRIDE_CHANGED", description: `human override false -> true`, isExpansion: true });
+  else if (!to.humanOverride && from.humanOverride) changes.push({ kind: "HUMAN_OVERRIDE_CHANGED", description: `human override true -> false`, isExpansion: false });
+
+  const noBaselineExpansion = !hasActiveBaseline && (newRules.length > 0 || newEffects.length > 0);
+  const authorityExpands = noBaselineExpansion || changes.some((c) => c.isExpansion === true);
   return {
-    fromVersion: Number((fromApm as any)?.version ?? 0) || null,
+    fromVersion: Number((fromApm as any)?.version ?? (fromApm as any)?.summary?.version ?? 0) || null,
     toVersion: Number((toApm as any)?.version ?? 0),
-    authorityExpands: changes.some((change) => change.isExpansion === true),
-    activationDelaySeconds: changes.some((change) => change.isExpansion === true) ? null : null,
+    authorityExpands,
+    activationDelaySeconds: null,
     changes,
   };
 }
@@ -281,6 +409,19 @@ export class DirectRecloseClient implements RecloseSDK {
     const target = await this.getTarget(targetId);
     const policyKey = target.activePolicyKey;
     if (!policyKey) throw new Error(`Target ${targetId} has no active policy`);
+    return this.getPolicyByKey(policyKey, targetId);
+  }
+
+  /**
+   * Additive (not one of the frozen 14): reads an EXPLICIT policy key, not necessarily the
+   * target's CURRENT active key. Needed to resolve the policy that was actually in effect for a
+   * historical incident, which may since have been superseded - `getActivePolicy` alone can only
+   * ever answer "what governs this target right now", which is the wrong question when
+   * reconstructing an incident's own rule/effect identity (A3 audit finding: action-id derivation
+   * and effect lookup must use the policy_key recorded ON the incident, not whatever the target's
+   * active policy happens to be today).
+   */
+  async getPolicyByKey(policyKey: string, targetId: string): Promise<PolicyDetail> {
     const header = tuple(await this.kernel("get_policy_header", [policyKey]));
     const counts = tuple(await this.kernel("get_policy_counts", [policyKey]));
     const ruleCount = num(counts[0]);
@@ -297,8 +438,11 @@ export class DirectRecloseClient implements RecloseSDK {
     }
     const effects: PolicyEffect[] = [];
     for (let i = 0; i < effectCount; i++) {
+      // Kernel tuple order (contracts/assurance_kernel.py::get_policy_effect_at):
+      // (rule_id, action_type, resource_id, param_u256, param_str, release_phase, enabled).
       const e = tuple(await this.kernel("get_policy_effect_at", [policyKey, i]));
       effects.push({
+        ruleId: str(e[0]) as RuleId,
         actionType: byOrdinal(ACTION_TYPES, e[1], "action type"),
         resourceId: str(e[2]),
         paramU256: String(e[3]),
@@ -315,7 +459,10 @@ export class DirectRecloseClient implements RecloseSDK {
         manifestHash: str(header[1]),
         sealed: Boolean(header[2]),
         active: Boolean(header[3]),
-        superseded: !Boolean(header[3]),
+        // A Kernel policy is superseded only once it was sealed AND is no longer active - a
+        // policy that is merely unsealed/unactivated is neither active nor superseded, so the
+        // prior `!active` proxy falsely marked every not-yet-activated policy "superseded".
+        superseded: Boolean(header[2]) && !Boolean(header[3]),
         ruleCount,
         resourceCount,
         effectCount,
@@ -387,12 +534,51 @@ export class DirectRecloseClient implements RecloseSDK {
     };
   }
 
+  /**
+   * Additive (not one of the frozen 14): resolves the REAL, Kernel-derived action_id(s) a final
+   * decision dispatched for this incident - one per enabled effect of the incident's own ruleId
+   * within the POLICY IT WAS DECIDED UNDER (`incident.policyKey`, not necessarily the target's
+   * current active policy), capped at MAX_EFFECTS_PER_DECISION exactly like the Kernel itself
+   * (`_effects_for_rule`'s `[:MAX_EFFECTS_PER_DECISION]`). Callers must use ONE OF THESE, never the
+   * bare incidentId, when tracking a dispatched action's transaction trace.
+   */
+  async listIncidentActionIds(incidentId: string): Promise<Array<{ actionId: string; actionType: ActionType; resourceId: string }>> {
+    const incident = await this.getIncident(incidentId);
+    const policy = await this.getPolicyByKey(incident.policyKey, incident.targetId);
+    const matching = policy.effects.filter((e) => e.ruleId === incident.ruleId && e.enabled).slice(0, MAX_EFFECTS_PER_DECISION);
+    return matching.map((effect) => ({
+      actionId: computeActionId(incidentId, incident.policyKey, ACTION_TYPE_ORDINALS[effect.actionType] ?? 0, effect.resourceId),
+      actionType: effect.actionType,
+      resourceId: effect.resourceId,
+    }));
+  }
+
   async getDecisionView(decisionId: string): Promise<DecisionView> {
     const record = await this.getDecision(decisionId);
     if (!this.transport.resolveActionTransaction) throw new Error("Decision transaction lookup requires an index adapter");
     const mapping = await this.transport.resolveActionTransaction(decisionId);
     if (!mapping) throw new Error(`No transaction mapping for ${decisionId}`);
     return { record, transaction: await this.trackTransaction(mapping.parentTxId as `0x${string}`) };
+  }
+
+  /**
+   * Additive (not one of the frozen 14): the real, protocol-read restriction records THIS
+   * incident itself created (`get_incident_restriction_count`/`get_incident_restriction_at`,
+   * already used inside `getAssuranceState`'s target-wide scan, but never exposed per-incident).
+   * Honest limitation, diagnosed while wiring this (A3-H08): the Kernel's `get_incident_detail`
+   * view has no `parent_incident_id` field, and there is no view enumerating "child incidents of
+   * X" - so a remediation/recovery-validation CHAIN (which Kernel-side is a separate incident
+   * linked by `parent_incident_id`) cannot currently be reconstructed from protocol reads alone.
+   * This method returns only what IS protocol-readable: this incident's own restriction set.
+   */
+  async getIncidentOwnRestrictions(incidentId: string): Promise<Array<{ actionType: ActionType; resourceId: string; active: boolean }>> {
+    const count = num(await this.kernel("get_incident_restriction_count", [incidentId]));
+    const out: Array<{ actionType: ActionType; resourceId: string; active: boolean }> = [];
+    for (let i = 0; i < count; i++) {
+      const r = tuple(await this.kernel("get_incident_restriction_at", [incidentId, i]));
+      out.push({ actionType: byOrdinal(ACTION_TYPES, r[2], "action type"), resourceId: str(r[3]), active: Boolean(r[5]) });
+    }
+    return out;
   }
 
   async getEffectiveProviderStatus(targetId: string, resourceId: string): Promise<{ resourceId: string; available: boolean; reason: ErrorEnvelope | null }> {
@@ -502,8 +688,18 @@ export class DirectRecloseClient implements RecloseSDK {
     subject?: string;
   }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
     const policy = await this.getActivePolicy(input.targetId);
-    const rule = policy.rules.find((r) => r.ruleId === input.ruleId);
+    const rule = policy.rules.find((r) => r.ruleId === input.ruleId && r.enabled);
     if (!rule) throw new Error(`Rule ${input.ruleId} is not active for ${input.targetId}`);
+    // Resources are NOT free text against an ordinary report path (FINAL_REMEDIATION.md Section
+    // 12): the resourceId must match a real enabled effect of this exact rule in the ACTIVE
+    // policy - a target-wide effect is declared with resourceId === "", so an empty resourceId is
+    // valid only when such an effect exists for this rule.
+    const resourceId = input.resourceId ?? "";
+    const matchingEffect = policy.effects.find((e) => e.ruleId === input.ruleId && e.enabled && e.resourceId === resourceId);
+    if (!matchingEffect) {
+      const validResourceIds = [...new Set(policy.effects.filter((e) => e.ruleId === input.ruleId && e.enabled).map((e) => e.resourceId || "(target-wide)"))];
+      throw new Error(`resourceId "${resourceId || "(target-wide)"}" is not governed by an enabled effect of rule ${input.ruleId} in policy ${policy.summary.policyKey}. Valid resources for this rule: ${validResourceIds.join(", ") || "none"}.`);
+    }
     if (!input.reporterAddress) throw new Error("reporterAddress is required to bind the EAP and derive the reporter nonce - Reclose never custodies a signing identity");
     const reporterAddress = input.reporterAddress;
     const bondId = input.bondId ?? "";
@@ -662,23 +858,63 @@ export class DirectRecloseClient implements RecloseSDK {
     const validation = await this.validateAPM(input.apm);
     if (!validation.valid) return { valid: false, errors: validation.errors, manifestHash: null, diff: null };
     const manifestHash = await this.hashAPM(input.apm);
+    // `diffCanonicalApm`/`extractKernelRuleEffectModel` natively understands a PolicyDetail
+    // object's shape (rules[]/effects[], including each effect's real enabled flag) - pass the
+    // live current policy through DIRECTLY rather than lossily re-projecting it into a pretend
+    // APM first, so every kernel-equivalent field (judgeVersion, provisionalAllowed, reportBond,
+    // confirmedBounty, paramU256, paramStr, releasePhase) is compared with full fidelity.
     let fromApm: unknown = {};
-    try {
-      const current = await this.getActivePolicy(input.targetId);
-      // Reconstructed from the currently active policy's real rules/effects (not a fabricated
-      // snapshot) - this is everything getActivePolicy's PolicyDetail actually carries forward
-      // from the original APM; fields the APM had but the on-chain PolicyDetail does not persist
-      // (e.g. free-form metadata) are necessarily absent from this reconstruction.
-      fromApm = {
-        version: current.summary.version,
-        protectedResources: [...new Set(current.effects.map((e) => e.resourceId).filter(Boolean))],
-        capabilities: [...new Set(current.effects.map((e) => e.actionType))],
-        judgeModules: [...new Set(current.rules.map((r) => r.judge))],
-        humanOverride: current.summary.humanOverrideEnabled,
-      };
-    } catch { /* target has no active policy yet - diffing against an empty baseline is correct, not an error */ }
+    try { fromApm = await this.getActivePolicy(input.targetId); }
+    catch { /* target has no active policy yet - diffing against an empty baseline is correct, not an error */ }
     const diff = diffCanonicalApm(fromApm, input.apm);
     return { valid: true, errors: [], manifestHash, diff };
+  }
+
+  /**
+   * FINAL_REMEDIATION.md Section 3: policy construction/activation must be a REAL multi-
+   * transaction write sequence (begin_policy -> add_policy_resource* -> add_policy_rule* ->
+   * add_policy_effect* -> seal_policy -> activate_policy), never a single-button fiction. This
+   * package (protocol-sdk) cannot import @reclose/policy-compiler - policy-compiler already
+   * depends on protocol-sdk, so the reverse would be circular (the exact issue A3-H05 already hit
+   * and resolved by relocating evidence.ts; there is no equivalent safe relocation for the
+   * compiler without a much larger refactor under this remediation pass's time constraints). The
+   * canonical compiler (`@reclose/policy-compiler::compileCanonicalApm`) remains the ONE
+   * implementation that turns a manifest into the exact ordered Kernel calls - this method only
+   * wraps an ALREADY-COMPILED call (produced by that canonical compiler, injected by the host
+   * exactly like `sdk`/`writer`/`indexer` already are for the same no-bundler reason) with real
+   * fee estimation and a real review hash. It never re-derives or second-guesses the call's
+   * args/functionName itself.
+   */
+  async buildPreparedWriteForCall(
+    call: { functionName: string; args: unknown[] },
+    options: { contractAddress?: string; semanticKind: PreparedWriteSemanticKind; valueWei?: string }
+  ): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
+    const contractAddress = options.contractAddress ?? this.addresses.kernel;
+    const feeEstimate = await this.feePreview(call.functionName, call.args, contractAddress);
+    const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
+      schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress,
+      functionName: call.functionName, args: call.args, valueWei: options.valueWei ?? "0",
+      feeEstimate, semanticKind: options.semanticKind,
+    };
+    const { feeEstimate: _omitted, ...forHash } = draft;
+    return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate };
+  }
+
+  /** Builds the final `activate_policy` prepared write plus the real kernel-equivalent expansion/
+   * timelock classification (via `diffCanonicalApm` against the target's CURRENT active policy,
+   * not a guess) - the last step of the construction journey, kept separate from
+   * `buildPreparedWriteForCall` so callers get the expansion verdict alongside the draft. */
+  async buildPolicyActivationWrite(input: { targetId: string; policyKey: string; apm: unknown }): Promise<{
+    report: unknown;
+    feePreview: FeeTransactionPreview;
+    authorityExpands: boolean;
+    diff: PolicySecurityDiff;
+  }> {
+    let fromApm: unknown = {};
+    try { fromApm = await this.getActivePolicy(input.targetId); } catch { /* first policy for this target - expansion-from-empty semantics apply */ }
+    const diff = diffCanonicalApm(fromApm, input.apm);
+    const built = await this.buildPreparedWriteForCall({ functionName: "activate_policy", args: [input.policyKey] }, { semanticKind: "POLICY_ACTIVATION" as PreparedWriteSemanticKind });
+    return { ...built, authorityExpands: diff.authorityExpands, diff };
   }
 
   async validateAPM(apm: unknown): Promise<{ valid: boolean; errors: string[] }> {

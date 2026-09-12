@@ -1,5 +1,37 @@
 # A3 Attempt 2 - Findings Closure (A3-H01 through A3-H12)
 
+## Third sub-pass addendum - response to an independent audit against `ad38a39...`
+
+An independent audit of checkpoint `ad38a3920892c5c0681e4d603afc8ef07254228d` correctly found that
+several items below were code-complete without the real runtime/identity pieces wired behind them,
+or were conservative-looking logic that did not actually match the Kernel's own semantics. This
+addendum lists exactly what changed in response - see `known-limitations.md` for the full list with
+rationale. In summary, this sub-pass:
+
+- Fixed a real bug: `decisionId` was displayed as a transaction ID in the live trace.
+- Fixed a real bug: transaction/action tracking used the bare `incidentId` instead of the Kernel's
+  actual per-effect `action_id` (`protocol-sdk::listIncidentActionIds`, mirroring
+  `_dispatch_action`'s `_ck(...)` formula exactly).
+- Replaced the reduced policy diff with `_classify_expansion`-equivalent semantics (bounty/
+  parameter/release-phase changes now correctly drive expansion classification).
+- Added resource-against-active-policy validation in `buildIncidentReport`, and per-rule resource
+  filtering in the report form (using each effect's own `ruleId`, newly exposed on `PolicyEffect`).
+- Added a real browser connect-wallet module (`frontend/lib/wallet.js`) and threaded the connected
+  address through as `reporterAddress` for incident/recovery previews, which previously had no
+  path to a reporter identity at all.
+- Added the real multi-transaction policy construction/activation journey
+  (`previewPolicyConstruction`, bridging the canonical `@reclose/policy-compiler`), replacing the
+  single-button validate/diff-only flow.
+- Unified every write-preview panel onto one `renderPreparedWriteFields` helper exposing every
+  security-bearing field (chainId, contract, method, full args, value, semanticKind, reviewHash).
+- Partially populated the live recovery surface from real restriction reads
+  (`protocol-sdk::getIncidentOwnRestrictions`), and explicitly diagnosed and documented the genuine
+  Kernel read-gap (no `parent_incident_id`/child-incident view) that prevents reconstructing the
+  remediation/recovery-validation CHAIN from protocol reads alone.
+
+39 total behavioural tests now exist in `scripts/test-frontend-remediation.js` (15 new this
+sub-pass, up from 24); `npm run verify:js` is ALL PASS.
+
 Target SHA: `ad38a3920892c5c0681e4d603afc8ef07254228d` (exact-target CI: GitHub Actions run
 `34707671490` - SUCCESS; second remediation sub-pass on top of the prior attempt-2 checkpoint
 `7f032af5921eff258c4c69a2f381861b003bd898`, which itself superseded

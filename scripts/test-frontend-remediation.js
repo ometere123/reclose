@@ -340,7 +340,215 @@ async function main() {
     assert.match(app, /window\.__RECLOSE_LAST_INCIDENT__/, "the export must reuse the exact rendered incident object, never re-derive a separate one");
   });
 
-  const total = 24;
+  await test("independent-audit fix: decisionId is never displayed as a transaction ID in the live trace", () => {
+    const adapter = read("frontend/lib/adapters.js");
+    assert.match(adapter, /txId:\s*decisionView\.transaction\.txId/, "the Judge parent trace entry must use the real transaction's txId");
+    assert.doesNotMatch(adapter, /txId:\s*decisionView\.record\?\.decisionId/, "decisionId (a record identity, not a tx hash) must never be used as txId");
+  });
+
+  await test("independent-audit fix: action tracking uses real per-effect action_ids, never the bare incidentId", () => {
+    const adapter = read("frontend/lib/adapters.js");
+    assert.match(adapter, /listIncidentActionIds/, "getIncident must resolve real action_ids before tracking");
+    assert.doesNotMatch(adapter, /trackActionTrace\(incidentId\)/, "trackActionTrace must never be called with the bare incidentId");
+    assert.doesNotMatch(adapter, /trackKernelToTargetChild\(incidentId\)/, "trackKernelToTargetChild must never be called with the bare incidentId");
+  });
+
+  await test("independent-audit fix: listIncidentActionIds derives the exact Kernel action_id formula per enabled effect", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName, args }) {
+        if (functionName === "get_incident_detail") return ["target-001", "policy-1", 1, "PROVIDER_COMPROMISE_V1", "provider_a", "0xReporter", "0xJudge", "0xhash", "COND", 0, 1, 4, 1735689600, 0];
+        if (functionName === "get_policy_header") return [1, "0x" + "a".repeat(64), true, true, false];
+        if (functionName === "get_policy_counts") return [1, 2, 2];
+        if (functionName === "get_policy_rule_id_at") return "PROVIDER_COMPROMISE_V1";
+        if (functionName === "get_policy_rule") return ["0xJudge", 1, 1, true, true];
+        if (functionName === "get_policy_rule_economics") return ["0", "0"];
+        if (functionName === "get_policy_effect_at") {
+          const i = args[1];
+          return i === 0
+            ? ["PROVIDER_COMPROMISE_V1", 3, "provider_a", "0", "", 1, true]
+            : ["PROVIDER_COMPROMISE_V1", 7, "", "0", "", 1, true];
+        }
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const actions = await client.listIncidentActionIds("reclose-target-001:0xreporter:4");
+    assert.strictEqual(actions.length, 2, "both enabled effects of the matched rule must each produce their own action");
+    const expectedRestrict = ["reclose-target-001:0xreporter:4", "policy-1", "3", "provider_a"].map((p) => `${p.length}:${p}`).join("");
+    assert.strictEqual(actions[0].actionId, expectedRestrict, "action_id must match contracts/assurance_kernel.py::_ck(incident_id, policy_key, action_type, resource_id) exactly");
+    assert.notStrictEqual(actions[0].actionId, "reclose-target-001:0xreporter:4", "action_id must never equal the bare incidentId");
+  });
+
+  await test("independent-audit fix: buildIncidentReport rejects a resourceId not governed by an enabled effect of the chosen rule", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, false, false];
+        if (functionName === "get_policy_header") return [1, "0x" + "a".repeat(64), true, true, false];
+        if (functionName === "get_policy_counts") return [1, 1, 1];
+        if (functionName === "get_policy_rule_id_at") return "PROVIDER_COMPROMISE_V1";
+        if (functionName === "get_policy_rule") return ["0xJudge", 1, 1, true, true];
+        if (functionName === "get_policy_rule_economics") return ["0", "0"];
+        if (functionName === "get_policy_effect_at") return ["PROVIDER_COMPROMISE_V1", 3, "provider_a", "0", "", 1, true];
+        if (functionName === "get_reporter_nonce") return 0;
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    await assert.rejects(
+      () => client.buildIncidentReport({
+        targetId: "target-001", ruleId: "PROVIDER_COMPROMISE_V1", resourceId: "not_a_governed_resource",
+        reporterAddress: "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+        evidenceSources: [{ sourceId: "s1", url: "https://example.com/a", sourceClass: "INDEPENDENT_PUBLIC", fetchedAt: "2026-01-01T00:00:00.000Z", availability: "AVAILABLE" }],
+      }),
+      /not governed by an enabled effect/i,
+      "a resourceId outside the rule's real enabled effects must be rejected before any draft is built"
+    );
+  });
+
+  await test("independent-audit fix: diffCanonicalApm mirrors Kernel _classify_expansion (bounty increase, param change, release-phase change, human-override change)", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const basePolicy = {
+      rules: [{ ruleId: "PROVIDER_COMPROMISE_V1", judge: "0xJudge", ruleKind: "INCIDENT", provisionalAllowed: true, reportBond: "100", confirmedBounty: "50", enabled: true }],
+      effects: [{ ruleId: "PROVIDER_COMPROMISE_V1", actionType: "RESTRICT", resourceId: "provider_a", paramU256: "0", paramStr: "", releasePhase: "REMEDIATION_CONFIRMED", enabled: true }],
+      summary: { humanOverrideEnabled: false, version: 1 },
+    };
+    const bountyIncrease = JSON.parse(JSON.stringify(basePolicy));
+    bountyIncrease.rules[0].confirmedBounty = "9999";
+    let diff = sdk.diffCanonicalApm(basePolicy, bountyIncrease);
+    assert.strictEqual(diff.authorityExpands, true, "a confirmedBounty increase alone must be classified as economic expansion");
+
+    const paramChange = JSON.parse(JSON.stringify(basePolicy));
+    paramChange.effects[0].paramU256 = "12345";
+    diff = sdk.diffCanonicalApm(basePolicy, paramChange);
+    assert.strictEqual(diff.authorityExpands, true, "a bare parameter change on an effect must be conservatively classified as expansion (distinct tuple), matching Kernel _effect_tuples subset semantics");
+
+    const releasePhaseChange = JSON.parse(JSON.stringify(basePolicy));
+    releasePhaseChange.effects[0].releasePhase = "RECOVERY_VALIDATED";
+    diff = sdk.diffCanonicalApm(basePolicy, releasePhaseChange);
+    assert.strictEqual(diff.authorityExpands, true, "a release-phase change alone must be conservatively classified as expansion");
+
+    const overrideOn = JSON.parse(JSON.stringify(basePolicy));
+    overrideOn.summary.humanOverrideEnabled = true;
+    diff = sdk.diffCanonicalApm(basePolicy, overrideOn);
+    assert.strictEqual(diff.authorityExpands, true, "enabling human override must be expansion");
+    assert.ok(diff.changes.some((c) => c.kind === "HUMAN_OVERRIDE_CHANGED" && c.isExpansion === true));
+
+    const identical = JSON.parse(JSON.stringify(basePolicy));
+    diff = sdk.diffCanonicalApm(basePolicy, identical);
+    assert.strictEqual(diff.authorityExpands, false, "an identical policy must never be classified as expansion");
+  });
+
+  await test("independent-audit fix: the report flow filters resources PER RULE using each effect's real ruleId, not a rule-agnostic union", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /ruleResourceMap/, "renderReport must build a per-rule resource map");
+    assert.match(app, /e\.ruleId/, "the resource map must be keyed by each effect's own ruleId");
+    assert.match(app, /handleReportRuleChange/, "changing the rule must refresh the resource options");
+  });
+
+  await test("independent-audit fix: a real browser connect-wallet module exists and never fabricates a connection without a provider", async () => {
+    const walletSource = read("frontend/lib/wallet.js");
+    assert.match(walletSource, /eth_requestAccounts/);
+    assert.match(walletSource, /eth_chainId/);
+    assert.match(walletSource, /No browser wallet provider was found/);
+  });
+
+  await test("independent-audit fix: incident/recovery preview threads a real connected reporterAddress, and refuses without one in live mode", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /reporterAddress:\s*state\.wallet\?\.address/);
+    assert.match(app, /Connect a wallet first - reporterAddress is required/);
+  });
+
+  await test("independent-audit fix: the shell renders a real wallet-connect control, not a decorative chip", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /walletChip/);
+    assert.match(app, /connectBrowserWallet/);
+    assert.match(app, /data-action="connect-wallet"/);
+  });
+
+  await test("independent-audit fix: every signing-boundary panel exposes the full security-bearing prepared-write fields (chainId, contract, method, full args, value, reviewHash), not a reduced summary", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /function renderPreparedWriteFields/);
+    assert.match(app, /Full call arguments/);
+    assert.match(app, /Value \(wei\)/);
+    // every write-preview handler must route through the single shared renderer - no duplicated,
+    // potentially-inconsistent reduced field lists left behind.
+    assert.doesNotMatch(app, /\["Contract", `<span class="hash">\$\{escapeHtml\(preview\.draft\.contractAddress\)/);
+  });
+
+  await test("protocol-sdk buildPreparedWriteForCall produces a real fee-estimated, review-hashed draft for an arbitrary compiled Kernel call", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract() { throw new Error("not used"); },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "77", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const { report } = await client.buildPreparedWriteForCall({ functionName: "begin_policy", args: ["target-1", "policy-2", "0x" + "a".repeat(64)] }, { semanticKind: "POLICY_CONSTRUCTION_STEP" });
+    assert.strictEqual(report.functionName, "begin_policy");
+    assert.strictEqual(report.contractAddress, "0xKernel");
+    assert.match(report.reviewHash, /^0x[0-9a-f]{64}$/);
+  });
+
+  await test("FINAL_REMEDIATION.md Section 3: previewPolicyConstruction wires the real canonical policy-compiler bridge into a full step-by-step prepared-write sequence, never fabricating steps without one", async () => {
+    const adapterSource = read("frontend/lib/adapters.js");
+    assert.match(adapterSource, /policyCompiler/);
+    assert.match(adapterSource, /compileCanonicalApm/);
+    assert.match(adapterSource, /buildPolicyActivationWrite/);
+    const { pathToFileURL } = require("node:url");
+    const { SdkProductAdapter } = await import(pathToFileURL(path.join(ROOT, "frontend", "lib", "adapters.js")).href);
+    const calls = [
+      { functionName: "begin_policy", args: ["target-1", "policy-2", "0xhash"], description: "Begin policy" },
+      { functionName: "add_policy_rule", args: ["policy-2", "R1", "0xJudge", 1, 1, true, "0", "0"], description: "Register rule R1" },
+      { functionName: "seal_policy", args: ["policy-2"], description: "Seal policy" },
+    ];
+    const fakeSdk = {
+      async buildPreparedWriteForCall(call) { return { report: { ...call, reviewHash: "0x" + "1".repeat(64) }, feePreview: { network: "studio-dev", chainId: 61997, estimatedFeeValueWei: "1", isEstimate: true } }; },
+      async buildPolicyActivationWrite() { return { report: { functionName: "activate_policy", args: ["policy-2"], reviewHash: "0x" + "2".repeat(64) }, feePreview: { network: "studio-dev", chainId: 61997, estimatedFeeValueWei: "1", isEstimate: true }, authorityExpands: true, diff: { changes: [] } }; },
+    };
+    const fakeCompiler = { compileCanonicalApm(apm) { assert.strictEqual(apm.policyId, "policy-2"); return { manifestHash: "0xdeadbeef", calls }; } };
+    const adapter = new SdkProductAdapter(fakeSdk, null, null, fakeCompiler);
+    const result = await adapter.previewPolicyConstruction({ targetId: "target-1", apm: { policyId: "policy-2" } });
+    assert.strictEqual(result.steps.length, 3, "every compiled call must become its own step - never collapsed or skipped");
+    assert.strictEqual(result.steps[0].draft.functionName, "begin_policy");
+    assert.strictEqual(result.activation.draft.functionName, "activate_policy");
+    assert.strictEqual(result.activation.authorityExpands, true);
+
+    const adapterWithoutBridge = new SdkProductAdapter(fakeSdk, null, null, null);
+    await assert.rejects(() => adapterWithoutBridge.previewPolicyConstruction({ targetId: "target-1", apm: {} }), /no policy-compiler bridge/i);
+  });
+
+  await test("independent-audit fix: submitWrite dispatches policy-construction steps generically through callKernel, using each step's own real functionName", () => {
+    const adapterSource = read("frontend/lib/adapters.js");
+    assert.match(adapterSource, /callKernel/);
+  });
+
+  await test("A3-H08 (recovery surface): live getIncident populates recovery from real restriction reads and marks the unreadable chain fields explicitly unknown, never fabricated", () => {
+    const adapterSource = read("frontend/lib/adapters.js");
+    assert.match(adapterSource, /getIncidentOwnRestrictions/);
+    assert.match(adapterSource, /protocolReadLimitation/);
+    assert.doesNotMatch(adapterSource, /remediationSubmitted:\s*false,?\s*\n\s*remediationDecision:\s*null/, "remediation fields the Kernel cannot prove must be null/unknown, never defaulted to a specific false value");
+  });
+
+  const total = 39;
   console.log(`\n${total - failures}/${total} frontend A3-remediation checks passed.`);
   if (failures) process.exit(1);
 }

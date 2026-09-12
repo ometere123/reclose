@@ -1,4 +1,32 @@
 requirement_id,status,implementation_ref,test_or_evidence_ref,remaining_verification
+NFR-REL-001,NOT STARTED,,,live browser/E2E confirmation
+NFR-REL-002,NOT STARTED,,,live browser/E2E confirmation
+NFR-REL-003,NOT STARTED,,,live browser/E2E confirmation
+NFR-REL-004,NOT STARTED,,,live browser/E2E confirmation
+NFR-REL-005,NOT STARTED,,,live browser/E2E confirmation
+NFR-REL-006,NOT STARTED,,,live browser/E2E confirmation
+NFR-REL-007,NOT STARTED,,,live browser/E2E confirmation
+NFR-REL-008,NOT STARTED,,,live browser/E2E confirmation
+NFR-SEC-001,NOT STARTED,,,live browser/E2E confirmation
+NFR-SEC-002,NOT STARTED,,,live browser/E2E confirmation
+NFR-SEC-003,NOT STARTED,,,live browser/E2E confirmation
+NFR-SEC-004,NOT STARTED,,,live browser/E2E confirmation
+NFR-SEC-005,IN PROGRESS,"packages/protocol-sdk/src/client.ts::buildRevokeAuthority/buildDisableAction/buildDisableResource (owner-bounded, non-value-moving, authority-reducing writes only - TM-AUTH-008)",scripts/test-frontend-remediation.js,live 61997 owner-signed evidence
+NFR-SEC-006,NOT STARTED,,,live browser/E2E confirmation
+NFR-SEC-007,NOT STARTED,,,live browser/E2E confirmation
+NFR-SEC-008,NOT STARTED,,,live browser/E2E confirmation
+NFR-SEC-009,NOT STARTED,,,live browser/E2E confirmation
+NFR-SEC-010,NOT STARTED,,,live browser/E2E confirmation
+NFR-UX-001,IN PROGRESS,frontend/app.js target-detail ''Owner bounded controls'' panel (TM-UX: authority-reducing actions are pre-sign reviewed through the same draft-registry pipeline as every other write),scripts/test-frontend-remediation.js,connected-wallet browser evidence
+NFR-UX-002,NOT STARTED,,,live browser/E2E confirmation
+NFR-UX-003,NOT STARTED,,,live browser/E2E confirmation
+NFR-UX-004,NOT STARTED,,,live browser/E2E confirmation
+NFR-UX-005,NOT STARTED,,,live browser/E2E confirmation
+NFR-UX-006,NOT STARTED,,,live browser/E2E confirmation
+NFR-UX-007,NOT STARTED,,,live browser/E2E confirmation
+NFR-UX-008,IN PROGRESS,frontend/app.js::handlePolicyReview real manifest-hash/diff output (never a setLiveMessage-only placeholder),scripts/test-frontend-remediation.js,representative authority-expansion browser screenshot with a connected live SDK
+NFR-UX-009,NOT STARTED,,,live browser/E2E confirmation
+NFR-UX-010,NOT STARTED,,,live browser/E2E confirmation
 PRD-ACC-001,IMPLEMENTED / UNVERIFIED,frontend/app.js public read routes; frontend/lib/adapters.js,scripts/test-frontend-product.js,real browser walkthrough
 PRD-ACC-002,IMPLEMENTED / UNVERIFIED,frontend/app.js read/write separation; frontend/lib/adapters.js,scripts/test-frontend-product.js,real wallet/browser walkthrough
 PRD-ACC-003,IMPLEMENTED / UNVERIFIED,packages/protocol-sdk/src/networkGuard.ts; frontend write-state presentation,scripts/test-network-guard.js; scripts/test-frontend-product.js,real wrong-network browser/write attempt
@@ -7,15 +35,13 @@ PRD-ACC-005,IMPLEMENTED / UNVERIFIED,frontend/app.js onboarding/product-boundary
 PRD-ACC-006,IMPLEMENTED / UNVERIFIED,frontend/app.js authority review and policy review surfaces,scripts/test-frontend-product.js,connected-wallet pre-sign browser evidence
 PRD-ACC-007,IMPLEMENTED / UNVERIFIED,frontend/lib/persistence.js; packages/transaction-tracker,scripts/test-frontend-product.js; scripts/test-transaction-tracker.js,real refresh/resume browser evidence
 PRD-ACC-008,IMPLEMENTED / UNVERIFIED,frontend/app.js system/deployment routes; frontend/README.md,scripts/test-frontend-product.js,real browser link/copy verification
-PRD-EXP-001,IMPLEMENTED / UNVERIFIED,frontend/app.js Incident Explorer five-band causal view,scripts/test-frontend-product.js,real browser/recording review
-PRD-EXP-002,IMPLEMENTED / UNVERIFIED,frontend Incident Explorer; packages/protocol-sdk/src/client.ts; CLI audit export surface,scripts/test-sdk-product-truth.js; scripts/test-cli.js,external audit-export completeness review
-PRD-EXP-003,IMPLEMENTED / UNVERIFIED,frontend Incident Explorer; RecloseSDK getDecisionView/trackActionTrace,scripts/test-sdk-product-truth.js; scripts/test-frontend-product.js,real live parent/child trace once Studio-dev child routing succeeds
-PRD-EXP-004,IMPLEMENTED / UNVERIFIED,frontend/lib/domain.js escaped evidence rendering; Incident Explorer evidence band,scripts/test-frontend-product.js,real malicious-evidence browser render
-PRD-EXP-005,IMPLEMENTED / UNVERIFIED,RecloseSDK getAssuranceState activeRestrictions; target/incident surfaces,scripts/test-sdk-product-truth.js; Python multi-incident tests,real browser review
-PRD-EXP-006,IN PROGRESS,CLI audit export/read model; product audit surfaces,scripts/test-cli.js,explicit downloadable browser JSON control still requires external product review
-PRD-EXP-007,IMPLEMENTED / UNVERIFIED,frontend product actor/copy separation,scripts/test-frontend-product.js,representative human-override browser state
-PRD-EXP-008,IMPLEMENTED / UNVERIFIED,frontend target/policy/system detail surfaces; SDK policy/Judge reads,scripts/test-frontend-product.js; scripts/test-sdk-product-truth.js,real browser copyability check
-PRD-EXP-009,IN PROGRESS,FeeTransactionPreview model; fee/deposit product treatment,schemas/transaction/FeeTransactionPreview.schema.json; frontend tests,real SDK fee data and final fee-profile evidence
+PRD-BEN-001,NOT STARTED,,,live browser/E2E confirmation
+PRD-BEN-002,NOT STARTED,,,live browser/E2E confirmation
+PRD-BEN-003,NOT STARTED,,,live browser/E2E confirmation
+PRD-BEN-004,NOT STARTED,,,live browser/E2E confirmation
+PRD-BEN-005,NOT STARTED,,,live browser/E2E confirmation
+PRD-BEN-006,NOT STARTED,,,live browser/E2E confirmation
+PRD-BEN-007,NOT STARTED,,,live browser/E2E confirmation
 PRD-DEV-001,VERIFIED,packages/protocol-sdk/src/,scripts/test-f1-parity.js; scripts/test-sdk-product-truth.js,none for source/API existence
 PRD-DEV-002,VERIFIED,packages/protocol-sdk/src/client.ts::getAssuranceState,scripts/test-sdk-product-truth.js,none for implemented read semantics
 PRD-DEV-003,VERIFIED,packages/protocol-sdk/src/client.ts::getEffectiveProviderStatus,compiled SDK parity and contract tests,none for implemented read semantics
@@ -25,12 +51,68 @@ PRD-DEV-006,IMPLEMENTED / UNVERIFIED,packages/protocol-sdk buildIncidentReport/b
 PRD-DEV-007,IN PROGRESS,packages/cli/,scripts/test-cli.js,CLI still requires final end-to-end validation of all PRD-listed operations such as recovery/Sentinel/benchmark execution where applicable
 PRD-DEV-008,VERIFIED,skill.md,scripts/test-agent-skill.js,none for artifact existence and bounded content guard
 PRD-DEV-009,VERIFIED,skill.md; ordinary RecloseSDK agent-facing surface,scripts/test-agent-skill.js; F1 SDK parity,none for source-level ordinary-agent authority boundary
-PRD-TGT-005,IN PROGRESS,"packages/protocol-sdk/src/client.ts::buildRevokeAuthority/buildDisableAction/buildDisableResource (C4 product-surface write preparation over the existing C1 revoke_authority/disable_action/disable_resource Kernel methods); frontend/app.js target-detail owner-control forms",scripts/test-frontend-remediation.js (A3-H07 checks),real 61997 owner-signed revoke/disable transaction evidence; no separate contract-level ''human emergency pause'' method exists beyond these three bounded writes (see known-limitations.md item 2)
-PRD-POL-005,IN PROGRESS,"frontend/app.js::handlePolicyReview + packages/protocol-sdk/src/client.ts::buildPolicyActivationReview (C4 real validate/canonicalize-hash/diff against the target's live active policy, replacing the prior setLiveMessage-only stub)",scripts/test-frontend-remediation.js (A3-H02 policy-activation-half checks),the multi-transaction begin_policy/add_policy_resource/add_policy_rule/add_policy_effect/seal_policy/activate_policy construction sequence itself remains a separate, not-yet-built write flow (see known-limitations.md item 1)
+PRD-DEV-010,NOT STARTED,,,live browser/E2E confirmation
+PRD-DEV-011,NOT STARTED,,,live browser/E2E confirmation
+PRD-DEV-012,NOT STARTED,,,live browser/E2E confirmation
+PRD-EXP-001,IMPLEMENTED / UNVERIFIED,frontend/app.js Incident Explorer five-band causal view,scripts/test-frontend-product.js,real browser/recording review
 PRD-EXP-002,IN PROGRESS,frontend/app.js::handleExportAuditTrail (downloadable claim->EAP->decision->policy-consequence->trace->recovery JSON bundle assembled from the exact rendered Incident Explorer object),scripts/test-frontend-remediation.js (A3-H08 check),external audit-export completeness review; no CLI-side equivalent export was added this pass
-PRD-EXP-003,IN PROGRESS,"frontend/lib/adapters.js::SdkProductAdapter.getIncident (Judge->Kernel AND Kernel->Target second-hop trace reconstruction attempt via packages/protocol-sdk/src/client.ts::trackKernelToTargetChild)",scripts/test-frontend-remediation.js (A3-H04 second-hop check),real live parent/child/grandchild trace once Studio-dev Judge->Kernel child routing (A2-C01) succeeds - the second hop cannot be live-proven while the first hop remains blocked
-PRD-INC-013,IN PROGRESS,"frontend/app.js target-detail owner-control forms render the protocol-reported active-restriction reasons already returned by getAssuranceState",scripts/test-frontend-remediation.js,live multi-incident composition browser evidence (covered at the protocol/Python layer, not re-proven in this frontend pass)
+PRD-EXP-003,IN PROGRESS,frontend/lib/adapters.js::SdkProductAdapter.getIncident (Judge->Kernel AND Kernel->Target second-hop trace reconstruction attempt via packages/protocol-sdk/src/client.ts::trackKernelToTargetChild),scripts/test-frontend-remediation.js (A3-H04 second-hop check),real live parent/child/grandchild trace once Studio-dev Judge->Kernel child routing (A2-C01) succeeds - the second hop cannot be live-proven while the first hop remains blocked
+PRD-EXP-004,IMPLEMENTED / UNVERIFIED,frontend/lib/domain.js escaped evidence rendering; Incident Explorer evidence band,scripts/test-frontend-product.js,real malicious-evidence browser render
+PRD-EXP-005,IMPLEMENTED / UNVERIFIED,RecloseSDK getAssuranceState activeRestrictions; target/incident surfaces,scripts/test-sdk-product-truth.js; Python multi-incident tests,real browser review
+PRD-EXP-006,IN PROGRESS,CLI audit export/read model; product audit surfaces,scripts/test-cli.js,explicit downloadable browser JSON control still requires external product review
+PRD-EXP-007,IMPLEMENTED / UNVERIFIED,frontend product actor/copy separation,scripts/test-frontend-product.js,representative human-override browser state
+PRD-EXP-008,IMPLEMENTED / UNVERIFIED,frontend target/policy/system detail surfaces; SDK policy/Judge reads,scripts/test-frontend-product.js; scripts/test-sdk-product-truth.js,real browser copyability check
+PRD-EXP-009,IN PROGRESS,FeeTransactionPreview model; fee/deposit product treatment,schemas/transaction/FeeTransactionPreview.schema.json; frontend tests,real SDK fee data and final fee-profile evidence
+PRD-INC-001,NOT STARTED,,,live browser/E2E confirmation
+PRD-INC-002,IN PROGRESS,"contracts/assurance_kernel.py::receive_decision; contracts/incident_judge_v1.py (C2 real semantic adjudicator, live Studio-dev 0x0A519837D3983272A14710d5b6b2108bC27D2D96)",tests/kernel/test_authority.py::test_no_action_without_active_policy;test_wrong_judge_rejected;test_stale_policy_decision_rejected; tests/judge/ (184/184 Direct Mode); docs/execution/C2 Live Proof Evidence.md,"C4 frontend/product-surface portion not yet implemented; Judge deterministic precheck + real web fetch + real eq_principle LLM judgment are live-proven on 61997; Judge->Kernel receive_decision dispatch fails live (SystemError: 2: inval, AllocationTreeMalformed-class GenVM limitation) - proven only via Direct Mode pending upstream resolution"
+PRD-INC-003,NOT STARTED,,,live browser/E2E confirmation
+PRD-INC-004,NOT STARTED,,,live browser/E2E confirmation
+PRD-INC-005,IN PROGRESS,contracts/assurance_kernel.py::_apply_final (FINAL_CONFIRMED/REJECTED/UNDETERMINED),tests/kernel/test_authority.py::test_resolving_incident_a_does_not_remove_incident_b_restriction,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
+PRD-INC-006,NOT STARTED,,,live browser/E2E confirmation
+PRD-INC-007,NOT STARTED,,,live browser/E2E confirmation
+PRD-INC-008,NOT STARTED,,,live browser/E2E confirmation
+PRD-INC-009,IN PROGRESS,contracts/assurance_kernel.py::apply_remediation_decision/apply_recovery_validation; contracts/incident_judge_v1.py::submit_remediation/submit_recovery_validation (C2),tests/kernel/; tests/judge/ (184/184 Direct Mode); docs/execution/C2 Live Proof Evidence.md,C2 IncidentJudge remediation/recovery rule families now implemented and Direct-Mode-proven; live cross-contract dispatch to Kernel remains unverified (see PRD-INC-002 blocker)
+PRD-INC-010,NOT STARTED,,,live browser/E2E confirmation
+PRD-INC-011,NOT STARTED,,,live browser/E2E confirmation
+PRD-INC-012,NOT STARTED,,,live browser/E2E confirmation
+PRD-INC-013,IN PROGRESS,frontend/app.js target-detail owner-control forms render the protocol-reported active-restriction reasons already returned by getAssuranceState,scripts/test-frontend-remediation.js,live multi-incident composition browser evidence (covered at the protocol/Python layer
+PRD-INC-014,NOT STARTED,,,live browser/E2E confirmation
+PRD-POL-001,IN PROGRESS,contracts/assurance_kernel.py::begin_policy/add_policy_resource/add_policy_rule/add_policy_effect/seal_policy/activate_policy,tests/kernel/test_authority.py (12/19 tests exercise policy construction),C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
+PRD-POL-002,IN PROGRESS,contracts/assurance_kernel.py policy construction methods,tests/kernel/test_authority.py,packages/policy-compiler not started (C2+ scope)
+PRD-POL-003,NOT STARTED,,,live browser/E2E confirmation
+PRD-POL-004,NOT STARTED,,,live browser/E2E confirmation
+PRD-POL-005,IN PROGRESS,"frontend/app.js::handlePolicyReview + packages/protocol-sdk/src/client.ts::buildPolicyActivationReview (C4 real validate/canonicalize-hash/diff against the target's live active policy, replacing the prior setLiveMessage-only stub)",scripts/test-frontend-remediation.js (A3-H02 policy-activation-half checks),the multi-transaction begin_policy/add_policy_resource/add_policy_rule/add_policy_effect/seal_policy/activate_policy construction sequence itself remains a separate
+PRD-POL-006,IN PROGRESS,contracts/assurance_kernel.py::add_policy_effect (SUPPORTED_ACTIONS default-deny),tests/kernel/test_authority.py::test_unsupported_action_rejected_at_policy_construction,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
+PRD-POL-007,NOT STARTED,,,live browser/E2E confirmation
+PRD-POL-008,IN PROGRESS,contracts/assurance_kernel.py::activate_policy (timelock on expansion),tests/kernel/test_authority.py::test_authority_expansion_requires_timelock,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
+PRD-POL-009,IN PROGRESS,contracts/assurance_kernel.py::disable_action/disable_resource,tests/kernel/test_authority.py::test_overlay_can_immediately_disable_action;test_overlay_cannot_broaden_authority,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
+PRD-POL-010,NOT STARTED,,,live browser/E2E confirmation
+PRD-POL-011,NOT STARTED,,,live browser/E2E confirmation
+PRD-POL-012,IN PROGRESS,contracts/assurance_kernel.py::add_policy_effect resource/action validation; contracts/reference_agent_protocol.py::apply_assurance_action resource validation,tests/kernel/test_authority.py::test_unsupported_action_rejected_at_policy_construction,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
+PRD-REC-001,NOT STARTED,,,live browser/E2E confirmation
+PRD-REC-002,NOT STARTED,,,live browser/E2E confirmation
+PRD-REC-003,NOT STARTED,,,live browser/E2E confirmation
+PRD-REC-004,NOT STARTED,,,live browser/E2E confirmation
+PRD-REC-005,NOT STARTED,,,live browser/E2E confirmation
+PRD-REC-006,NOT STARTED,,,live browser/E2E confirmation
+PRD-REC-007,NOT STARTED,,,live browser/E2E confirmation
 PRD-REC-008,NOT STARTED,,,frontend does not yet expose a human-override-labeled restoration distinct from a GenLayer-judged one in the recovery flow - not addressed this pass
-NFR-SEC-005,IN PROGRESS,"packages/protocol-sdk/src/client.ts::buildRevokeAuthority/buildDisableAction/buildDisableResource (owner-bounded, non-value-moving, authority-reducing writes only - TM-AUTH-008)",scripts/test-frontend-remediation.js,live 61997 owner-signed evidence
-NFR-UX-001,IN PROGRESS,"frontend/app.js target-detail ''Owner bounded controls'' panel (TM-UX: authority-reducing actions are pre-sign reviewed through the same draft-registry pipeline as every other write)",scripts/test-frontend-remediation.js,connected-wallet browser evidence
-NFR-UX-008,IN PROGRESS,frontend/app.js::handlePolicyReview real manifest-hash/diff output (never a setLiveMessage-only placeholder),scripts/test-frontend-remediation.js,representative authority-expansion browser screenshot with a connected live SDK
+PRD-REP-001,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-002,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-003,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-004,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-005,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-006,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-007,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-008,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-009,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-010,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-011,NOT STARTED,,,live browser/E2E confirmation
+PRD-TGT-001,VERIFIED,contracts/assurance_kernel.py::register_target; deployed 0x6f6b52bc5Bd8040c46d8a3eaAA42a49888eCd647 studio-dev,tests/kernel/test_authority.py::test_duplicate_target_registration_rejected; LIVE: register_target succeeded studio-dev tx 0x8905babe90011583870fbae35628f68f23094b4676247d68b170a6b9454cad05 registering target reclose-target-001 at 0xeE850E45e240bB2864088887fB6Eb7c203b0F9Ed; release-evidence/r1/c1/deploy-log.md; deployment/61997/c1-manifest.json,
+PRD-TGT-002,VERIFIED,contracts/assurance_kernel.py::register_target (live get_owner/get_assurance_controller handshake),"tests/kernel/test_authority.py::test_unauthorized_owner_cannot_construct_policy; LIVE: cross-contract handshake succeeded on studio-dev, verified via get_target_state=0 and get_assurance_controller=kernel address (release-evidence/r1/c1/deploy-log.md); release-evidence/r1/c1/deploy-log.md; deployment/61997/c1-manifest.json",
+PRD-TGT-003,NOT STARTED,,,live browser/E2E confirmation
+PRD-TGT-004,NOT STARTED,,,live browser/E2E confirmation
+PRD-TGT-005,IN PROGRESS,packages/protocol-sdk/src/client.ts::buildRevokeAuthority/buildDisableAction/buildDisableResource (C4 product-surface write preparation over the existing C1 revoke_authority/disable_action/disable_resource Kernel methods); frontend/app.js target-detail owner-control forms,scripts/test-frontend-remediation.js (A3-H07 checks),real 61997 owner-signed revoke/disable transaction evidence; no separate contract-level ''human emergency pause'' method exists beyond these three bounded writes (see known-limitations.md item 2)
+PRD-TGT-006,IN PROGRESS,contracts/reference_agent_protocol.py::owner_restore (human_override_enabled gate),tests/reference-agent/test_reference_agent_protocol.py::test_human_override_restores_only_when_enabled,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
+PRD-TGT-007,NOT STARTED,,,live browser/E2E confirmation
+PRD-TGT-008,IN PROGRESS,"packages/protocol-sdk/src/sdk.ts (RecloseSDK interface, type-only)",packages/protocol-sdk/src/__typetests__/,SDK is type-only per F1 - runtime implementation against the deployed C1 contracts not yet built

@@ -4,6 +4,7 @@ import {
 } from "./lib/domain.js";
 import { selectProductAdapter } from "./lib/adapters.js";
 import { PendingTransactionStore, persistThenTrack } from "./lib/persistence.js";
+import { connectBrowserWallet, walletProviderAvailable } from "./lib/wallet.js";
 
 const app = document.getElementById("app");
 const adapter = selectProductAdapter();
@@ -19,7 +20,11 @@ const state = {
   loading: false,
   error: null,
   pending: pendingStore.loadAll(),
-  lastRender: null
+  lastRender: null,
+  /** Real connected browser wallet identity (address + live chain ID) - null until
+   * connectBrowserWallet() succeeds. This is the reporterAddress every write preview now binds
+   * to; there is no other path to a reporter identity in the browser. */
+  wallet: null
 };
 
 /**
@@ -72,12 +77,30 @@ function shell(content, currentRoute) {
         <div class="topbar-meta">
           <span class="mode-chip" data-mode="${adapter.mode}">${escapeHtml(adapter.meta.label)}</span>
           <span class="network-chip">${NETWORK_NAME} · ${CHAIN_ID}</span>
+          ${walletChip()}
         </div>
         <a class="button" href="#/system">Runtime truth</a>
       </header>
       <main id="main" tabindex="-1">${content}</main>
       <footer class="footer"><span>Reclose · GenLayer judgment, deterministic consequence.</span><span>Accepted ≠ final · Finalized ≠ execution success</span></footer>
     </div>`;
+}
+
+/**
+ * Real browser wallet connection state, rendered in every page's shell (not just the write
+ * flows) - independent-audit finding: no connect-wallet control existed anywhere in the product,
+ * so reporterAddress was structurally unobtainable. Shows the actual connected address/chain when
+ * connected (with an explicit wrong-network warning if the connected chain isn't 61997), a real
+ * "Connect wallet" button when a provider is present but not yet connected, or an honest
+ * "No wallet provider detected" notice when none is (never a button that could never succeed).
+ */
+function walletChip() {
+  if (state.wallet) {
+    const wrongNetwork = state.wallet.chainId !== CHAIN_ID;
+    return `<span class="network-chip" data-action="wallet-status" title="${escapeHtml(state.wallet.address)}">${wrongNetwork ? "WRONG NETWORK · " : ""}${escapeHtml(shortHash(state.wallet.address, 6, 4))} · chain ${escapeHtml(state.wallet.chainId)}</span>`;
+  }
+  if (!walletProviderAvailable()) return `<span class="muted" style="font-size:11px">No wallet provider detected</span>`;
+  return `<button class="button" type="button" data-action="connect-wallet">Connect wallet</button>`;
 }
 
 function pageHead(eyebrow, title, description, actions = "") {
@@ -186,11 +209,12 @@ async function renderIncidentExplorer(incidentId) {
     ["Raw result", `<span class="mono">${escapeHtml(incident.judgmentTx?.rawResult || "unavailable")}</span>`], ["Execution result", executionLabel(incident.judgmentTx?.executionResult)]
   ]);
   const consequences = (incident.consequences || []).length ? `<div class="table-wrap"><table><thead><tr><th>Action</th><th>Resource</th><th>Stage</th><th>Execution</th></tr></thead><tbody>${incident.consequences.map((c) => `<tr><td class="mono">${escapeHtml(c.actionType)}</td><td>${escapeHtml(c.resourceId || "target-wide")}</td><td class="mono">${escapeHtml(c.stage)}</td><td class="execution" data-result="${escapeHtml(c.execution)}">${escapeHtml(c.execution)}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty">No policy effect is represented as executed.</div>';
+const unknownOrYesNo = (value) => value === null || value === undefined ? '<span class="muted">unknown</span>' : value ? "yes" : "no";
   const recovery = incident.recovery ? recordRows([
-    ["Remediation required", incident.recovery.remediationRequired ? "yes" : "no"], ["Remediation submitted", incident.recovery.remediationSubmitted ? "yes" : "no"],
-    ["Remediation decision", outcomeLabel(incident.recovery.remediationDecision)], ["Recovery validation", incident.recovery.recoveryValidated ? "validated" : "not validated"],
+    ["Remediation required", unknownOrYesNo(incident.recovery.remediationRequired)], ["Remediation submitted", unknownOrYesNo(incident.recovery.remediationSubmitted)],
+    ["Remediation decision", outcomeLabel(incident.recovery.remediationDecision)], ["Recovery validation", unknownOrYesNo(incident.recovery.recoveryValidated)],
     ["Remaining restrictions", (incident.recovery.remainingRestrictions || []).map((r) => `<span class="mono">${escapeHtml(r)}</span>`).join(", ") || "none"]
-  ]) : '<div class="empty">Recovery data unavailable.</div>';
+  ]) + (incident.recovery.protocolReadLimitation ? notice("Protocol read limitation", incident.recovery.protocolReadLimitation, "warning") : "") : '<div class="empty">Recovery data unavailable.</div>';
   const traceFailure = (incident.trace || []).find((t) => t.finalStatus === "FAILURE");
   window.__RECLOSE_LAST_INCIDENT__ = incident;
   return `${pageHead("incident explorer", shortHash(incidentId, 26, 12), "The five causal bands deliberately prevent judgment, policy consequence and execution from collapsing into one status.", `<a class="button" href="#/recover/${encodeURIComponent(incidentId)}">Recovery flow</a><button class="button" type="button" data-action="export-audit-trail">Export audit trail</button>`)}
@@ -262,21 +286,38 @@ async function renderReport() {
     try { policy = await adapter.getPolicy(target); } catch (error) { policyError = error.message; }
   }
   const ruleOptions = policy?.rules?.length
-    ? policy.rules.map((r) => `<option value="${escapeHtml(r.ruleId)}">${escapeHtml(r.ruleId)}</option>`).join("")
+    ? policy.rules.filter((r) => r.enabled).map((r) => `<option value="${escapeHtml(r.ruleId)}">${escapeHtml(r.ruleId)}</option>`).join("")
     : `<option>PROVIDER_COMPROMISE_V1</option><option>SERVICE_FAILURE_V1</option>`;
-  const resourceIds = policy?.effects?.length ? [...new Set(policy.effects.map((e) => e.resourceId).filter(Boolean))] : [];
-  const resourceField = resourceIds.length
-    ? `<select id="report-resource" name="resourceId">${resourceIds.map((r) => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join("")}</select>`
+  // Resources are filtered PER RULE (using each effect's real ruleId, not a rule-agnostic union) -
+  // `ruleResourceMap` drives a live resource-select refresh when the rule changes (wired in
+  // bindEvents via handleReportRuleChange), so a reviewer can never submit a resourceId the SDK
+  // would reject for the chosen rule. A target-wide effect (resourceId === "") surfaces as the
+  // literal option value "" labeled "(target-wide)".
+  const ruleResourceMap = {};
+  if (policy?.effects?.length) {
+    for (const e of policy.effects) {
+      if (!e.enabled) continue;
+      (ruleResourceMap[e.ruleId] ??= new Set()).add(e.resourceId);
+    }
+    for (const k of Object.keys(ruleResourceMap)) ruleResourceMap[k] = [...ruleResourceMap[k]];
+  }
+  const firstRuleId = policy?.rules?.find((r) => r.enabled)?.ruleId ?? "";
+  const initialResourceIds = ruleResourceMap[firstRuleId] ?? [];
+  const resourceOptionsHtml = (ids) => ids.length
+    ? ids.map((r) => `<option value="${escapeHtml(r)}">${escapeHtml(r || "(target-wide)")}</option>`).join("")
+    : `<option value="">No governed resource for this rule</option>`;
+  const resourceField = policy
+    ? `<select id="report-resource" name="resourceId">${resourceOptionsHtml(initialResourceIds)}</select>`
     : `<input id="report-resource" name="resourceId" value="provider_a" required>`;
   const governedNotice = target
     ? (policy
-        ? notice("Governed selection", `Rule and resource options below are the ${policy.rules.length} rule(s) and ${resourceIds.length} resource(s) actually active in policy ${policy.summary.policyKey} for ${target}.`, "success")
+        ? notice("Governed selection", `Rule and resource options below are the ${policy.rules.filter((r) => r.enabled).length} enabled rule(s) and their real per-rule effect resources in policy ${policy.summary.policyKey} for ${target}. Changing the rule refreshes the resource list to match.`, "success")
         : notice("No active policy found", policyError || `Could not resolve an active policy for ${target} - free-text fields below will be independently verified against protocol state before signing.`, "warning"))
     : notice("No target selected", "Enter a target ID to load its governed rules/resources, or the SDK will verify your selection against protocol state before signing.", "warning");
   return `${pageHead("write flow", "Report incident", "Evidence is built and fee/bond requirements are previewed before any signing step.")}
     ${adapter.mode === "mock" ? notice("No mock writes", "Fixture mode can preview this flow but will never fabricate a submitted transaction.", "warning") : ""}
     ${governedNotice}
-    <div class="grid">${panel("Incident report", `<form id="incident-form" novalidate>
+    <div class="grid">${panel("Incident report", `<form id="incident-form" novalidate data-rule-resource-map='${escapeHtml(JSON.stringify(ruleResourceMap))}'>
       <div id="incident-errors" class="error-summary" hidden></div>
       <div class="field"><label for="report-target">Target ID</label><input id="report-target" name="targetId" value="${escapeHtml(target)}" required autocomplete="off"></div>
       <div class="field"><label for="report-rule">Rule</label><select id="report-rule" name="ruleId">${ruleOptions}</select></div>
@@ -285,6 +326,20 @@ async function renderReport() {
       <div class="field"><label for="report-class">Source class</label><select id="report-class" name="sourceClass"><option>AUTHORITATIVE_PUBLIC</option><option>INDEPENDENT_PUBLIC</option><option>ONCHAIN</option><option>CONTENT_ADDRESSED_SNAPSHOT</option></select></div>
       <div class="form-actions"><button class="button primary" type="submit">Preview fee & bond</button></div>
     </form>`, "span-7")}${panel("Signing boundary", `<div id="incident-preview" class="empty">No fee preview yet.</div>`, "span-5")}</div>`;
+}
+
+/** Refreshes `#report-resource`'s options to exactly the resources the NEWLY selected rule
+ * actually governs, read from the same ruleResourceMap the page was rendered with (no re-fetch,
+ * no drift from what renderReport already loaded). */
+function handleReportRuleChange(event) {
+  const form = event.currentTarget.closest("form");
+  const map = JSON.parse(form.dataset.ruleResourceMap || "{}");
+  const ids = map[event.currentTarget.value] ?? [];
+  const select = document.getElementById("report-resource");
+  if (!select || select.tagName !== "SELECT") return;
+  select.innerHTML = ids.length
+    ? ids.map((r) => `<option value="${escapeHtml(r)}">${escapeHtml(r || "(target-wide)")}</option>`).join("")
+    : `<option value="">No governed resource for this rule</option>`;
 }
 
 async function renderRecovery(parts) {
@@ -315,8 +370,43 @@ async function renderOnboard() {
 async function renderPolicyAuthor(parts) {
   const targetId = parts[0] ? decodeURIComponent(parts[0]) : "";
   return `${pageHead("write flow", "Author & review policy", "Policy activation is a security boundary. Authority expansion is explicit and delayed.")}
-    ${notice("Scope of this review", "This validates, canonically hashes, and diffs the manifest against the target's real active policy. It does not yet perform the multi-transaction begin_policy/add_policy_rule/seal_policy/activate_policy construction sequence - that remains a separate write flow.", "warning")}
-    <div class="grid">${panel("Manifest", `<form id="policy-form"><div class="field"><label for="policy-target">Target ID</label><input id="policy-target" value="${escapeHtml(targetId)}" required></div><div class="field"><label for="policy-json">Canonical APM</label><textarea id="policy-json" spellcheck="false" aria-describedby="policy-hint">{\n  "schema": "reclose-apm/1",\n  "policyId": "new-policy",\n  "version": 1\n}</textarea><span class="hint" id="policy-hint">The production compiler validates the full governed APM shape and hashes RFC8785/JCS with Keccak-256.</span></div><div class="form-actions"><button class="button" type="button" data-action="policy-review">Validate & diff</button></div></form>`, "span-7")}${panel("Authority review", '<div id="policy-review-output" class="empty">No review yet.</div>', "span-5")}</div>`;
+    <div class="grid">${panel("Manifest", `<form id="policy-form"><div class="field"><label for="policy-target">Target ID</label><input id="policy-target" value="${escapeHtml(targetId)}" required></div><div class="field"><label for="policy-json">Canonical APM</label><textarea id="policy-json" spellcheck="false" aria-describedby="policy-hint">{\n  "schema": "reclose-apm/1",\n  "policyId": "new-policy",\n  "version": 1\n}</textarea><span class="hint" id="policy-hint">The production compiler validates the full governed APM shape and hashes RFC8785/JCS with Keccak-256.</span></div><div class="form-actions"><button class="button" type="button" data-action="policy-review">Validate & diff</button> <button class="button" type="button" data-action="policy-build-construction">Build construction sequence</button></div></form>`, "span-7")}${panel("Authority review", '<div id="policy-review-output" class="empty">No review yet.</div>', "span-5")}
+      ${panel("Construction & activation sequence", '<div id="policy-construction-output" class="empty">Not built yet. "Build construction sequence" compiles this manifest through the real canonical compiler into its exact ordered begin_policy / add_policy_resource / add_policy_rule / add_policy_effect / seal_policy / activate_policy calls, each independently previewed and signed.</div>', "span-12")}
+    </div>`;
+}
+
+/** FINAL_REMEDIATION.md Section 3: the real multi-transaction journey. Each compiled Kernel call
+ * becomes its own draftRegistry entry (`policyStep:<index>`, or `policyActivate` for the final
+ * activate_policy call) so a reviewer previews and signs EVERY step individually, in the exact
+ * order the Kernel itself requires - never one button standing in for six+ real transactions. */
+async function handlePolicyBuildConstruction() {
+  const el = document.getElementById("policy-construction-output");
+  const targetId = document.getElementById("policy-target")?.value || "";
+  let apm;
+  try { apm = JSON.parse(document.getElementById("policy-json")?.value || "{}"); }
+  catch (error) { el.className = ""; el.innerHTML = notice("Manifest is not valid JSON", error.message, "danger"); return; }
+  try {
+    const result = await adapter.previewPolicyConstruction({ targetId, apm });
+    el.className = "";
+    const stepPanel = (kind, index, step) => {
+      draftRegistry.registerDraft(kind, step.draft);
+      const expansionNotice = step.authorityExpands !== undefined
+        ? notice("Signing consequence", step.authorityExpands ? "This activation expands authority and must respect the configured activation delay." : "No authority expansion is represented by this diff.", step.authorityExpands ? "danger" : "success")
+        : "";
+      return `<div class="notice" style="margin-top:10px"><strong>Step ${index + 1}: ${escapeHtml(step.description)}</strong>${renderPreparedWriteFields(step.draft)}${expansionNotice}<button class="button primary" type="button" data-action="submit-${kind}">Sign & submit step ${index + 1}</button></div>`;
+    };
+    const stepsHtml = result.steps.map((step, i) => stepPanel(`policyStep:${i}`, i, step)).join("");
+    const activateHtml = stepPanel("policyActivate", result.steps.length, result.activation);
+    el.innerHTML = `${recordRows([["Manifest hash", `<span class="hash">${escapeHtml(result.manifestHash)}</span>`], ["Total steps (construction + activation)", `<span class="mono">${result.steps.length + 1}</span>`]])}${stepsHtml}${activateHtml}`;
+    document.querySelectorAll('[data-action^="submit-policyStep:"], [data-action="submit-policyActivate"]').forEach((btn) => {
+      const kind = btn.dataset.action.replace("submit-", "");
+      btn.addEventListener("click", () => submitLiveWrite(kind));
+    });
+  } catch (error) {
+    el.className = "";
+    el.innerHTML = notice("Construction sequence unavailable", error.message, "danger");
+  }
+  setLiveMessage("Policy construction sequence built. Each step requires its own signature.");
 }
 
 /** A3-H02 (policy-activation half): real canonical validate/hash/diff, never a setLiveMessage-only
@@ -392,6 +482,30 @@ async function render() {
   }
 }
 
+/**
+ * Independent-audit finding: the signing-boundary panels previously showed only
+ * contractAddress/functionName/reviewHash - never the actual args array, valueWei, chainId, or
+ * semanticKind a reviewer is about to sign. A review-to-sign integrity guarantee (A3-H01) is
+ * hollow if the human reviewing it cannot see every security-bearing field of what they sign.
+ * Renders EVERY field of `draft` (the exact PreparedRecloseWrite object, never a summary of it).
+ */
+function renderPreparedWriteFields(draft) {
+  if (!draft?.reviewHash) return "";
+  const argsHtml = Array.isArray(draft.args)
+    ? `<ol class="trace" style="margin-top:4px">${draft.args.map((a, i) => `<li><span class="mono">arg[${i}]</span>: <span class="hash">${escapeHtml(typeof a === "object" ? JSON.stringify(a) : String(a))}</span></li>`).join("")}</ol>`
+    : '<span class="muted">no args</span>';
+  return recordRows([
+    ["Chain ID", `<span class="mono">${escapeHtml(draft.chainId)}</span>`],
+    ["Contract", `<span class="hash">${escapeHtml(draft.contractAddress)}</span>`],
+    ["Method", `<span class="mono">${escapeHtml(draft.functionName)}</span>`],
+    ["Semantic kind", `<span class="mono">${escapeHtml(draft.semanticKind || "unknown")}</span>`],
+    ["Value (wei)", `<span class="mono">${escapeHtml(draft.valueWei ?? "0")}</span>`],
+    ["Full call arguments", argsHtml],
+    ["Review hash", `<span class="hash">${escapeHtml(draft.reviewHash)}</span>`],
+    ...(draft.predictedIncidentId ? [["Predicted incident ID", `<span class="hash">${escapeHtml(draft.predictedIncidentId.incidentId)}</span>`]] : []),
+  ]);
+}
+
 function formError(id, messages) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -409,24 +523,21 @@ async function handleIncidentSubmit(event) {
   const input = Object.fromEntries(data.entries());
   const errors = [];
   if (!input.targetId) errors.push("Target ID is required.");
+  // independent-audit finding: buildIncidentReport REQUIRES reporterAddress (it binds the EAP and
+  // derives the reporter nonce) - there is no other source for it in the browser besides a
+  // connected wallet. Without one, preview must refuse rather than silently omitting it.
+  if (adapter.mode !== "mock" && !state.wallet?.address) errors.push("Connect a wallet first - reporterAddress is required to build this report and cannot be fabricated.");
   try { const u = new URL(input.url); if (u.protocol !== "https:") errors.push("Evidence URL must use HTTPS."); } catch { errors.push("Evidence URL is invalid."); }
   formError("incident-errors", errors);
   if (errors.length) return;
-  const preview = await adapter.previewIncident({ targetId: input.targetId, ruleId: input.ruleId, resourceId: input.resourceId, evidenceSources: [{ sourceId: "user-source-1", url: input.url, sourceClass: input.sourceClass, fetchedAt: new Date().toISOString(), availability: "AVAILABLE" }] });
+  const preview = await adapter.previewIncident({ targetId: input.targetId, ruleId: input.ruleId, resourceId: input.resourceId, reporterAddress: state.wallet?.address, evidenceSources: [{ sourceId: "user-source-1", url: input.url, sourceClass: input.sourceClass, fetchedAt: new Date().toISOString(), availability: "AVAILABLE" }] });
   const el = document.getElementById("incident-preview");
   el.className = "";
   // A3-H01: the draft registered here is EXACTLY `preview.draft` - the same object rendered
   // below - and is the ONLY object submitLiveWrite will ever pass to the writer.
   draftRegistry.registerDraft("incident", preview.draft);
   invalidateDraftOnEdit(form, "incident");
-  const draftHtml = preview.draft?.reviewHash
-    ? recordRows([
-        ["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`],
-        ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`],
-        ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`],
-        ...(preview.draft.predictedIncidentId ? [["Predicted incident ID", `<span class="hash">${escapeHtml(preview.draft.predictedIncidentId.incidentId)}</span>`]] : []),
-      ])
-    : "";
+  const draftHtml = renderPreparedWriteFields(preview.draft);
   el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Reporter bond", `<span class="mono">${escapeHtml(preview.bondWei ?? "0")} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode will not sign or submit this report.", "warning") : '<button class="button primary" type="button" data-action="submit-incident">Sign & submit</button>'}`;
   setLiveMessage("Incident fee and bond preview ready. The exact reviewed draft will be signed.");
   bindDynamicButtons();
@@ -440,22 +551,16 @@ async function handleRecoverySubmit(event) {
   const input = Object.fromEntries(data.entries());
   const errors = [];
   if (!input.incidentId) errors.push("Parent incident is required.");
+  if (adapter.mode !== "mock" && !state.wallet?.address) errors.push("Connect a wallet first - reporterAddress is required to build this recovery report and cannot be fabricated.");
   try { const u = new URL(input.url); if (u.protocol !== "https:") errors.push("Evidence URL must use HTTPS."); } catch { errors.push("Evidence URL is invalid."); }
   formError("recovery-errors", errors);
   if (errors.length) return;
-  const preview = await adapter.previewRecovery({ incidentId: input.incidentId, evidenceSources: [{ sourceId: "recovery-source-1", url: input.url, sourceClass: input.sourceClass, fetchedAt: new Date().toISOString(), availability: "AVAILABLE" }] });
+  const preview = await adapter.previewRecovery({ incidentId: input.incidentId, reporterAddress: state.wallet?.address, evidenceSources: [{ sourceId: "recovery-source-1", url: input.url, sourceClass: input.sourceClass, fetchedAt: new Date().toISOString(), availability: "AVAILABLE" }] });
   const el = document.getElementById("recovery-preview");
   el.className = "";
   draftRegistry.registerDraft("recovery", preview.draft);
   invalidateDraftOnEdit(form, "recovery");
-  const draftHtml = preview.draft?.reviewHash
-    ? recordRows([
-        ["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`],
-        ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`],
-        ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`],
-        ...(preview.draft.predictedIncidentId ? [["Predicted incident ID", `<span class="hash">${escapeHtml(preview.draft.predictedIncidentId.incidentId)}</span>`]] : []),
-      ])
-    : "";
+  const draftHtml = renderPreparedWriteFields(preview.draft);
   el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate a recovery transaction.", "warning") : '<button class="button primary" type="button" data-action="submit-recovery">Sign & submit recovery</button>'}`;
   setLiveMessage("Recovery transaction preview ready. The exact reviewed draft will be signed.");
   bindDynamicButtons();
@@ -477,14 +582,7 @@ async function handleOnboardSubmit(event) {
   el.className = "";
   draftRegistry.registerDraft("registerTarget", preview.draft);
   invalidateDraftOnEdit(form, "registerTarget");
-  const draftHtml = preview.draft?.reviewHash
-    ? recordRows([
-        ["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`],
-        ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`],
-        ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`],
-        ...(preview.draft.predictedIncidentId ? [["Predicted incident ID", `<span class="hash">${escapeHtml(preview.draft.predictedIncidentId.incidentId)}</span>`]] : []),
-      ])
-    : "";
+  const draftHtml = renderPreparedWriteFields(preview.draft);
   el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate a registration transaction.", "warning") : '<button class="button primary" type="button" data-action="submit-registerTarget">Sign & submit registration</button>'}`;
   setLiveMessage("Registration preview ready. The exact reviewed draft will be signed.");
   bindDynamicButtons();
@@ -501,9 +599,7 @@ async function handleOwnerControlSubmit(event, kind, previewFn, buildInput) {
   el.className = "";
   draftRegistry.registerDraft(kind, preview.draft);
   invalidateDraftOnEdit(form, kind);
-  const draftHtml = preview.draft?.reviewHash
-    ? recordRows([["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`], ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`], ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`]])
-    : "";
+  const draftHtml = renderPreparedWriteFields(preview.draft);
   el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`], ["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate this transaction.", "warning") : `<button class="button primary" type="button" data-action="submit-${kind}">Sign & submit</button>`}`;
   setLiveMessage("Owner-control preview ready. The exact reviewed draft will be signed.");
   bindDynamicButtons();
@@ -590,23 +686,62 @@ function bindDynamicButtons() {
   document.querySelector('[data-action="submit-disableResource"]')?.addEventListener("click", () => submitLiveWrite("disableResource"));
 }
 
+async function handleConnectWallet() {
+  try {
+    state.wallet = await connectBrowserWallet();
+    // If the host never injected a GenLayer-aware writer, wire the connected wallet in as a
+    // minimal writer so the real wrong-network check (`getConnectedChainId`) actually runs
+    // against this live connection instead of unconditionally throwing "no writer connected".
+    // Its submit* methods honestly refuse rather than fabricating a signed transaction - actually
+    // signing a GenLayer contract call needs a GenLayer-aware signer, which a raw EIP-1193
+    // provider alone does not supply (CLAUDE.md Section 21: Reclose never custodies a key, and
+    // this code has no GenLayer wallet-signing implementation to call into).
+    if (adapter.mode !== "mock" && !adapter.writer) {
+      adapter.writer = {
+        getConnectedChainId: () => state.wallet.getConnectedChainId(),
+        submitIncident: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for submitIncident. A host-injected writer is still required to actually sign this call."); },
+        submitRecovery: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for submitRecovery."); },
+        submitRemediation: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for submitRemediation."); },
+        registerTarget: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for registerTarget."); },
+        activatePolicy: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for activatePolicy."); },
+        revokeAuthority: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for revokeAuthority."); },
+        disableAction: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for disableAction."); },
+        disableResource: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for disableResource."); },
+      };
+    }
+    setLiveMessage(`Wallet connected: ${state.wallet.address} on chain ${state.wallet.chainId}.`);
+  } catch (error) {
+    setLiveMessage(`Wallet connection failed: ${error.message}`);
+    alert(`Wallet connection failed: ${error.message}`);
+    return;
+  }
+  const chip = document.querySelector(".topbar-meta");
+  if (chip) {
+    const existing = chip.querySelector('[data-action="connect-wallet"], [data-action="wallet-status"]');
+    if (existing) existing.outerHTML = walletChip();
+  }
+}
+
 function bindShellEvents() {
   document.querySelector('[data-action="toggle-nav"]')?.addEventListener("click", () => {
     state.navOpen = !state.navOpen;
     document.querySelector(".rail")?.setAttribute("data-open", String(state.navOpen));
     document.querySelector('[data-action="toggle-nav"]')?.setAttribute("aria-expanded", String(state.navOpen));
   });
+  document.querySelector('[data-action="connect-wallet"]')?.addEventListener("click", handleConnectWallet);
 }
 
 function bindEvents() {
   bindShellEvents();
   document.getElementById("incident-form")?.addEventListener("submit", handleIncidentSubmit);
+  document.getElementById("report-rule")?.addEventListener("change", handleReportRuleChange);
   document.getElementById("recovery-form")?.addEventListener("submit", handleRecoverySubmit);
   document.getElementById("onboard-form")?.addEventListener("submit", handleOnboardSubmit);
   document.getElementById("revoke-form")?.addEventListener("submit", handleRevokeSubmit);
   document.getElementById("disable-action-form")?.addEventListener("submit", handleDisableActionSubmit);
   document.getElementById("disable-resource-form")?.addEventListener("submit", handleDisableResourceSubmit);
   document.querySelector('[data-action="policy-review"]')?.addEventListener("click", handlePolicyReview);
+  document.querySelector('[data-action="policy-build-construction"]')?.addEventListener("click", handlePolicyBuildConstruction);
   document.querySelector('[data-action="export-audit-trail"]')?.addEventListener("click", handleExportAuditTrail);
   bindDynamicButtons();
 }

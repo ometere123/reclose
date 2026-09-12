@@ -81,6 +81,9 @@ export class MockProductAdapter {
     await delay();
     return { valid: false, errors: ["Fixture mode cannot validate against a live active policy - connect a live SDK."], manifestHash: null, diff: null, synthetic: true };
   }
+  async previewPolicyConstruction() {
+    throw new Error("Fixture mode has no live SDK + policy-compiler bridge connected. The real multi-transaction policy construction sequence requires both.");
+  }
   async submitWrite() {
     throw new Error("Fixture mode never submits transactions. Switch to a host-provided live Reclose SDK writer.");
   }
@@ -96,11 +99,17 @@ export class SdkProductAdapter {
   mode = "live";
   meta = { mode: "live", label: "Live SDK", note: "Reads are sourced through RecloseSDK on chain 61997." };
 
-  constructor(sdk, writer = null, indexer = null) {
+  constructor(sdk, writer = null, indexer = null, policyCompiler = null) {
     if (!sdk) throw new Error("SdkProductAdapter requires a RecloseSDK instance");
     this.sdk = sdk;
     this.writer = writer;
     this.indexer = indexer;
+    // The real @reclose/policy-compiler module (compileCanonicalApm), injected by the host exactly
+    // like sdk/writer/indexer - the frontend has no bundler/package resolution to import it
+    // directly, and protocol-sdk cannot depend on it (policy-compiler already depends on
+    // protocol-sdk; the reverse would be circular). This is the ONE canonical compiler
+    // implementation, dependency-injected rather than statically imported, never reimplemented.
+    this.policyCompiler = policyCompiler;
   }
 
   async getOverview() {
@@ -148,48 +157,81 @@ export class SdkProductAdapter {
 
     const trace = [];
     if (decisionView?.transaction) {
+      // Fix (independent audit finding): decisionId is a canonical RECORD identity
+      // ("<incidentId>:FINAL"), never a transaction hash - it must never be displayed or treated
+      // as a txId. The real parent transaction identity is decisionView.transaction.txId, exactly
+      // what trackTransaction resolved the parent tx mapping to.
       trace.push({
         role: "Judge parent (report submission)",
-        txId: decisionView.record?.decisionId ?? "unavailable",
+        txId: decisionView.transaction.txId,
         rawStatus: decisionView.transaction.rawStatus,
         executionResult: decisionView.transaction.executionResult ?? null,
         finalStatus: decisionView.transaction.executionResult === "FINISHED_WITH_ERROR" ? "FAILURE" : decisionView.transaction.derived?.isFinal ? "SUCCESS" : "UNKNOWN"
       });
-      let kernelChildFailed = false;
-      try {
-        const childReceipt = await this.sdk.trackActionTrace(incidentId);
-        kernelChildFailed = childReceipt.finalStatus === "FAILURE";
-        trace.push({
-          role: "Judge -> Kernel child",
-          txId: childReceipt.childTx?.txId ?? "unavailable",
-          rawStatus: childReceipt.childTx?.lifecycle?.rawStatus ?? "UNKNOWN",
-          executionResult: childReceipt.executionResult ?? null,
-          finalStatus: childReceipt.finalStatus ?? "UNKNOWN",
-          error: childReceipt.finalStatus === "FAILURE" ? "Execution failed downstream of judgment - see known live limitation" : undefined
-        });
-      } catch {
-        // A3-H04: no fabricated child. The index/trace layer cannot currently resolve this
-        // incident's action ID to a child transaction - render that explicitly.
-        kernelChildFailed = true;
-        trace.push({ role: "Judge -> Kernel child", txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+
+      // Fix (independent audit finding): there is no single "the" action for an incident - the
+      // Kernel dispatches one action_id PER enabled effect of the matched rule (up to
+      // MAX_EFFECTS_PER_DECISION). Tracking must walk each REAL derived action_id
+      // (sdk.listIncidentActionIds), never the bare incidentId, which is not an action identity at
+      // all and was never a valid key into the action-dispatch index.
+      let actionIds = [];
+      if (typeof this.sdk.listIncidentActionIds === "function") {
+        try { actionIds = await this.sdk.listIncidentActionIds(incidentId); } catch { /* policy for this incident's policyKey may no longer be resolvable */ }
       }
-      // A3-H04 (second hop): attempt Kernel -> Target reconstruction only when the Judge -> Kernel
-      // child did not already fail - a failed dispatch never triggers its own child, so attempting
-      // this hop after a known failure would either throw noisily or (worse) resolve a stale/
-      // unrelated triggered transaction. When the Kernel child succeeded, try the real second hop;
-      // render NOT_YET_AVAILABLE (never a fabricated success) if the transport cannot resolve it.
-      if (!kernelChildFailed && typeof this.sdk.trackKernelToTargetChild === "function") {
+      if (!actionIds.length) {
+        trace.push({ role: "Kernel dispatch", txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN", error: "No dispatched action_id could be derived for this incident's matched rule/effects." });
+      }
+      for (const action of actionIds) {
+        const label = `${action.actionType}${action.resourceId ? ` on ${action.resourceId}` : ""}`;
+        let kernelChildFailed = false;
         try {
-          const targetChild = await this.sdk.trackKernelToTargetChild(incidentId);
-          trace.push(targetChild
-            ? { role: "Kernel -> Target child", txId: targetChild.txId, rawStatus: targetChild.rawStatus, executionResult: targetChild.executionResult ?? null, finalStatus: targetChild.executionResult === "FINISHED_WITH_RETURN" ? "SUCCESS" : targetChild.executionResult ? "FAILURE" : "UNKNOWN" }
-            : { role: "Kernel -> Target child", txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+          const childReceipt = await this.sdk.trackActionTrace(action.actionId);
+          kernelChildFailed = childReceipt.finalStatus === "FAILURE";
+          trace.push({
+            role: `Judge -> Kernel child (${label})`,
+            txId: childReceipt.childTx?.txId ?? "unavailable",
+            rawStatus: childReceipt.childTx?.lifecycle?.rawStatus ?? "UNKNOWN",
+            executionResult: childReceipt.executionResult ?? null,
+            finalStatus: childReceipt.finalStatus ?? "UNKNOWN",
+            error: childReceipt.finalStatus === "FAILURE" ? "Execution failed downstream of judgment - see known live limitation" : undefined
+          });
         } catch {
-          trace.push({ role: "Kernel -> Target child", txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+          kernelChildFailed = true;
+          trace.push({ role: `Judge -> Kernel child (${label})`, txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+        }
+        if (!kernelChildFailed && typeof this.sdk.trackKernelToTargetChild === "function") {
+          try {
+            const targetChild = await this.sdk.trackKernelToTargetChild(action.actionId);
+            trace.push(targetChild
+              ? { role: `Kernel -> Target child (${label})`, txId: targetChild.txId, rawStatus: targetChild.rawStatus, executionResult: targetChild.executionResult ?? null, finalStatus: targetChild.executionResult === "FINISHED_WITH_RETURN" ? "SUCCESS" : targetChild.executionResult ? "FAILURE" : "UNKNOWN" }
+              : { role: `Kernel -> Target child (${label})`, txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+          } catch {
+            trace.push({ role: `Kernel -> Target child (${label})`, txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+          }
         }
       }
     }
-    return { ...incident, finalOutcome: finalDecision?.outcome ?? null, decisionStage: finalDecision?.decisionStage ?? null, judgmentTx: decisionView?.transaction ?? null, trace };
+    // A3-H08 (recovery surface): populate from the incident's REAL own restriction records when
+    // the SDK supports reading them - never fabricate the remediation/recovery-validation chain
+    // fields the Kernel has no view for (no parent_incident_id on get_incident_detail, no
+    // "child incidents of X" enumeration). Those fields are marked explicitly UNKNOWN rather than
+    // guessed or silently omitted (which would read as "none" instead of "not derivable").
+    let recovery = null;
+    if (typeof this.sdk.getIncidentOwnRestrictions === "function") {
+      try {
+        const restrictions = await this.sdk.getIncidentOwnRestrictions(incidentId);
+        const remainingRestrictions = restrictions.filter((r) => r.active).map((r) => `${r.actionType}${r.resourceId ? `:${r.resourceId}` : ""}`);
+        recovery = {
+          remainingRestrictions,
+          remediationRequired: remainingRestrictions.length > 0 ? null : false,
+          remediationSubmitted: null,
+          remediationDecision: null,
+          recoveryValidated: null,
+          protocolReadLimitation: "remediationSubmitted/remediationDecision/recoveryValidated are UNKNOWN: the Kernel exposes no protocol view linking a remediation/recovery-validation incident back to its parent (no parent_incident_id field, no child-incident enumeration) - see known-limitations.md.",
+        };
+      } catch { /* leave recovery null - an unreadable restriction set is not the same as "no recovery data" */ }
+    }
+    return { ...incident, finalOutcome: finalDecision?.outcome ?? null, decisionStage: finalDecision?.decisionStage ?? null, judgmentTx: decisionView?.transaction ?? null, trace, recovery };
   }
 
   async getBenchmark() {
@@ -244,6 +286,28 @@ export class SdkProductAdapter {
   }
 
   /**
+   * FINAL_REMEDIATION.md Section 3: the REAL multi-transaction construct/seal/activate journey -
+   * compiles the manifest through the canonical policy-compiler bridge (never a shortcut/stub),
+   * then wraps EVERY resulting Kernel call (begin_policy, each add_policy_resource, each
+   * add_policy_rule, each add_policy_effect, seal_policy) plus the final activate_policy as its
+   * own real, fee-estimated, review-hashed PreparedRecloseWrite - a reviewer signs each step
+   * individually, in order, exactly as the Kernel itself requires them to arrive.
+   */
+  async previewPolicyConstruction(input) {
+    if (!this.policyCompiler || typeof this.policyCompiler.compileCanonicalApm !== "function") {
+      throw new Error("No policy-compiler bridge is connected. The real multi-transaction construction sequence requires the host to inject @reclose/policy-compiler's compileCanonicalApm alongside the SDK/writer.");
+    }
+    const { manifestHash, calls } = this.policyCompiler.compileCanonicalApm(input.apm);
+    const steps = [];
+    for (const call of calls) {
+      const built = await this.sdk.buildPreparedWriteForCall(call, { semanticKind: "POLICY_CONSTRUCTION_STEP" });
+      steps.push({ description: call.description, draft: built.report, feePreview: built.feePreview });
+    }
+    const activation = await this.sdk.buildPolicyActivationWrite({ targetId: input.targetId, policyKey: input.apm.policyId, apm: input.apm });
+    return { manifestHash, steps, activation: { description: `Activate policy "${input.apm.policyId}"`, draft: activation.report, feePreview: activation.feePreview, authorityExpands: activation.authorityExpands, diff: activation.diff }, synthetic: false };
+  }
+
+  /**
    * A3-H01: `payload` MUST be the exact PreparedRecloseWrite draft the caller previewed and
    * reviewed - never a caller-reconstructed or empty object. A3-H03: the connected writer's
    * network is re-checked HERE, immediately before signing, not only at page load - a static
@@ -272,13 +336,22 @@ export class SdkProductAdapter {
       disableAction: "disableAction",
       disableResource: "disableResource"
     }[kind];
-    if (!method || typeof this.writer[method] !== "function") throw new Error(`Writer does not support ${kind}`);
-    return this.writer[method](payload);
+    if (method) {
+      if (typeof this.writer[method] !== "function") throw new Error(`Writer does not support ${kind}`);
+      return this.writer[method](payload);
+    }
+    // Policy construction steps (kind === "policyConstruction:<n>" or "policyActivate") carry their
+    // own real functionName (begin_policy/add_policy_resource/add_policy_rule/add_policy_effect/
+    // seal_policy/activate_policy) in the draft itself - dispatch generically through a single
+    // `callKernel` writer method (which receives the exact payload, including functionName/args)
+    // rather than requiring the writer to pre-declare six more named methods.
+    if (typeof this.writer.callKernel === "function") return this.writer.callKernel(payload);
+    throw new Error(`Writer does not support ${kind} (no callKernel method for generic Kernel calls)`);
   }
 }
 
 export function selectProductAdapter() {
   const injected = globalThis.__RECLOSE_PRODUCT_RUNTIME__;
-  if (injected?.sdk) return new SdkProductAdapter(injected.sdk, injected.writer ?? null, injected.indexer ?? null);
+  if (injected?.sdk) return new SdkProductAdapter(injected.sdk, injected.writer ?? null, injected.indexer ?? null, injected.policyCompiler ?? null);
   return new MockProductAdapter();
 }

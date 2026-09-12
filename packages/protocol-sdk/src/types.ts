@@ -242,6 +242,10 @@ export interface PolicyRule {
 export type PolicyEffectReleasePhase = "PROVISIONAL" | "REMEDIATION_CONFIRMED" | "RECOVERY_VALIDATED";
 
 export interface PolicyEffect {
+  /** The rule this effect is bound to (schemas/policy/PolicyDetail.schema.json rules[].ruleId via
+   * get_policy_effect_at's tuple[0]) - required to filter a decision's actually-dispatched effects
+   * down to the ones its own ruleId governs, and to derive each effect's real Kernel action_id. */
+  ruleId: RuleId;
   actionType: ActionType;
   resourceId: string;
   /** u256 as decimal string, or null - closed bounded parameter, never arbitrary calldata. */
