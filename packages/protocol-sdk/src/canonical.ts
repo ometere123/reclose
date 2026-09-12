@@ -116,8 +116,9 @@ export function keccak256Bytes(input: Uint8Array): Uint8Array {
 
   const last = new Uint8Array(RATE_BYTES);
   last.set(input.slice(offset));
-  last[input.length - offset] ^= 0x01; // Keccak domain suffix, deliberately not SHA3's 0x06.
-  last[RATE_BYTES - 1] ^= 0x80;
+  const padStart = input.length - offset;
+  last[padStart] = (last[padStart] ?? 0) ^ 0x01; // Keccak domain suffix, deliberately not SHA3's 0x06.
+  last[RATE_BYTES - 1] = (last[RATE_BYTES - 1] ?? 0) ^ 0x80;
   absorbBlock(state, last);
 
   const out = new Uint8Array(32);

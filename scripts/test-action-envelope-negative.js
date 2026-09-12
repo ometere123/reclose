@@ -17,7 +17,7 @@ function loadSchema(relPath) {
   return JSON.parse(fs.readFileSync(path.join(SCHEMAS_DIR, relPath), "utf8"));
 }
 
-const ajv = new Ajv({ allErrors: true, strict: false });
+const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
 addFormats(ajv);
 
 // Register every schema under schemas/ up front so $ref resolution works regardless of load order.

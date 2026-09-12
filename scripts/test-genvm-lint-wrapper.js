@@ -113,5 +113,38 @@ test("mixed output: one waived diagnostic plus one unrelated failure still fails
   fs.unlinkSync(f);
 });
 
+test("the confirmed-stale nondet-reachability diagnostic IS waived when the method exists and run_nondet_default is called", () => {
+  const f = tmpFileWithContent("class Foo:\n    def _evaluate_once(self):\n        pass\n    def run(self):\n        gl.vm.run_nondet_default(leader_fn, validator_fn)\n");
+  const runner = () => ({ stdout: "  line 2: gl.nondet.* call in 'Foo._evaluate_once' not reachable from equivalence principle block", status: 1 });
+  const result = runNarrowLint(f, runner);
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.waived.length, 1);
+  fs.unlinkSync(f);
+});
+
+test("the same nondet-reachability diagnostic is NOT waived if the file never calls run_nondet_default", () => {
+  const f = tmpFileWithContent("class Foo:\n    def _evaluate_once(self):\n        pass\n");
+  const runner = () => ({ stdout: "  line 2: gl.nondet.* call in 'Foo._evaluate_once' not reachable from equivalence principle block", status: 1 });
+  const result = runNarrowLint(f, runner);
+  assert.strictEqual(result.ok, false);
+  fs.unlinkSync(f);
+});
+
+test("the nondet-reachability diagnostic is NOT waived if the flagged method is not actually defined in the file", () => {
+  const f = tmpFileWithContent("class Foo:\n    def run(self):\n        gl.vm.run_nondet_default(leader_fn, validator_fn)\n");
+  const runner = () => ({ stdout: "  line 2: gl.nondet.* call in 'Foo._evaluate_once' not reachable from equivalence principle block", status: 1 });
+  const result = runNarrowLint(f, runner);
+  assert.strictEqual(result.ok, false);
+  fs.unlinkSync(f);
+});
+
+test("a nondet-reachability diagnostic for a DIFFERENT, unrecognized nondet wrapper call is NOT waived", () => {
+  const f = tmpFileWithContent("class Foo:\n    def _evaluate_once(self):\n        pass\n    def run(self):\n        gl.vm.some_future_unrecognized_api(leader_fn, validator_fn)\n");
+  const runner = () => ({ stdout: "  line 2: gl.nondet.* call in 'Foo._evaluate_once' not reachable from equivalence principle block", status: 1 });
+  const result = runNarrowLint(f, runner);
+  assert.strictEqual(result.ok, false);
+  fs.unlinkSync(f);
+});
+
 console.log(`\n${failures === 0 ? "ALL PASS" : failures + " FAILURE(S)"}`);
 process.exit(failures === 0 ? 0 : 1);

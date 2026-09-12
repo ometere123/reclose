@@ -301,6 +301,12 @@ class AssuranceKernel(gl.contract.Contract):
     action_dispatch_records: gl.storage.TreeMap[str, ActionDispatchRecord]
     audit_sequence: gl.u64
     audit_records: gl.storage.TreeMap[gl.u64, str]
+    # A2-remediation: target -> incident reverse index, so an off-chain caller (the SDK's
+    # getAssuranceState()) can enumerate a target's incidents and their restrictions WITHOUT
+    # needing to already know every incident_id in advance. Purely additive - does not change
+    # any existing state machine, only records what receive_decision already creates.
+    target_incident_count: gl.storage.TreeMap[str, gl.u32]
+    target_incident_at: gl.storage.TreeMap[str, str]
 
     def __init__(self, protocol_schema_version: gl.u16, minimum_policy_delay_seconds: gl.u64) -> None:
         self.protocol_schema_version = protocol_schema_version
@@ -717,6 +723,12 @@ class AssuranceKernel(gl.contract.Contract):
                 incident.restriction_count = gl.u32(0)
                 incident.created_at = self._tx_time_seconds()
                 incident.closed_at = gl.u64(0)
+                # A2-remediation: record this NEW incident in the target's reverse index so
+                # get_target_incident_count/get_target_incident_at can enumerate it later -
+                # additive only, never touched for an already-existing incident.
+                t_idx = int(self.target_incident_count[target_id]) if target_id in self.target_incident_count else 0
+                self.target_incident_at[_ck(target_id, str(t_idx))] = incident_id
+                self.target_incident_count[target_id] = gl.u32(t_idx + 1)
             if int(decision_stage) == int(DECISION_STAGE_PROVISIONAL):
                 self._apply_provisional(incident, rule, outcome, policy_key, header)
             else:
@@ -984,6 +996,12 @@ class AssuranceKernel(gl.contract.Contract):
         if action in (int(ACTION_RESTRICT), int(ACTION_THROTTLE), int(ACTION_REVOKE_CAPABILITY), int(ACTION_REROUTE), int(ACTION_MONITOR), int(ACTION_ENTER_SAFE_MODE), int(ACTION_PAUSE)):
             self._require(incident is not None, "E_KRN_019: UNKNOWN_INCIDENT")
             self._require(self._restriction_still_active(incident, record.action_type, record.resource_id), "E_KRN_019: RESTRICTION_NO_LONGER_ACTIVE")
+        elif action == int(ACTION_ENTER_RECOVERY):
+            self._require(incident is not None, "E_KRN_019: UNKNOWN_INCIDENT")
+            self._require(
+                int(incident.status) == int(INCIDENT_STATUS_RECOVERY),
+                "E_KRN_019: INCIDENT_NOT_IN_RECOVERY"
+            )
         elif action == int(ACTION_RESTORE):
             if record.resource_id != "":
                 rkey = _ck(target.target_address.as_hex, record.resource_id)
@@ -1106,3 +1124,33 @@ class AssuranceKernel(gl.contract.Contract):
             return ("", gl.u8(0), "", gl.u256(0), "", gl.u8(0), False)
         e = self.policy_effects[key]
         return (e.rule_id, e.action_type, e.resource_id, e.param_u256, e.param_str, e.release_phase, e.enabled)
+
+    # -- A2-remediation: target-restriction enumeration (closes getAssuranceState()'s
+    # always-empty activeRestrictions gap). Purely additive read views over storage that
+    # receive_decision/_apply_restriction already populate - no new state machine behaviour.
+
+    @gl.public.view
+    def get_target_incident_count(self, target_id: str) -> gl.u32:
+        return self.target_incident_count[target_id] if target_id in self.target_incident_count else gl.u32(0)
+
+    @gl.public.view
+    def get_target_incident_at(self, target_id: str, index: gl.u32) -> str:
+        key = _ck(target_id, str(int(index)))
+        return self.target_incident_at[key] if key in self.target_incident_at else ""
+
+    @gl.public.view
+    def get_incident_restriction_count(self, incident_id: str) -> gl.u32:
+        if incident_id not in self.incidents:
+            return gl.u32(0)
+        return self.incidents[incident_id].restriction_count
+
+    @gl.public.view
+    def get_incident_restriction_at(self, incident_id: str, index: gl.u32) -> tuple:
+        """Returns (restriction_id, rule_id, action_type, resource_id, release_phase, active) for
+        the restriction at this index on this incident, or a zero-valued inactive tuple if out of
+        range - mirrors get_policy_effect_at's out-of-range convention."""
+        key = _ck(incident_id, str(int(index)))
+        if key not in self.restrictions:
+            return ("", "", gl.u8(0), "", gl.u8(0), False)
+        r = self.restrictions[key]
+        return (r.restriction_id, r.rule_id, r.action_type, r.resource_id, r.release_phase, r.active)

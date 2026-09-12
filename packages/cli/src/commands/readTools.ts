@@ -1,6 +1,5 @@
 import type { RecloseSDK } from "@reclose/protocol-sdk";
-
-export interface CommandResult { exitCode: number; output: string; }
+import type { CommandResult } from "./policyCompile";
 
 async function result(work: () => Promise<unknown>): Promise<CommandResult> {
   try { return { exitCode: 0, output: JSON.stringify(await work(), null, 2) }; }

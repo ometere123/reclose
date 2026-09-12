@@ -167,9 +167,9 @@ test("rawStatus CANCELED is terminal but never invents a protocolDecisionOutcome
 
 // --- 12. Schema-level enforcement of the rawStatus -> protocolDecisionOutcome mapping ------
 test("JSON Schema rejects a mismatched rawStatus/protocolDecisionOutcome pairing (schema-level, not just fixture-level)", () => {
-  const Ajv = require("ajv");
+  const Ajv = require("ajv/dist/2020");
   const addFormats = require("ajv-formats");
-  const ajv = new Ajv({ allErrors: true, strict: false });
+  const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
   addFormats(ajv);
   const SCHEMAS_DIR = path.join(REPO_ROOT, "schemas");
   (function walk(dir) {

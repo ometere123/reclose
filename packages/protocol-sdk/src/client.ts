@@ -205,7 +205,39 @@ export class DirectRecloseClient implements RecloseSDK {
 
   async getAssuranceState(targetId: string): Promise<AssuranceStateSummary> {
     const target = await this.getTarget(targetId);
-    return { targetId, state: target.assuranceState, activeRestrictions: [], effectiveCapabilities: [], asOfBlock: 0 };
+    const activeRestrictions: AssuranceStateSummary["activeRestrictions"] = [];
+    // A2-remediation: enumerate real restrictions via the target->incident reverse index and
+    // per-incident restriction storage the Kernel now exposes, rather than fabricating an empty
+    // array regardless of actual state (CLAUDE.md Section 23: never more certain - or less - than
+    // the protocol actually is).
+    const incidentCount = num(await this.kernel("get_target_incident_count", [targetId]));
+    const restrictionActionTypes = new Set<string>(["MONITOR", "RESTRICT", "THROTTLE", "REVOKE_CAPABILITY", "REROUTE", "ENTER_SAFE_MODE", "PAUSE"]);
+    for (let i = 0; i < incidentCount; i++) {
+      const incidentId = str(await this.kernel("get_target_incident_at", [targetId, i]));
+      if (!incidentId) continue;
+      const restrictionCount = num(await this.kernel("get_incident_restriction_count", [incidentId]));
+      for (let j = 0; j < restrictionCount; j++) {
+        const r = tuple(await this.kernel("get_incident_restriction_at", [incidentId, j]));
+        const active = Boolean(r[5]);
+        if (!active) continue;
+        const actionType = ACTION_TYPES[num(r[2])];
+        if (!actionType || !restrictionActionTypes.has(actionType)) continue;
+        activeRestrictions.push({ incidentId, actionType: actionType as AssuranceStateSummary["activeRestrictions"][number]["actionType"], resourceId: str(r[3]) });
+      }
+    }
+
+    let effectiveCapabilities: string[] = [];
+    if (target.activePolicyKey) {
+      const policy = await this.getActivePolicy(targetId);
+      const restrictedResourceIds = new Set(activeRestrictions.filter((r) => r.resourceId !== "").map((r) => r.resourceId));
+      effectiveCapabilities = policy.summary.resourceCount > 0
+        ? (await Promise.all(
+            Array.from({ length: policy.summary.resourceCount }, (_, i) => this.kernel("get_policy_resource_at", [target.activePolicyKey, i]))
+          )).map((r) => str(r)).filter((resourceId) => resourceId !== "" && !restrictedResourceIds.has(resourceId))
+        : [];
+    }
+
+    return { targetId, state: target.assuranceState, activeRestrictions, effectiveCapabilities, asOfBlock: 0 };
   }
 
   async getActivePolicy(targetId: string): Promise<PolicyDetail> {
@@ -290,6 +322,10 @@ export class DirectRecloseClient implements RecloseSDK {
     const ordinal = stage === "PROVISIONAL" ? num(i[9]) : num(i[10]);
     const outcome = OUTCOMES[ordinal];
     if (!outcome) throw new Error(`${stage} decision is not recorded for ${incidentId}`);
+    // Read the ACTUAL judge_version the policy has configured for this rule, rather than
+    // assuming 1 - a policy upgrade can bind a rule to a newer Judge module version, and a
+    // fabricated "1" would silently misreport decisions made under that newer version.
+    const rule = tuple(await this.kernel("get_policy_rule", [str(i[1]), str(i[3])]));
     return {
       schemaVersion: "1.0.0",
       decisionId,
@@ -305,7 +341,7 @@ export class DirectRecloseClient implements RecloseSDK {
       conditionCode: str(i[8]),
       reasonCodes: [str(i[8])],
       judgeModule: str(i[6]),
-      judgeVersion: 1,
+      judgeVersion: num(rule[1]),
       decisionStage: stage,
       generatedAt: iso(i[12]),
     };

@@ -519,15 +519,30 @@ class IncidentJudgeV1(gl.contract.Contract):
         chunks = []
         for src in sources:
             url = src.get("url", "")
+            # sourceClass on `src` has already been verified (in the deterministic precheck) to
+            # match the immutable registry entry for this sourceId - it cannot be Reporter-
+            # upgraded, so it is trustworthy to branch on here. CONTENT_ADDRESSED_SNAPSHOT is the
+            # ONLY class whose evidentiary content is the Reporter-supplied extractedText itself
+            # (already bound by a verified content-hash in the deterministic precheck) - for every
+            # other (live-fetchable, public-origin) class, a failed/non-200 independent fetch must
+            # contribute UNCERTAINTY, never silently fall back to Reporter-supplied text standing
+            # in for the independent source. This closes the gap where a Reporter could force a
+            # judgment off of their own claimed text merely by having the live source unavailable.
+            source_class = src.get("sourceClass", "")
+            if source_class == "CONTENT_ADDRESSED_SNAPSHOT":
+                snapshot_text = src.get("extractedText", "")
+                if isinstance(snapshot_text, str) and snapshot_text:
+                    chunks.append(snapshot_text[:MAX_SOURCE_TEXT_CHARS])
+                continue
             try:
                 resp = gl.nondet.web.get(url)
                 if resp.status == 200 and resp.body is not None:
                     chunks.append(resp.body.decode("utf-8", errors="replace")[:MAX_SOURCE_TEXT_CHARS])
+                # A non-200 response contributes nothing - it is evidence of unavailability, not a
+                # license to substitute Reporter-claimed text.
             except Exception:
+                # Fetch failure contributes nothing either, for the same reason.
                 pass
-            fallback = src.get("extractedText", "")
-            if isinstance(fallback, str) and fallback:
-                chunks.append(fallback[:MAX_SOURCE_TEXT_CHARS])
         if len(chunks) == 0:
             return {"condition_code": "INSUFFICIENT_EVIDENCE", "outcome": int(DECISION_OUTCOME_UNDETERMINED)}
         evidence_text = "\n--- SOURCE BOUNDARY ---\n".join(chunks)[:MAX_SOURCE_TEXT_CHARS * MAX_SOURCES]
@@ -575,7 +590,11 @@ class IncidentJudgeV1(gl.contract.Contract):
             except Exception:
                 return False
 
-        accepted = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+        # Exact pinned genlayer-std has no `run_nondet_unsafe` - the real API for this
+        # leader/validator shape (validator receives the leader's raw Result, independently
+        # re-executes, and compares the enforcement-bearing outcome) is `run_nondet_default`,
+        # confirmed by direct inspection of the installed genlayer.vm module.
+        accepted = gl.vm.run_nondet_default(leader_fn, validator_fn)
         return (accepted["condition_code"], gl.u8(int(accepted["outcome"])))
 
     def _deterministic_precheck(

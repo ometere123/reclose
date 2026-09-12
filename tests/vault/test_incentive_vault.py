@@ -22,7 +22,7 @@ def test_module_identity(vault_harness):
 def test_reporter_opens_own_bond_and_identity_is_preserved(vault_harness, direct_vm, direct_alice):
     vault, _gl, state, _transfers = vault_harness
     open_required_bond(vault, direct_vm, direct_alice)
-    assert vault.get_bond_reporter("bond-1") == direct_alice
+    assert vault.get_bond_reporter("bond-1").as_bytes == direct_alice
     assert vault.verify_open_bond("bond-1", direct_alice, "target-001", "policy-1", 1, "PROVIDER_COMPROMISE_V1", 0, "incident-1", 100)
 
 
@@ -136,7 +136,7 @@ def test_claim_submits_exactly_one_external_value_transfer(vault_harness, direct
     direct_vm.sender = direct_alice
     vault.claim("bond-1")
     assert len(transfers) == 1
-    assert transfers[0]["address"] == direct_alice
+    assert transfers[0]["address"].as_bytes == direct_alice
     assert transfers[0]["value"] == 100
     with pytest.raises(Exception):
         vault.claim("bond-1")

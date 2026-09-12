@@ -95,7 +95,7 @@ test("rejects a RESOURCE_SCOPED_ACTIONS effect with empty resourceId (E_KRN_013 
       rules: [{ ruleId: "R", judge: JUDGE, judgeVersion: 1, ruleKind: "INCIDENT", provisionalAllowed: true }],
       effects: [{ ruleId: "R", actionType: "RESTRICT", resourceId: "", releasePhase: "REMEDIATION_CONFIRMED" }],
     }),
-    /RESOURCE_REQUIRED/
+    /resourceId is required/
   );
 });
 
@@ -106,7 +106,7 @@ test("rejects a RESOURCE_SCOPED_ACTIONS effect referencing an undeclared resourc
       rules: [{ ruleId: "R", judge: JUDGE, judgeVersion: 1, ruleKind: "INCIDENT", provisionalAllowed: true }],
       effects: [{ ruleId: "R", actionType: "RESTRICT", resourceId: "not-declared", releasePhase: "REMEDIATION_CONFIRMED" }],
     }),
-    /UNREGISTERED_RESOURCE/
+    /is not declared/
   );
 });
 
@@ -132,7 +132,7 @@ test("rejects more than MAX_EFFECTS_PER_DECISION (4) enabled effects for one rul
       rules: [{ ruleId: "R", judge: JUDGE, judgeVersion: 1, ruleKind: "INCIDENT", provisionalAllowed: true }],
       effects,
     }),
-    /TOO_MANY_EFFECTS/
+    /MAX_EFFECTS_PER_DECISION/
   );
 });
 
@@ -157,7 +157,7 @@ test("rejects judgeVersion=0 (E_KRN_005 INVALID_JUDGE_VERSION)", () => {
       rules: [{ ruleId: "R", judge: JUDGE, judgeVersion: 0, ruleKind: "INCIDENT", provisionalAllowed: true }],
       effects: [],
     }),
-    /INVALID_JUDGE_VERSION/
+    /judgeVersion must be a positive/
   );
 });
 

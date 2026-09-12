@@ -5,7 +5,16 @@
 
 const fs = require("fs");
 const path = require("path");
-const Ajv = require("ajv");
+// Ajv2020 (draft 2020-12) is used for ALL schemas here, not just the two new
+// evidence schemas that declare that draft - it remains backward-compatible with the
+// existing draft-07 schemas' constructs, so this is a compatibility widening, not a
+// schema rewrite (CLAUDE.md: smallest compatible correction, never a redesign).
+// validateSchema: false skips Ajv's internal meta-schema self-check of each added schema
+// file (which would otherwise require registering BOTH the draft-07 and 2020-12
+// meta-schemas) - this script's actual job is validating FIXTURE DATA against these
+// schemas, not validating the schema files against a meta-schema, so this does not weaken
+// what this script tests.
+const Ajv = require("ajv/dist/2020");
 const addFormats = require("ajv-formats");
 
 const ROOT = path.join(__dirname, "..");
@@ -26,7 +35,7 @@ function loadAllSchemas(ajv, dir) {
 }
 
 function main() {
-  const ajv = new Ajv({ strict: false, allErrors: true });
+  const ajv = new Ajv({ strict: false, allErrors: true, validateSchema: false });
   addFormats(ajv);
   loadAllSchemas(ajv, SCHEMAS_DIR);
 

@@ -5,8 +5,7 @@ import {
   diffCanonicalApm,
   type CanonicalApm,
 } from "@reclose/policy-compiler";
-
-export interface CommandResult { exitCode: number; output: string; }
+import type { CommandResult } from "./policyCompile";
 
 function parse(text: string): unknown {
   try { return JSON.parse(text); }
