@@ -42,9 +42,28 @@ Product-specific checks wired into the root gate:
 
 Existing root verification also covers schemas, lifecycle truth, network guard, F1 parity, action envelope, canonical hashes, policy compiler, evidence builder, transaction tracker, existing CLI flows, Sentinel, contract discovery, GenVM-lint wrapper and Python Direct Mode tests.
 
+## Post-A3 release-tooling self-tests
+
+The release evidence checkers are hardened and tested without pretending live evidence exists:
+
+- `npm run e1-checker:selftest`
+  - accepts two complete independent synthetic run records;
+  - rejects failed Judge -> Kernel child execution;
+  - rejects PASS steps with empty evidence;
+  - rejects deployment-manifest reuse;
+  - rejects placeholder/non-SHA source commits.
+- `npm run fee-profile-checker:selftest`
+  - accepts structurally complete final-address evidence;
+  - rejects empty live arguments;
+  - rejects placeholders;
+  - rejects wrong final addresses;
+  - rejects failed estimates without exact error evidence.
+
+These checker self-tests are included in normal `npm run verify`. Their green release-tooling baseline is separately frozen in `docs/execution/Release Tooling Baseline.md` so the A3 product target remains immutable.
+
 ## Evidence-only release gates
 
-The following are intentionally **not** part of ordinary source CI because they must fail until external/live evidence exists:
+The following live gates are intentionally **not** part of ordinary source CI because they must fail until external/live evidence exists:
 
 - `npm run fee-profile:final-check`
 - `npm run e1:evidence:check`
