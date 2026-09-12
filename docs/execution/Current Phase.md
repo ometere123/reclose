@@ -3,9 +3,14 @@ Current phase: **A3 ATTEMPT 2 SUBMITTED - AWAITING EXTERNAL REVIEW.**
 A3 attempt 1 (`264c14af8f83cbd2bcf0176c87d9950baf0b275a` on `chatgpt/r1-product-release`) remains
 **FAIL**, preserved unchanged at `docs/execution/audit-packets/A3/AUDIT_DECISION.md`.
 
-A3 attempt 2 target: `fa76e8409940dc836bc12fc0dc1144196d2531ee` on branch
-`claude/r1-product-final` (third remediation sub-pass, responding directly to an independent
-audit's findings against the prior checkpoint `ad38a3920892c5c0681e4d603afc8ef07254228d`, CI run
+A3 attempt 2 target: `98b98cc6ddc3d36292914e79c8fe4c8bc0d48209` on branch
+`claude/r1-product-final` (fourth and final remediation sub-pass, completing the final
+source-remediation directive: real genlayer-js browser write runtime, signer-identity binding,
+strict sequential policy construction/activation, judgeVersion-aware diff, the non-zero bond
+journey, an additive recovery-lineage indexer hook, and the getEffectiveProviderStatus fix. Exact
+target CI: run `34715269007`, SUCCESS. Supersedes the prior checkpoint
+`fa76e8409940dc836bc12fc0dc1144196d2531ee`, CI run `34710541702`, which superseded
+`ad38a3920892c5c0681e4d603afc8ef07254228d`, CI run
 `34707671490`, SUCCESS - which itself superseded `7f032af5921eff258c4c69a2f381861b003bd898`, CI
 run `34686497909`, which superseded `7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e`, CI run
 `34684832850`). Exact-target GitHub Actions run `34710541702` - **SUCCESS**

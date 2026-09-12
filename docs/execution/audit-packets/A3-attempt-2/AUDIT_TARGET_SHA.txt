@@ -1,16 +1,18 @@
-fa76e8409940dc836bc12fc0dc1144196d2531ee
+98b98cc6ddc3d36292914e79c8fe4c8bc0d48209
 branch: claude/r1-product-final
-CI: GitHub Actions run 34710541702 - SUCCESS (https://github.com/ometere123/reclose/actions/runs/34710541702)
+CI: GitHub Actions run 34715269007 - SUCCESS (https://github.com/ometere123/reclose/actions/runs/34715269007)
 
-Third remediation sub-pass, responding directly to an independent audit's findings against the
-prior checkpoint ad38a3920892c5c0681e4d603afc8ef07254228d (CI run 34707671490, SUCCESS). That audit
-found real defects - a decisionId-displayed-as-txId bug, action tracking keyed by the bare
-incidentId instead of the Kernel's real per-effect action_id, a policy diff that missed
-bounty/parameter/release-phase changes, no browser wallet/reporter-identity path, and a
-single-button "construction sequence" with no real multi-transaction journey behind it - all fixed
-in this commit. See findings-closure.md's addendum and known-limitations.md for the full detail.
+Fourth and final A3-attempt-2 remediation sub-pass, completing the final source-remediation
+directive in full: real genlayer-js@2.0.0-rc.1 browser write runtime (injected provider -> write
+client -> writeContract(), no Snap/custom signer/host-writer requirement), signer-identity binding
+(expectedSigner checked against the connected account immediately before every signature, with
+accountsChanged/chainChanged invalidating all drafts), a strict sequential policy construction/
+activation state machine, judgeVersion preserved end-to-end in the kernel-equivalent policy diff,
+the non-zero Reporter bond journey (IncentiveVault.open_bond gating submit_incident), an additive
+indexer-based recovery-lineage hook, and the getEffectiveProviderStatus authority-revoked fix. See
+known-limitations.md for what remains genuinely open.
 
-ad38a39... itself superseded 7f032af5921eff258c4c69a2f381861b003bd898 (CI run 34686497909,
-SUCCESS), which superseded 7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e (CI run 34684832850, also
-SUCCESS). All checkpoints are on branch claude/r1-product-final; this file names the current,
-most-complete one as the audit target.
+Supersedes the prior checkpoint fa76e8409940dc836bc12fc0dc1144196d2531ee (CI 34710541702); earlier
+checkpoints in order: ad38a3920892c5c0681e4d603afc8ef07254228d
+(CI 34707671490), 7f032af5921eff258c4c69a2f381861b003bd898 (CI 34686497909),
+7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e (CI 34684832850). All on branch claude/r1-product-final.

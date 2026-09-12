@@ -1,18 +1,16 @@
 # A3 External Product & Integration Audit Packet
 
 **Audit ID:** A3
-**Attempt:** 2 (third remediation sub-pass - response to an independent audit)
+**Attempt:** 2 (fourth and final remediation sub-pass)
 **Audit status:** **AWAITING EXTERNAL REVIEW — OWNER EXECUTION OVERRIDE**
 **Branch:** `claude/r1-product-final`
-**Audited substantive target:** `fa76e8409940dc836bc12fc0dc1144196d2531ee`
-**Exact target CI:** GitHub Actions run `34710541702` - **SUCCESS**
-(https://github.com/ometere123/reclose/actions/runs/34710541702)
-(supersedes the prior attempt-2 checkpoint `ad38a3920892c5c0681e4d603afc8ef07254228d`, CI run
-`34707671490`, SUCCESS - an independent audit of that checkpoint found several real defects,
-addressed in this sub-pass - see `findings-closure.md`'s addendum and `known-limitations.md`.
-`ad38a39...` itself superseded `7f032af5921eff258c4c69a2f381861b003bd898`, CI run `34686497909`,
-which superseded `7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e`, CI run `34684832850` - see
-`AUDIT_TARGET_SHA.txt`)
+**Audited substantive target:** `98b98cc6ddc3d36292914e79c8fe4c8bc0d48209`
+**Exact target CI:** GitHub Actions run `34715269007` - **SUCCESS**
+(https://github.com/ometere123/reclose/actions/runs/34715269007)
+(supersedes the prior checkpoint `fa76e8409940dc836bc12fc0dc1144196d2531ee`, CI run `34710541702`,
+SUCCESS; earlier checkpoints in order: `ad38a3920892c5c0681e4d603afc8ef07254228d` (CI
+`34707671490`), `7f032af5921eff258c4c69a2f381861b003bd898` (CI `34686497909`),
+`7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e` (CI `34684832850`) - see `AUDIT_TARGET_SHA.txt`)
 **Attempt 1 (preserved, unchanged):** `264c14af8f83cbd2bcf0176c87d9950baf0b275a` - **FAIL**
 (`../A3/AUDIT_DECISION.md`)
 **Previous audit:** A2 attempt 2, target `6dc88f9393a2c8f94deae37d5c53af8bbcf9e9f5`, PASS WITH
