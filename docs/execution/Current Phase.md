@@ -1,51 +1,92 @@
-Current phase: **D1-D4 / I1-I2 PRODUCT IMPLEMENTATION AUTHORISED AFTER A2 PASS WITH CONDITIONS.**
+Current phase: **A3 PRODUCT & INTEGRATION CANDIDATE PREPARED / AWAITING EXTERNAL REVIEW.**
 
 Independent A2 attempt-2 review was performed against immutable target
 `6dc88f9393a2c8f94deae37d5c53af8bbcf9e9f5` on `claude/a2-remediation-integration`.
 Decision: **PASS WITH CONDITIONS**. The exact decision and conditions are preserved at
 `docs/execution/audit-packets/A2-attempt-2/AUDIT_DECISION.md`.
 
-The historical first A2 packet at `docs/execution/audit-packets/A2/` remains unchanged as the
-first submission against `ae3a5083e1db805c3fa6692a11661d06e6679ec7`.
+The historical first A2 packet at `docs/execution/audit-packets/A2/` remains unchanged.
 
-## Verified current baseline
+## Source-side product work now implemented
 
-- GitHub Actions run `34676730787`: SUCCESS on exact audit target.
-- Node 24.16.0, npm 11.13.0, Python 3.14.4.
-- `npm run verify`: green from clean CI.
-- 43/43 schema fixtures valid.
-- 197/197 Python tests pass.
-- Fresh Studio-dev 61997 hardened stack deployed and wired.
-- Canonical APM compile/readback/timelocked activation proven live.
-- Real Judge-side deterministic precheck, canonical EAP binding, public-source fetch and LLM
-  judgment proven live.
+D1, D2, D3, I1, I2 and D4 source work is present on `chatgpt/r1-product-release`:
 
-## Open A2 conditions
+- product shell, dashboard, target, policy, incident, benchmark and system/deployment surfaces;
+- flagship five-band Incident Explorer separating evidence, GenLayer judgment, policy consequence,
+  actual execution and recovery;
+- target onboarding, policy review, incident-report, fee/bond preview and recovery flows;
+- fixture adapter that is explicitly synthetic/read-only for writes;
+- live adapter that delegates protocol semantics to the RecloseSDK boundary;
+- immediate transaction-ID persistence/resume behaviour without blind resubmission;
+- escaped/untrusted evidence rendering;
+- responsive/accessibility/reduced-motion foundations;
+- product-level distinction between provisional/final, CONFIRMED/REJECTED/UNDETERMINED,
+  transaction finality, child execution and target post-state;
+- bounded R1 autonomous-agent `skill.md`.
 
-- **A2-C01:** Judge -> Kernel triggered child still fails live with
-  `fee no_matching_allocation # internal`. This blocks E1 completion, but not truthful product
-  implementation.
-- **A2-C02:** real fee-profile inputs/output must replace placeholder-only branch coverage before
-  A3 closes / E1 begins.
-- **A2-C03:** action-trace `ExecutionReceipt` must stop fabricating/omitting protocol truth where
-  target ID, post-state requirement and execution time can be derived. Close during I2.
-- **A2-C04:** current phase/audit register/ledgers must reflect the current A2 attempt-2 evidence
-  without rewriting the historical first packet.
+The product work has executable source-level checks under `scripts/test-frontend-product.js`,
+`scripts/test-sdk-product-truth.js` and `scripts/test-agent-skill.js`. Real browser evidence remains
+external and is explicitly indexed as NOT RUN rather than fabricated.
 
-## Authorised critical path
+## A2 condition status
 
-Proceed directly through:
+- **A2-C01 OPEN / E1 BLOCKER:** Judge -> Kernel triggered child still fails live with
+  `fee no_matching_allocation # internal`. This remains an external Studio-dev/runtime limitation
+  on the current evidence and blocks canonical E1 closure.
+- **A2-C02 PARTIALLY CLOSED:** the fee-profile input is now bound to the final R1 addresses and a
+  strict `npm run fee-profile:final-check` evidence gate exists. Fresh dynamic call arguments and a
+  final live profile still require Studio-dev execution.
+- **A2-C03 CLOSED IN SOURCE:** SDK action receipts no longer fabricate target ID, execution time,
+  block height or required post-state truth. CLOSED incidents preserve final REJECTED vs
+  UNDETERMINED. Six executable SDK product-truth checks cover the correction.
+- **A2-C04 SUBSTANTIALLY CLOSED FOR AUDIT HISTORY:** A2 attempt-2 decision and current phase are
+  recorded without rewriting historical packets. Canonical requirements/threat/gate ledgers still
+  require final release reconciliation as evidence arrives; A3 contains its own truthful delta.
 
-`D1 -> D2 -> D3 -> I1 -> I2 -> D4 -> A3`
+## H1 status
 
-Product implementation must be truth-preserving. In particular:
+H1 preparation is materially implemented:
 
-- never show a child dispatch as successful when it failed;
-- preserve REJECTED vs UNDETERMINED vs CONFIRMED;
-- never manufacture an `asOfBlock`, post-state proof or fee amount;
-- accepted transactions are not final;
-- final consensus is not the same as successful execution.
+- threat-linked benchmark corpus: 78 scenarios;
+- 70 automated/evidence-mapped scenarios;
+- 8 live/evidence-bound scenarios explicitly marked BLOCKED_EXTERNAL or NOT_RUN where appropriate;
+- hard release targets remain exactly zero;
+- benchmark structure/evidence references are machine-checked in normal CI.
 
-After product implementation, prepare A3 for independent review. E1 may be prepared but cannot be
-closed while A2-C01 remains unresolved. H1/A4/R1/S1 work may be implemented and packaged where it
-does not require fabricated live evidence, but their release gates remain evidence-bound.
+This does **not** mean every live benchmark scenario has passed.
+
+## A3 status
+
+`docs/execution/audit-packets/A3/` is prepared as **AWAITING EXTERNAL REVIEW** and includes scope,
+requirements mapping, tests, security self-review, threat delta, compatibility findings, architecture
+deviation status, known limitations, open questions and a browser-evidence index.
+
+A3 is not self-certified. Browser screenshots/recordings, keyboard/accessibility evidence and any
+findings from that real review must be attached before an external reviewer can close the gate.
+
+## E1 status
+
+E1 is prepared but **NOT COMPLETE**. The repository contains:
+
+- `release-evidence/r1/e1/run-template.json`;
+- `release-evidence/r1/e1/README.md`;
+- `scripts/check-e1-evidence.mjs`;
+- `npm run e1:evidence:check`.
+
+The evidence gate requires two independent clean 61997 runs and successful required child execution
+plus post-state. It must continue to fail until those real artifacts exist.
+
+## Next evidence-dependent sequence
+
+1. freeze the final substantive A3 candidate after clean GitHub CI;
+2. capture real browser/accessibility evidence against that exact SHA;
+3. obtain an external A3 decision;
+4. complete the final live fee profile;
+5. resolve/retest the Judge -> Kernel child path;
+6. execute two clean E1 runs and pass `npm run e1:evidence:check`;
+7. reconcile canonical requirements/threat/gate ledgers;
+8. prepare A4 for independent review;
+9. close R1/S1 only on real evidence.
+
+`docs/execution/External Execution Handoff.md` is the exact operator handoff for steps requiring a
+browser, unlocked signer or live Studio-dev execution.
