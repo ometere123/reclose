@@ -19,14 +19,17 @@ function usage() {
     "  reclose policy compile <apm.json>",
     "  reclose policy inspect <targetId>",
     "  reclose evidence build <eap-input.json>",
+    "  reclose incident prepare <incident-report-input.json>",
     "  reclose incident inspect <incidentId>",
+    "  reclose recovery prepare <recovery-report-input.json>",
     "  reclose decision inspect <decisionId>",
     "  reclose tx track <txId>",
     "  reclose action trace <actionId>",
     "  reclose audit export <targetId> [incidentId ...]",
     "",
+    "`prepare` commands build canonical SDK report drafts/fee previews only; they never custody or use a private key.",
     "Network options: --rpc <url>. Default: Studio-dev.",
-    "Read commands require RECLOSE_KERNEL_ADDRESS and RECLOSE_JUDGE_ADDRESS.",
+    "Read/prepare commands require RECLOSE_KERNEL_ADDRESS and RECLOSE_JUDGE_ADDRESS.",
     `Canonical chain ID: ${sdkModule.RECLOSE_CANONICAL_CHAIN_ID}.`,
   ].join("\n");
 }
@@ -34,6 +37,12 @@ function usage() {
 function fileText(file) {
   if (!file) throw new Error("missing input file");
   return fs.readFileSync(file, "utf8");
+}
+
+function jsonFile(file) {
+  const text = fileText(file);
+  try { return JSON.parse(text); }
+  catch (error) { throw new Error(`invalid JSON in ${file}: ${error.message}`); }
 }
 
 function rpcFrom(args) {
@@ -51,7 +60,7 @@ function clientFor(args) {
 function directSdk(args) {
   const kernel = process.env.RECLOSE_KERNEL_ADDRESS;
   const judge = process.env.RECLOSE_JUDGE_ADDRESS;
-  if (!kernel || !judge) throw new Error("RECLOSE_KERNEL_ADDRESS and RECLOSE_JUDGE_ADDRESS are required for direct protocol reads");
+  if (!kernel || !judge) throw new Error("RECLOSE_KERNEL_ADDRESS and RECLOSE_JUDGE_ADDRESS are required for direct protocol reads/preparation");
   const client = clientFor(args);
   return sdkModule.createRecloseClient({
     transport: sdkModule.createGenLayerTransport(client),
@@ -92,7 +101,9 @@ async function main() {
   if (group === "status" && action) return printAndExit(await cli.runTargetStatus(directSdk(args), action));
   if (group === "target" && action === "inspect") return printAndExit(await cli.runTargetInspect(directSdk(args), rest[0]));
   if (group === "policy" && action === "inspect") return printAndExit(await cli.runPolicyInspect(directSdk(args), rest[0]));
+  if (group === "incident" && action === "prepare") return printAndExit(await cli.runIncidentReportPrepare(directSdk(args), jsonFile(rest[0])));
   if (group === "incident" && action === "inspect") return printAndExit(await cli.runIncidentInspect(directSdk(args), rest[0]));
+  if (group === "recovery" && action === "prepare") return printAndExit(await cli.runRecoveryPrepare(directSdk(args), jsonFile(rest[0])));
   if (group === "decision" && action === "inspect") return printAndExit(await cli.runDecisionInspect(directSdk(args), rest[0]));
   if (group === "action" && action === "trace") return printAndExit(await cli.runActionTrace(directSdk(args), rest[0]));
   if (group === "audit" && action === "export") {
