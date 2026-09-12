@@ -116,6 +116,12 @@ export function createDraftRegistry() {
     },
     hasDraft(kind) {
       return drafts.has(kind);
+    },
+    /** Independent-audit requirement: an accountsChanged/chainChanged event must invalidate EVERY
+     * prepared draft at once, including dynamically-keyed ones (e.g. `policyStep:0`) that a fixed
+     * kind list can't enumerate in advance - so this clears the whole registry rather than one key. */
+    clearAll() {
+      drafts.clear();
     }
   };
 }

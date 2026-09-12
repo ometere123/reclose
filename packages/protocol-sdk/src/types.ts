@@ -230,6 +230,11 @@ export interface PolicySummary {
 export interface PolicyRule {
   ruleId: RuleId;
   judge: string;
+  /** contracts/assurance_kernel.py::get_policy_rule tuple index 1 - required for the
+   * kernel-equivalent rule identity (ruleId, judge, judgeVersion, ruleKind, provisionalAllowed,
+   * reportBond) that diffCanonicalApm/_classify_expansion use; omitting it made a judge-version
+   * bump on an otherwise-identical rule invisible to the diff. */
+  judgeVersion: number;
   ruleKind: RuleKind;
   provisionalAllowed: boolean;
   /** u256 as decimal string. */
@@ -368,6 +373,15 @@ export interface PreparedRecloseWrite {
   /** Content hash of this draft (every field above except feeEstimate) - recomputed and compared
    * immediately before signing; a mismatch means reviewed input changed and blocks the sign. */
   reviewHash: `0x${string}`;
+  /**
+   * The address this draft was reviewed/prepared for - the EAP-bound reporter for incident/
+   * recovery writes, the expected owner for registration, or the target's currently-cached owner
+   * for owner-bounded writes (a fast pre-sign UX check; the Kernel's own live owner check at
+   * execution time remains the actual authority, per CLAUDE.md Section 12). Null when no single
+   * signer identity applies (e.g. a policy-construction step). The connected wallet account MUST
+   * match this exactly immediately before signing - never 30 seconds earlier.
+   */
+  expectedSigner?: `0x${string}` | null;
 }
 
 // ---------------------------------------------------------------------------

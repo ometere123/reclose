@@ -28,11 +28,11 @@ NFR-UX-008,IN PROGRESS,frontend/app.js::handlePolicyReview real manifest-hash/di
 NFR-UX-009,NOT STARTED,,,live browser/E2E confirmation
 NFR-UX-010,NOT STARTED,,,live browser/E2E confirmation
 PRD-ACC-001,IMPLEMENTED / UNVERIFIED,frontend/app.js public read routes; frontend/lib/adapters.js,scripts/test-frontend-product.js,real browser walkthrough
-PRD-ACC-002,IMPLEMENTED / UNVERIFIED,frontend/app.js read/write separation; frontend/lib/adapters.js,scripts/test-frontend-product.js,real wallet/browser walkthrough
+PRD-ACC-002,IN PROGRESS,frontend/lib/genlayerWriter.js (real genlayer-js@2.0.0-rc.1 write client over the injected provider); frontend/lib/wallet.js connect/accountsChanged/chainChanged wiring,scripts/test-frontend-remediation.js (WALLET CORRECTION checks),real live-wallet-extension browser proof (no extension available in this sandboxed Browser pane)
 PRD-ACC-003,IMPLEMENTED / UNVERIFIED,packages/protocol-sdk/src/networkGuard.ts; frontend write-state presentation,scripts/test-network-guard.js; scripts/test-frontend-product.js,real wrong-network browser/write attempt
 PRD-ACC-004,IMPLEMENTED / UNVERIFIED,frontend/app.js onboarding route,scripts/test-frontend-product.js,guided wallet/browser flow
 PRD-ACC-005,IMPLEMENTED / UNVERIFIED,frontend/app.js onboarding/product-boundary copy,scripts/test-frontend-product.js,copy review in browser
-PRD-ACC-006,IMPLEMENTED / UNVERIFIED,frontend/app.js authority review and policy review surfaces,scripts/test-frontend-product.js,connected-wallet pre-sign browser evidence
+PRD-ACC-006,IN PROGRESS,frontend/lib/adapters.js submitWrite signer-binding check (expectedSigner == writer.getConnectedAccount()); protocol-sdk expectedSigner population on every relevant draft,scripts/test-frontend-remediation.js,live-wallet mismatch browser screenshot
 PRD-ACC-007,IMPLEMENTED / UNVERIFIED,frontend/lib/persistence.js; packages/transaction-tracker,scripts/test-frontend-product.js; scripts/test-transaction-tracker.js,real refresh/resume browser evidence
 PRD-ACC-008,IMPLEMENTED / UNVERIFIED,frontend/app.js system/deployment routes; frontend/README.md,scripts/test-frontend-product.js,real browser link/copy verification
 PRD-BEN-001,NOT STARTED,,,live browser/E2E confirmation
@@ -44,7 +44,7 @@ PRD-BEN-006,NOT STARTED,,,live browser/E2E confirmation
 PRD-BEN-007,NOT STARTED,,,live browser/E2E confirmation
 PRD-DEV-001,VERIFIED,packages/protocol-sdk/src/,scripts/test-f1-parity.js; scripts/test-sdk-product-truth.js,none for source/API existence
 PRD-DEV-002,VERIFIED,packages/protocol-sdk/src/client.ts::getAssuranceState,scripts/test-sdk-product-truth.js,none for implemented read semantics
-PRD-DEV-003,VERIFIED,packages/protocol-sdk/src/client.ts::getEffectiveProviderStatus,compiled SDK parity and contract tests,none for implemented read semantics
+PRD-DEV-003,IN PROGRESS,packages/protocol-sdk/src/client.ts::getEffectiveProviderStatus (AUTHORITY_REVOKED no longer conflated with restriction-based unavailability; fix this pass),scripts/test-frontend-remediation.js,none further for source-level semantics
 PRD-DEV-004,VERIFIED,packages/protocol-sdk/src/client.ts::getIncident/getDecision/getDecisionView,scripts/test-sdk-product-truth.js; lifecycle tests,none for implemented read semantics
 PRD-DEV-005,VERIFIED,packages/protocol-sdk canonical/hash/diff methods; packages/policy-compiler,scripts/test-canonical-hashing.js; scripts/test-policy-compiler.js; F1 parity,none for implemented helper semantics
 PRD-DEV-006,IMPLEMENTED / UNVERIFIED,packages/protocol-sdk buildIncidentReport/buildRecoveryReport; non-custodial transport boundary,F1 SDK parity; fee preview tests,live caller-wallet construction/submission evidence
@@ -77,7 +77,7 @@ PRD-INC-011,NOT STARTED,,,live browser/E2E confirmation
 PRD-INC-012,NOT STARTED,,,live browser/E2E confirmation
 PRD-INC-013,IN PROGRESS,frontend/app.js target-detail owner-control forms render the protocol-reported active-restriction reasons already returned by getAssuranceState,scripts/test-frontend-remediation.js,live multi-incident composition browser evidence (covered at the protocol/Python layer
 PRD-INC-014,NOT STARTED,,,live browser/E2E confirmation
-PRD-POL-001,IN PROGRESS,contracts/assurance_kernel.py::begin_policy/add_policy_resource/add_policy_rule/add_policy_effect/seal_policy/activate_policy,tests/kernel/test_authority.py (12/19 tests exercise policy construction),C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
+PRD-POL-001,IN PROGRESS,frontend/app.js sequential policy construction/activation state machine (compilePolicyConstruction/buildPolicyConstructionStep/getPolicyHeaderReadback/buildPolicyActivation); packages/protocol-sdk/src/client.ts::buildPreparedWriteForCall/buildPolicyActivationWrite,scripts/test-frontend-remediation.js,live multi-transaction browser walkthrough against a real deployed Kernel
 PRD-POL-002,IN PROGRESS,contracts/assurance_kernel.py policy construction methods,tests/kernel/test_authority.py,packages/policy-compiler not started (C2+ scope)
 PRD-POL-003,NOT STARTED,,,live browser/E2E confirmation
 PRD-POL-004,NOT STARTED,,,live browser/E2E confirmation
@@ -85,7 +85,7 @@ PRD-POL-005,IN PROGRESS,"frontend/app.js::handlePolicyReview + packages/protocol
 PRD-POL-006,IN PROGRESS,contracts/assurance_kernel.py::add_policy_effect (SUPPORTED_ACTIONS default-deny),tests/kernel/test_authority.py::test_unsupported_action_rejected_at_policy_construction,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
 PRD-POL-007,NOT STARTED,,,live browser/E2E confirmation
 PRD-POL-008,IN PROGRESS,contracts/assurance_kernel.py::activate_policy (timelock on expansion),tests/kernel/test_authority.py::test_authority_expansion_requires_timelock,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
-PRD-POL-009,IN PROGRESS,contracts/assurance_kernel.py::disable_action/disable_resource,tests/kernel/test_authority.py::test_overlay_can_immediately_disable_action;test_overlay_cannot_broaden_authority,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
+PRD-POL-009,IN PROGRESS,"packages/protocol-sdk/src/client.ts::diffCanonicalApm/extractKernelRuleEffectModel (judgeVersion/bounty/param/release-phase-aware, mirrors _classify_expansion)",scripts/test-frontend-remediation.js,none further for source-level parity - proven against synthetic Kernel-shaped fixtures matching every _classify_expansion branch
 PRD-POL-010,NOT STARTED,,,live browser/E2E confirmation
 PRD-POL-011,NOT STARTED,,,live browser/E2E confirmation
 PRD-POL-012,IN PROGRESS,contracts/assurance_kernel.py::add_policy_effect resource/action validation; contracts/reference_agent_protocol.py::apply_assurance_action resource validation,tests/kernel/test_authority.py::test_unsupported_action_rejected_at_policy_construction,C4 frontend/product-surface portion not yet implemented; live 61997 E2E proof pending
@@ -94,7 +94,7 @@ PRD-REC-002,NOT STARTED,,,live browser/E2E confirmation
 PRD-REC-003,NOT STARTED,,,live browser/E2E confirmation
 PRD-REC-004,NOT STARTED,,,live browser/E2E confirmation
 PRD-REC-005,NOT STARTED,,,live browser/E2E confirmation
-PRD-REC-006,NOT STARTED,,,live browser/E2E confirmation
+PRD-REC-006,IN PROGRESS,"frontend/lib/adapters.js getIncident indexer.resolveIncidentLineage hook (additive, protocol-read-verified)",scripts/test-frontend-remediation.js,a connected indexer implementation + live remediation/recovery-validation chain evidence
 PRD-REC-007,NOT STARTED,,,live browser/E2E confirmation
 PRD-REC-008,NOT STARTED,,,frontend does not yet expose a human-override-labeled restoration distinct from a GenLayer-judged one in the recovery flow - not addressed this pass
 PRD-REP-001,NOT STARTED,,,live browser/E2E confirmation
@@ -103,7 +103,7 @@ PRD-REP-003,NOT STARTED,,,live browser/E2E confirmation
 PRD-REP-004,NOT STARTED,,,live browser/E2E confirmation
 PRD-REP-005,NOT STARTED,,,live browser/E2E confirmation
 PRD-REP-006,NOT STARTED,,,live browser/E2E confirmation
-PRD-REP-007,NOT STARTED,,,live browser/E2E confirmation
+PRD-REP-007,IN PROGRESS,"packages/protocol-sdk/src/client.ts::buildOpenBond; frontend/app.js renderBondGate/handleOpenBondSubmit (non-zero bond journey, open_bond before submit_incident)",scripts/test-frontend-remediation.js,live IncentiveVault.open_bond browser walkthrough
 PRD-REP-008,NOT STARTED,,,live browser/E2E confirmation
 PRD-REP-009,NOT STARTED,,,live browser/E2E confirmation
 PRD-REP-010,NOT STARTED,,,live browser/E2E confirmation

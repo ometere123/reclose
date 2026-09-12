@@ -254,7 +254,10 @@ async function main() {
     const transport = {
       async getChainId() { return 61997; },
       async getBlockNumber() { return 0; },
-      async readContract() { throw new Error("not used"); },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwnerAbc", 0, "policy-1", 0, 0, false, false];
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
       async getTransaction() { throw new Error("not used"); },
       async getTriggeredTransactionIds() { return []; },
       async estimateTransactionFeesForWrite() { return { feeValue: "10", distribution: null }; },
@@ -263,6 +266,7 @@ async function main() {
     const revoke = await client.buildRevokeAuthority({ targetId: "target-1" });
     assert.strictEqual(revoke.report.functionName, "revoke_authority");
     assert.deepStrictEqual(revoke.report.args, ["target-1"]);
+    assert.strictEqual(revoke.report.expectedSigner, "0xOwnerAbc", "the expected signer must be the target's real cached owner, not omitted");
     const disableAction = await client.buildDisableAction({ targetId: "target-1", actionType: 8 });
     assert.strictEqual(disableAction.report.functionName, "disable_action");
     assert.deepStrictEqual(disableAction.report.args, ["target-1", 8]);
@@ -508,11 +512,14 @@ async function main() {
     assert.match(report.reviewHash, /^0x[0-9a-f]{64}$/);
   });
 
-  await test("FINAL_REMEDIATION.md Section 3: previewPolicyConstruction wires the real canonical policy-compiler bridge into a full step-by-step prepared-write sequence, never fabricating steps without one", async () => {
+  await test("FINAL_REMEDIATION.md Section 3 (sequential state machine): construction steps are compiled as a plan and built ONE AT A TIME, never pre-built/pre-estimated all at once", async () => {
     const adapterSource = read("frontend/lib/adapters.js");
     assert.match(adapterSource, /policyCompiler/);
     assert.match(adapterSource, /compileCanonicalApm/);
+    assert.match(adapterSource, /compilePolicyConstruction/);
+    assert.match(adapterSource, /buildPolicyConstructionStep/);
     assert.match(adapterSource, /buildPolicyActivationWrite/);
+    assert.match(adapterSource, /getPolicyHeaderReadback/);
     const { pathToFileURL } = require("node:url");
     const { SdkProductAdapter } = await import(pathToFileURL(path.join(ROOT, "frontend", "lib", "adapters.js")).href);
     const calls = [
@@ -520,20 +527,32 @@ async function main() {
       { functionName: "add_policy_rule", args: ["policy-2", "R1", "0xJudge", 1, 1, true, "0", "0"], description: "Register rule R1" },
       { functionName: "seal_policy", args: ["policy-2"], description: "Seal policy" },
     ];
+    let preparedWriteForCallCount = 0;
     const fakeSdk = {
-      async buildPreparedWriteForCall(call) { return { report: { ...call, reviewHash: "0x" + "1".repeat(64) }, feePreview: { network: "studio-dev", chainId: 61997, estimatedFeeValueWei: "1", isEstimate: true } }; },
+      async buildPreparedWriteForCall(call) { preparedWriteForCallCount++; return { report: { ...call, reviewHash: "0x" + "1".repeat(64) }, feePreview: { network: "studio-dev", chainId: 61997, estimatedFeeValueWei: "1", isEstimate: true } }; },
       async buildPolicyActivationWrite() { return { report: { functionName: "activate_policy", args: ["policy-2"], reviewHash: "0x" + "2".repeat(64) }, feePreview: { network: "studio-dev", chainId: 61997, estimatedFeeValueWei: "1", isEstimate: true }, authorityExpands: true, diff: { changes: [] } }; },
+      async getPolicyByKey() { return { summary: { sealed: true, version: 1, manifestHash: "0xdeadbeef" } }; },
     };
     const fakeCompiler = { compileCanonicalApm(apm) { assert.strictEqual(apm.policyId, "policy-2"); return { manifestHash: "0xdeadbeef", calls }; } };
     const adapter = new SdkProductAdapter(fakeSdk, null, null, fakeCompiler);
-    const result = await adapter.previewPolicyConstruction({ targetId: "target-1", apm: { policyId: "policy-2" } });
-    assert.strictEqual(result.steps.length, 3, "every compiled call must become its own step - never collapsed or skipped");
-    assert.strictEqual(result.steps[0].draft.functionName, "begin_policy");
-    assert.strictEqual(result.activation.draft.functionName, "activate_policy");
-    assert.strictEqual(result.activation.authorityExpands, true);
+
+    const plan = await adapter.compilePolicyConstruction({ policyId: "policy-2" });
+    assert.strictEqual(plan.calls.length, 3);
+    assert.strictEqual(preparedWriteForCallCount, 0, "compiling the plan must NOT pre-build any step's PreparedRecloseWrite");
+
+    const step0 = await adapter.buildPolicyConstructionStep(plan.calls[0]);
+    assert.strictEqual(step0.draft.functionName, "begin_policy");
+    assert.strictEqual(preparedWriteForCallCount, 1, "exactly one step must be built at a time, on demand");
+
+    const readback = await adapter.getPolicyHeaderReadback("policy-2");
+    assert.strictEqual(readback.sealed, true, "on-chain readback must be used to confirm seal, not assumed");
+
+    const activation = await adapter.buildPolicyActivation("target-1", "policy-2", { policyId: "policy-2" });
+    assert.strictEqual(activation.draft.functionName, "activate_policy");
+    assert.strictEqual(activation.authorityExpands, true);
 
     const adapterWithoutBridge = new SdkProductAdapter(fakeSdk, null, null, null);
-    await assert.rejects(() => adapterWithoutBridge.previewPolicyConstruction({ targetId: "target-1", apm: {} }), /no policy-compiler bridge/i);
+    await assert.rejects(() => adapterWithoutBridge.compilePolicyConstruction({}), /no policy-compiler bridge/i);
   });
 
   await test("independent-audit fix: submitWrite dispatches policy-construction steps generically through callKernel, using each step's own real functionName", () => {
@@ -548,7 +567,222 @@ async function main() {
     assert.doesNotMatch(adapterSource, /remediationSubmitted:\s*false,?\s*\n\s*remediationDecision:\s*null/, "remediation fields the Kernel cannot prove must be null/unknown, never defaulted to a specific false value");
   });
 
-  const total = 39;
+  await test("WALLET CORRECTION: the browser write path uses the pinned genlayer-js@2.0.0-rc.1 createClient/writeContract directly - no Snap, no custom signer, no fake throwing writer", () => {
+    const writerSource = read("frontend/lib/genlayerWriter.js");
+    assert.match(writerSource, /from ["']\.\.\/vendor\/genlayer-client\.js["']/, "must import the real pinned genlayer-js bundle, not reimplement it");
+    assert.match(writerSource, /createClient\(/);
+    assert.match(writerSource, /writeContract\(/);
+    assert.doesNotMatch(writerSource, /wallet_invokeSnap|wallet_requestSnaps|snapId/i, "must not implement an actual MetaMask Snap integration");
+    const entrySource = read("scripts/genlayer-vendor-entry.mjs");
+    assert.match(entrySource, /from "genlayer-js"/);
+    assert.match(entrySource, /from "genlayer-js\/chains"/);
+    const appSource = read("frontend/app.js");
+    assert.doesNotMatch(appSource, /no GenLayer-aware signer is wired/, "the old throwing-stub writer must be gone");
+    assert.match(appSource, /createGenLayerWriter/, "connecting a wallet must create a real writer, not a stub");
+  });
+
+  await test("WALLET CORRECTION: disconnected browsing works - no wallet is required to read any page", () => {
+    const appSource = read("frontend/app.js");
+    // every read route must remain reachable without state.wallet - spot-check that no read
+    // render function references state.wallet as a precondition.
+    assert.doesNotMatch(appSource, /async function renderOverview[\s\S]{0,400}state\.wallet/, "Overview must not require a wallet");
+    assert.doesNotMatch(appSource, /async function renderTargets[\s\S]{0,400}state\.wallet/, "Targets must not require a wallet");
+  });
+
+  await test("independent-audit fix: submitWrite requires the writer's signing account to equal the draft's expectedSigner immediately before every signature", async () => {
+    const { pathToFileURL } = require("node:url");
+    const { SdkProductAdapter } = await import(pathToFileURL(path.join(ROOT, "frontend", "lib", "adapters.js")).href);
+    const writerNoAccount = { async getConnectedChainId() { return 61997; }, async submitIncident(p) { return { txId: "0x1", payload: p }; } };
+    const adapterNoAccount = new SdkProductAdapter({}, writerNoAccount);
+    await assert.rejects(
+      () => adapterNoAccount.submitWrite("incident", { args: [1], reviewHash: "0xabc", expectedSigner: "0xReporter" }),
+      /cannot report its signing account/i
+    );
+
+    const writerWrongAccount = { async getConnectedChainId() { return 61997; }, async getConnectedAccount() { return "0xWrongAccount"; }, async submitIncident(p) { return { txId: "0x1", payload: p }; } };
+    const adapterWrongAccount = new SdkProductAdapter({}, writerWrongAccount);
+    await assert.rejects(
+      () => adapterWrongAccount.submitWrite("incident", { args: [1], reviewHash: "0xabc", expectedSigner: "0xReporter" }),
+      /signer mismatch/i
+    );
+
+    const writerCorrectAccount = { async getConnectedChainId() { return 61997; }, async getConnectedAccount() { return "0xReporter"; }, async submitIncident(p) { return { txId: "0x1", payload: p }; } };
+    const adapterCorrectAccount = new SdkProductAdapter({}, writerCorrectAccount);
+    const result = await adapterCorrectAccount.submitWrite("incident", { args: [1], reviewHash: "0xabc", expectedSigner: "0xReporter" });
+    assert.strictEqual(result.txId, "0x1");
+
+    // A draft with no expectedSigner at all (e.g. a policy-construction step) must not require
+    // getConnectedAccount - there is no single identity to bind against.
+    const result2 = await adapterCorrectAccount.submitWrite("incident", { args: [1], reviewHash: "0xabc" });
+    assert.strictEqual(result2.txId, "0x1");
+  });
+
+  await test("independent-audit fix: buildRevokeAuthority/buildDisableAction/buildDisableResource bind expectedSigner to the target's real cached owner", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xRealOwner", 0, "policy-1", 0, 0, false, false];
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "10", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const revoke = await client.buildRevokeAuthority({ targetId: "target-1" });
+    assert.strictEqual(revoke.report.expectedSigner, "0xRealOwner");
+  });
+
+  await (async () => {
+    const domain = await importPure("frontend/lib/domain.js");
+    await test("independent-audit fix: draftRegistry.clearAll() invalidates every draft including dynamic policy-step keys", () => {
+      const registry = domain.createDraftRegistry();
+      registry.registerDraft("incident", { args: [1], reviewHash: "0xa" });
+      registry.registerDraft("policyStep:0", { args: [2], reviewHash: "0xb" });
+      registry.registerDraft("policyStep:1", { args: [3], reviewHash: "0xc" });
+      registry.clearAll();
+      assert.strictEqual(registry.getDraft("incident"), null);
+      assert.strictEqual(registry.getDraft("policyStep:0"), null);
+      assert.strictEqual(registry.getDraft("policyStep:1"), null);
+    });
+    const app = read("frontend/app.js");
+    await test("independent-audit fix: wallet accountsChanged/chainChanged events are wired to clear all drafts and force reconnection", () => {
+      assert.match(app, /wireWalletEvents/);
+      assert.match(app, /accountsChanged/);
+      assert.match(app, /chainChanged/);
+      assert.match(app, /draftRegistry\.clearAll\(\)/);
+    });
+  })();
+
+  await test("independent-audit fix: PolicyRule preserves judgeVersion end to end (read path + diff)", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, false, false];
+        if (functionName === "get_policy_header") return [1, "0x" + "a".repeat(64), true, true, false];
+        if (functionName === "get_policy_counts") return [1, 0, 0];
+        if (functionName === "get_policy_rule_id_at") return "PROVIDER_COMPROMISE_V1";
+        if (functionName === "get_policy_rule") return ["0xJudge", 7, 1, true, true];
+        if (functionName === "get_policy_rule_economics") return ["0", "0"];
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const policy = await client.getActivePolicy("target-1");
+    assert.strictEqual(policy.rules[0].judgeVersion, 7, "judgeVersion must be read from get_policy_rule tuple index 1, not dropped");
+
+    const bumped = JSON.parse(JSON.stringify(policy));
+    bumped.rules[0].judgeVersion = 8;
+    const diff = sdk.diffCanonicalApm(policy, bumped);
+    assert.strictEqual(diff.authorityExpands, true, "a judge-version bump on an otherwise-identical rule must be visible to the diff as a new rule identity");
+  });
+
+  await test("independent-audit fix: getEffectiveProviderStatus distinguishes AUTHORITY_REVOKED from a real active restriction, never conflating Reclose authority loss with provider unavailability", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const revokedTransport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, true, false];
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+    };
+    const revokedClient = sdk.createRecloseClient({ transport: revokedTransport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const revokedStatus = await revokedClient.getEffectiveProviderStatus("target-1", "provider_a");
+    assert.strictEqual(revokedStatus.reason.code, "AUTHORITY_REVOKED", "authority-revoked must use its own distinct reason code, never the generic restriction-count UNKNOWN code");
+
+    const restrictedTransport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, false, false];
+        if (functionName === "get_resource_restriction_count") return 2;
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+    };
+    const restrictedClient = sdk.createRecloseClient({ transport: restrictedTransport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const restrictedStatus = await restrictedClient.getEffectiveProviderStatus("target-1", "provider_a");
+    assert.strictEqual(restrictedStatus.reason.code, "UNKNOWN");
+    assert.strictEqual(restrictedStatus.available, false);
+  });
+
+  await test("FINAL_REMEDIATION.md Section 5: buildOpenBond prepares IncentiveVault.open_bond bound to the exact predicted incident identity and real policy economics; buildIncidentReport refuses a non-zero-bond rule without a bondId", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, false, false];
+        if (functionName === "get_policy_header") return [1, "0x" + "a".repeat(64), true, true, false];
+        if (functionName === "get_policy_counts") return [1, 1, 1];
+        if (functionName === "get_policy_rule_id_at") return "PROVIDER_COMPROMISE_V1";
+        if (functionName === "get_policy_rule") return ["0xJudge", 1, 1, true, true];
+        if (functionName === "get_policy_rule_economics") return ["500", "0"];
+        if (functionName === "get_policy_resource_at") return "provider_a";
+        if (functionName === "get_policy_effect_at") return ["PROVIDER_COMPROMISE_V1", 3, "provider_a", "0", "", 1, true];
+        if (functionName === "get_reporter_nonce") return 3;
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge", vault: "0xVault" } });
+    const reporterAddress = "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd";
+    const bond = await client.buildOpenBond({ targetId: "target-001", ruleId: "PROVIDER_COMPROMISE_V1", reporterAddress });
+    assert.strictEqual(bond.report.functionName, "open_bond");
+    assert.strictEqual(bond.report.contractAddress, "0xVault");
+    assert.strictEqual(bond.report.valueWei, "500");
+    assert.strictEqual(bond.report.args[0], bond.bondId);
+    assert.strictEqual(bond.report.args[6], `target-001:${reporterAddress.toLowerCase()}:3`, "open_bond's incident_id arg must equal the exact predicted incident identity");
+
+    await assert.rejects(
+      () => client.buildIncidentReport({
+        targetId: "target-001", ruleId: "PROVIDER_COMPROMISE_V1", resourceId: "provider_a", reporterAddress,
+        evidenceSources: [{ sourceId: "s1", url: "https://example.com/a", sourceClass: "INDEPENDENT_PUBLIC", fetchedAt: "2026-01-01T00:00:00.000Z", availability: "AVAILABLE" }],
+      }),
+      /requires a non-zero bond/i,
+      "a non-zero-bond rule must never be submittable without a verified bondId"
+    );
+
+    const withBond = await client.buildIncidentReport({
+      targetId: "target-001", ruleId: "PROVIDER_COMPROMISE_V1", resourceId: "provider_a", reporterAddress, bondId: bond.bondId,
+      evidenceSources: [{ sourceId: "s1", url: "https://example.com/a", sourceClass: "INDEPENDENT_PUBLIC", fetchedAt: "2026-01-01T00:00:00.000Z", availability: "AVAILABLE" }],
+    });
+    assert.strictEqual(withBond.report.args[7], bond.bondId);
+  });
+
+  await test("FINAL_REMEDIATION.md Section 5: the report form never presents a bonded report as signable without a confirmed open bond", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /renderBondGate/);
+    assert.match(app, /Open reporter bond/);
+    assert.match(app, /state\.openedBond\?\.ruleId !== input\.ruleId/);
+  });
+
+  await test("FINAL_REMEDIATION.md Section 6: an optional indexer.resolveIncidentLineage adapter closes the remediation/recovery-validation chain read-gap, read back against authoritative protocol state rather than trusted as-is", () => {
+    const adapterSource = read("frontend/lib/adapters.js");
+    assert.match(adapterSource, /resolveIncidentLineage/);
+    assert.match(adapterSource, /remediation\.targetId === incident\.targetId/, "an indexer-supplied lineage id must be cross-checked against real protocol state (targetId match), never trusted blindly");
+  });
+
+  const total = 50;
   console.log(`\n${total - failures}/${total} frontend A3-remediation checks passed.`);
   if (failures) process.exit(1);
 }

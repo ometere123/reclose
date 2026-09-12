@@ -227,7 +227,7 @@ function extractKernelRuleEffectModel(candidate: unknown): { rules: KernelRuleId
     for (const r of obj.rules) {
       if (!r || typeof r.ruleId !== "string" || typeof r.judge !== "string") continue;
       rules.push({
-        ruleId: r.ruleId, judge: r.judge, judgeVersion: 0, ruleKind: RULE_KIND_ORDINALS[r.ruleKind] ?? 0,
+        ruleId: r.ruleId, judge: r.judge, judgeVersion: Number(r.judgeVersion ?? 0), ruleKind: RULE_KIND_ORDINALS[r.ruleKind] ?? 0,
         provisionalAllowed: Boolean(r.provisionalAllowed), reportBond: String(r.reportBond ?? "0"),
         confirmedBounty: BigInt(String(r.confirmedBounty ?? "0") || "0"), enabled: r.enabled !== false,
       });
@@ -434,7 +434,7 @@ export class DirectRecloseClient implements RecloseSDK {
       const economics = tuple(await this.kernel("get_policy_rule_economics", [policyKey, ruleId]));
       const ruleKind = RULE_KINDS[num(r[2])];
       if (!ruleKind) throw new Error(`Unknown rule kind for ${ruleId}`);
-      rules.push({ ruleId, judge: str(r[0]), ruleKind, provisionalAllowed: Boolean(r[3]), reportBond: String(economics[0]), confirmedBounty: String(economics[1]), enabled: Boolean(r[4]) });
+      rules.push({ ruleId, judge: str(r[0]), judgeVersion: num(r[1]), ruleKind, provisionalAllowed: Boolean(r[3]), reportBond: String(economics[0]), confirmedBounty: String(economics[1]), enabled: Boolean(r[4]) });
     }
     const effects: PolicyEffect[] = [];
     for (let i = 0; i < effectCount; i++) {
@@ -581,12 +581,32 @@ export class DirectRecloseClient implements RecloseSDK {
     return out;
   }
 
+  /**
+   * Fix (independent audit finding): `authorityRevoked` was previously conflated with provider
+   * UNAVAILABILITY (`available: count === 0 && !target.authorityRevoked`). These are different
+   * facts - authority-revoked means Reclose's OWN control authority over the target is gone, not
+   * that the underlying provider/resource is actually down. Since `getEffectiveProviderStatus` is
+   * one of the frozen 14 RecloseSDK methods (its `available` field is typed as a strict boolean,
+   * never nullable), UNKNOWN cannot be returned as a third boolean state - instead the two facts
+   * are now reported through DISTINCT `reason.code` values, so a caller can tell "Reclose has lost
+   * authority over this target" (`AUTHORITY_REVOKED`) apart from "a real restriction is active on
+   * this resource" (restriction count > 0) rather than both silently reading as the same generic
+   * unavailability. `available` remains conservative/fail-closed (false) in both cases, since
+   * Reclose genuinely cannot vouch for a resource it has no active restriction enforcement over.
+   */
   async getEffectiveProviderStatus(targetId: string, resourceId: string): Promise<{ resourceId: string; available: boolean; reason: ErrorEnvelope | null }> {
     const target = await this.getTarget(targetId);
+    if (target.authorityRevoked) {
+      return {
+        resourceId,
+        available: false,
+        reason: { code: "AUTHORITY_REVOKED", message: `Reclose's control authority over target ${targetId} has been revoked - this is NOT a statement about the actual provider/resource's live availability, which Reclose can no longer assert.` },
+      };
+    }
     const count = num(await this.kernel("get_resource_restriction_count", [target.targetAddress, resourceId]));
     return {
       resourceId,
-      available: count === 0 && !target.authorityRevoked,
+      available: count === 0,
       reason: count === 0 ? null : { code: "UNKNOWN", message: `${count} active assurance restriction(s) apply to ${resourceId}` },
     };
   }
@@ -635,6 +655,10 @@ export class DirectRecloseClient implements RecloseSDK {
       valueWei: "0",
       feeEstimate,
       semanticKind: "TARGET_REGISTRATION" as PreparedWriteSemanticKind,
+      // Signer-binding requirement: registration has a known expected signer only when the caller
+      // supplied one to pre-check against the target's live-reported owner; otherwise null (no
+      // single identity to bind yet).
+      expectedSigner: (input.expectedOwner as `0x${string}` | undefined) ?? null,
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
     const report: PreparedRecloseWrite = { ...draft, reviewHash: computeReviewHash(forHash) };
@@ -678,6 +702,40 @@ export class DirectRecloseClient implements RecloseSDK {
    * and has no wallet access); `bondId` is caller-supplied when the rule's economics require a
    * bond, otherwise "" (zero-bond path). Fee estimation runs over this exact 8-argument call,
    * never a shortened placeholder. */
+  /**
+   * FINAL_REMEDIATION.md Section 5: the non-zero Reporter bond journey. Prepares
+   * `IncentiveVault.open_bond` bound to the EXACT deterministic incident identity
+   * (`deriveIncidentId`, the same formula the IncidentJudge contract itself evaluates) and the
+   * rule's real immutable policy economics - never a caller-invented amount (value is fixed to
+   * `rule.reportBond` wei exactly, matching contracts/incentive_vault.py::open_bond's own
+   * `BOND_AMOUNT_MISMATCH` check). `bondId` is derived deterministically from the predicted
+   * incident identity when not supplied, so a given reporter/target/nonce always opens the SAME
+   * bond id rather than a fresh random one each preview.
+   */
+  async buildOpenBond(input: { targetId: string; ruleId: string; reporterAddress: string; bondId?: string }): Promise<{
+    report: unknown;
+    feePreview: FeeTransactionPreview;
+    bondId: string;
+  }> {
+    if (!this.addresses.vault) throw new Error("No Vault address configured - the bonded reporting journey requires addresses.vault");
+    const policy = await this.getActivePolicy(input.targetId);
+    const rule = policy.rules.find((r) => r.ruleId === input.ruleId && r.enabled);
+    if (!rule) throw new Error(`Rule ${input.ruleId} is not active for ${input.targetId}`);
+    if (BigInt(rule.reportBond || "0") <= 0n) throw new Error(`Rule ${input.ruleId} is a zero-bond rule - do not open a Vault bond for it (E_VLT_010).`);
+    const reporterNonce = num(await this.judgeRead("get_reporter_nonce", [input.reporterAddress]));
+    const predictedIncidentId = deriveIncidentId(input.targetId, input.reporterAddress, reporterNonce);
+    const bondId = (input.bondId ?? `bond:${predictedIncidentId}`).slice(0, 96);
+    const args: unknown[] = [bondId, input.targetId, policy.summary.policyKey, policy.summary.version, input.ruleId, reporterNonce, predictedIncidentId];
+    const feeEstimate = await this.feePreview("open_bond", args, this.addresses.vault);
+    const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
+      schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress: this.addresses.vault,
+      functionName: "open_bond", args, valueWei: rule.reportBond, feeEstimate,
+      semanticKind: "INCIDENT_REPORT" as PreparedWriteSemanticKind, expectedSigner: input.reporterAddress as `0x${string}`,
+    };
+    const { feeEstimate: _omitted, ...forHash } = draft;
+    return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate, bondId };
+  }
+
   async buildIncidentReport(input: {
     targetId: string;
     ruleId: string;
@@ -702,8 +760,16 @@ export class DirectRecloseClient implements RecloseSDK {
     }
     if (!input.reporterAddress) throw new Error("reporterAddress is required to bind the EAP and derive the reporter nonce - Reclose never custodies a signing identity");
     const reporterAddress = input.reporterAddress;
-    const bondId = input.bondId ?? "";
     const ruleId = input.ruleId as RuleId;
+    // Non-zero bond rule (FINAL_REMEDIATION.md Section 5): submit_incident must never be prepared
+    // with bondId="" when the rule's reportBond > 0 - the Judge's own _verify_bond would reject it
+    // anyway, but silently defaulting to "" here would present a signable draft that was never a
+    // real bonded submission. The caller must open the bond FIRST (buildOpenBond) and pass back
+    // its exact bondId; zero-bond rules remain the direct, bondId-less path.
+    if (BigInt(rule.reportBond || "0") > 0n && !input.bondId) {
+      throw new Error(`Rule ${ruleId} requires a non-zero bond (${rule.reportBond} wei). Call buildOpenBond first, submit and confirm that transaction, then pass its bondId here - submit_incident cannot be prepared without it.`);
+    }
+    const bondId = input.bondId ?? "";
 
     const eap = this.buildCanonicalEap({
       targetId: input.targetId,
@@ -729,6 +795,9 @@ export class DirectRecloseClient implements RecloseSDK {
       valueWei: "0",
       feeEstimate,
       semanticKind: "INCIDENT_REPORT" as PreparedWriteSemanticKind,
+      // Signer-binding requirement: the connected wallet account must equal the EAP-bound
+      // reporter immediately before signing - this draft was reviewed and built FOR this address.
+      expectedSigner: reporterAddress as `0x${string}`,
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
     const report: PreparedRecloseWrite & { predictedIncidentId: PredictedIncidentIdentity } = {
@@ -782,6 +851,7 @@ export class DirectRecloseClient implements RecloseSDK {
       valueWei: "0",
       feeEstimate,
       semanticKind: "RECOVERY_VALIDATION_REPORT" as PreparedWriteSemanticKind,
+      expectedSigner: reporterAddress as `0x${string}`,
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
     const report: PreparedRecloseWrite & { predictedIncidentId: PredictedIncidentIdentity } = {
@@ -806,9 +876,14 @@ export class DirectRecloseClient implements RecloseSDK {
   async buildRevokeAuthority(input: { targetId: string }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
     const args: unknown[] = [input.targetId];
     const feeEstimate = await this.feePreview("revoke_authority", args, this.addresses.kernel);
+    // Signer-binding requirement: the expected signer for an owner-bounded write is the target's
+    // currently-cached owner - a fast pre-sign UX check only. The Kernel's own live owner read at
+    // execution time (_require_live_owner) remains the actual authority (CLAUDE.md Section 12).
+    const expectedSigner = (await this.getTarget(input.targetId)).cachedOwner as `0x${string}`;
     const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
       schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress: this.addresses.kernel,
       functionName: "revoke_authority", args, valueWei: "0", feeEstimate, semanticKind: "AUTHORITY_REVOCATION" as PreparedWriteSemanticKind,
+      expectedSigner,
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
     return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate };
@@ -817,9 +892,11 @@ export class DirectRecloseClient implements RecloseSDK {
   async buildDisableAction(input: { targetId: string; actionType: number }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
     const args: unknown[] = [input.targetId, input.actionType];
     const feeEstimate = await this.feePreview("disable_action", args, this.addresses.kernel);
+    const expectedSigner = (await this.getTarget(input.targetId)).cachedOwner as `0x${string}`;
     const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
       schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress: this.addresses.kernel,
       functionName: "disable_action", args, valueWei: "0", feeEstimate, semanticKind: "DISABLE_ACTION" as PreparedWriteSemanticKind,
+      expectedSigner,
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
     return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate };
@@ -828,9 +905,11 @@ export class DirectRecloseClient implements RecloseSDK {
   async buildDisableResource(input: { targetId: string; resourceId: string }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
     const args: unknown[] = [input.targetId, input.resourceId];
     const feeEstimate = await this.feePreview("disable_resource", args, this.addresses.kernel);
+    const expectedSigner = (await this.getTarget(input.targetId)).cachedOwner as `0x${string}`;
     const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
       schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress: this.addresses.kernel,
       functionName: "disable_resource", args, valueWei: "0", feeEstimate, semanticKind: "DISABLE_RESOURCE" as PreparedWriteSemanticKind,
+      expectedSigner,
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
     return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate };

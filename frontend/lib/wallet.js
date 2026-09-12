@@ -55,3 +55,23 @@ export async function connectBrowserWallet() {
 export function walletProviderAvailable() {
   return detectProvider() !== null;
 }
+
+/**
+ * Requests the connected wallet switch to Studio-dev (chain 61997) via the standard EIP-3326
+ * `wallet_switchEthereumChain` request - the supported browser-wallet network-switching mechanism
+ * underneath genlayer-js's own chain verification (`assertChainMatch`), not an invented flow. Re-
+ * throws with an actionable message if the wallet rejects the request or has no Studio-dev chain
+ * registered (error code 4902), since Reclose cannot register a chain on the user's behalf
+ * without their explicit `wallet_addEthereumChain` approval - that remains the wallet's own UX.
+ */
+export async function switchToStudioDev(provider) {
+  if (!provider) throw new Error("No wallet provider is connected.");
+  try {
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0xF22D" }] });
+  } catch (error) {
+    if (error?.code === 4902) {
+      throw new Error("The connected wallet has no Studio-dev (chain 61997) network registered. Add it in your wallet, then try again.");
+    }
+    throw new Error(`Network switch was not completed: ${error?.message ?? String(error)}`);
+  }
+}

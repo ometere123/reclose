@@ -57,6 +57,9 @@ export class MockProductAdapter {
       synthetic: true
     };
   }
+  async previewOpenBond() {
+    throw new Error("Fixture mode never submits transactions. Switch to a host-provided live Reclose SDK writer.");
+  }
   async previewRecovery(input) {
     await delay();
     return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "100000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
@@ -81,8 +84,17 @@ export class MockProductAdapter {
     await delay();
     return { valid: false, errors: ["Fixture mode cannot validate against a live active policy - connect a live SDK."], manifestHash: null, diff: null, synthetic: true };
   }
-  async previewPolicyConstruction() {
+  async compilePolicyConstruction() {
     throw new Error("Fixture mode has no live SDK + policy-compiler bridge connected. The real multi-transaction policy construction sequence requires both.");
+  }
+  async buildPolicyConstructionStep() {
+    throw new Error("Fixture mode cannot build a real construction step - connect a live SDK + policy-compiler bridge.");
+  }
+  async buildPolicyActivation() {
+    throw new Error("Fixture mode cannot build a real activation write - connect a live SDK.");
+  }
+  async getPolicyHeaderReadback() {
+    throw new Error("Fixture mode cannot read back on-chain policy state - connect a live SDK.");
   }
   async submitWrite() {
     throw new Error("Fixture mode never submits transactions. Switch to a host-provided live Reclose SDK writer.");
@@ -227,8 +239,38 @@ export class SdkProductAdapter {
           remediationSubmitted: null,
           remediationDecision: null,
           recoveryValidated: null,
-          protocolReadLimitation: "remediationSubmitted/remediationDecision/recoveryValidated are UNKNOWN: the Kernel exposes no protocol view linking a remediation/recovery-validation incident back to its parent (no parent_incident_id field, no child-incident enumeration) - see known-limitations.md.",
+          protocolReadLimitation: "remediationSubmitted/remediationDecision/recoveryValidated could not be resolved: the Kernel exposes no protocol view linking a remediation/recovery-validation incident back to its parent (no parent_incident_id field, no child-incident enumeration), and no indexer.resolveIncidentLineage adapter is connected to supply it off-chain - see known-limitations.md.",
         };
+        // Closes the remediation/recovery-validation chain read-gap via the smallest additive
+        // piece that doesn't require a contract change: an OPTIONAL indexer-provided lineage
+        // mapping (parent incidentId -> its remediation/recovery-validation incident ids), read
+        // back against AUTHORITATIVE protocol state (sdk.getIncident/getDecision on those linked
+        // ids) rather than trusted as-is from the indexer. An indexer is convenience
+        // infrastructure (CLAUDE.md Section 32) - if it supplies a wrong id, the protocol read on
+        // that id simply fails/disagrees, it is never taken as truth on its own.
+        if (typeof this.indexer?.resolveIncidentLineage === "function") {
+          const lineage = await this.indexer.resolveIncidentLineage(incidentId);
+          if (lineage?.remediationIncidentId) {
+            try {
+              const remediation = await this.sdk.getIncident(lineage.remediationIncidentId);
+              if (remediation.targetId === incident.targetId) {
+                recovery.remediationSubmitted = true;
+                try { recovery.remediationDecision = (await this.sdk.getDecision(`${lineage.remediationIncidentId}:FINAL`)).outcome; } catch { /* not final yet */ }
+              }
+            } catch { /* indexer-supplied id did not resolve to a real incident - ignore it, do not fabricate */ }
+          }
+          if (lineage?.recoveryValidationIncidentId) {
+            try {
+              const recoveryIncident = await this.sdk.getIncident(lineage.recoveryValidationIncidentId);
+              if (recoveryIncident.targetId === incident.targetId) {
+                try { recovery.recoveryValidated = (await this.sdk.getDecision(`${lineage.recoveryValidationIncidentId}:FINAL`)).outcome === "CONFIRMED"; } catch { /* not final yet */ }
+              }
+            } catch { /* ignore unresolvable indexer id */ }
+          }
+          if (lineage?.remediationIncidentId || lineage?.recoveryValidationIncidentId) {
+            recovery.protocolReadLimitation = null;
+          }
+        }
       } catch { /* leave recovery null - an unreadable restriction set is not the same as "no recovery data" */ }
     }
     return { ...incident, finalOutcome: finalDecision?.outcome ?? null, decisionStage: finalDecision?.decisionStage ?? null, judgmentTx: decisionView?.transaction ?? null, trace, recovery };
@@ -246,6 +288,13 @@ export class SdkProductAdapter {
   async previewIncident(input) {
     const built = await this.sdk.buildIncidentReport(input);
     return { ...built.feePreview, draft: built.report, synthetic: false };
+  }
+  /** FINAL_REMEDIATION.md Section 5: prepares IncentiveVault.open_bond for a non-zero-bond rule -
+   * must be signed and confirmed BEFORE the incident/recovery draft that references its bondId. */
+  async previewOpenBond(input) {
+    if (typeof this.sdk.buildOpenBond !== "function") throw new Error("Connected SDK does not support the bonded reporting journey");
+    const built = await this.sdk.buildOpenBond(input);
+    return { ...built.feePreview, draft: built.report, bondId: built.bondId, synthetic: false };
   }
   async previewRecovery(input) {
     const built = await this.sdk.buildRecoveryReport(input);
@@ -286,25 +335,44 @@ export class SdkProductAdapter {
   }
 
   /**
-   * FINAL_REMEDIATION.md Section 3: the REAL multi-transaction construct/seal/activate journey -
-   * compiles the manifest through the canonical policy-compiler bridge (never a shortcut/stub),
-   * then wraps EVERY resulting Kernel call (begin_policy, each add_policy_resource, each
-   * add_policy_rule, each add_policy_effect, seal_policy) plus the final activate_policy as its
-   * own real, fee-estimated, review-hashed PreparedRecloseWrite - a reviewer signs each step
-   * individually, in order, exactly as the Kernel itself requires them to arrive.
+   * FINAL_REMEDIATION.md Section 3 (strict sequential state machine): compiles the manifest
+   * through the canonical policy-compiler bridge into its PLAN ONLY - the ordered list of Kernel
+   * calls (begin_policy, each add_policy_resource, each add_policy_rule, each add_policy_effect,
+   * seal_policy). Deliberately does NOT build a PreparedRecloseWrite for every step up front: a
+   * later step's call may reference state (the policy_key existing, a resource being registered)
+   * that does not exist on-chain until its prerequisite step has actually been submitted and
+   * tracked - pre-estimating/pre-signing it earlier would misrepresent readiness. Use
+   * `buildPolicyConstructionStep` to prepare exactly ONE step, only when its prerequisites are
+   * believed satisfied.
    */
-  async previewPolicyConstruction(input) {
+  async compilePolicyConstruction(apm) {
     if (!this.policyCompiler || typeof this.policyCompiler.compileCanonicalApm !== "function") {
       throw new Error("No policy-compiler bridge is connected. The real multi-transaction construction sequence requires the host to inject @reclose/policy-compiler's compileCanonicalApm alongside the SDK/writer.");
     }
-    const { manifestHash, calls } = this.policyCompiler.compileCanonicalApm(input.apm);
-    const steps = [];
-    for (const call of calls) {
-      const built = await this.sdk.buildPreparedWriteForCall(call, { semanticKind: "POLICY_CONSTRUCTION_STEP" });
-      steps.push({ description: call.description, draft: built.report, feePreview: built.feePreview });
-    }
-    const activation = await this.sdk.buildPolicyActivationWrite({ targetId: input.targetId, policyKey: input.apm.policyId, apm: input.apm });
-    return { manifestHash, steps, activation: { description: `Activate policy "${input.apm.policyId}"`, draft: activation.report, feePreview: activation.feePreview, authorityExpands: activation.authorityExpands, diff: activation.diff }, synthetic: false };
+    return this.policyCompiler.compileCanonicalApm(apm);
+  }
+
+  /** Builds exactly ONE compiled call into a real, fee-estimated, review-hashed
+   * PreparedRecloseWrite - called on demand, one step at a time, by the sequential state machine. */
+  async buildPolicyConstructionStep(call) {
+    const built = await this.sdk.buildPreparedWriteForCall(call, { semanticKind: "POLICY_CONSTRUCTION_STEP" });
+    return { description: call.description, draft: built.report, feePreview: built.feePreview, synthetic: false };
+  }
+
+  /** The final step, built only once the caller has confirmed seal_policy succeeded - never
+   * pre-built alongside the construction steps. */
+  async buildPolicyActivation(targetId, policyKey, apm) {
+    const activation = await this.sdk.buildPolicyActivationWrite({ targetId, policyKey, apm });
+    return { description: `Activate policy "${policyKey}"`, draft: activation.report, feePreview: activation.feePreview, authorityExpands: activation.authorityExpands, diff: activation.diff, synthetic: false };
+  }
+
+  /** Real on-chain readback (FINAL_REMEDIATION.md Section 3: "verify on-chain readback") - used
+   * after seal_policy and after activate_policy to confirm the Kernel actually recorded what this
+   * journey just submitted, rather than trusting the writer's return value alone. */
+  async getPolicyHeaderReadback(policyKey) {
+    const policy = await this.sdk.getPolicyByKey?.(policyKey, "");
+    if (!policy) throw new Error("Connected SDK does not support policy readback by key");
+    return policy.summary;
   }
 
   /**
@@ -325,6 +393,20 @@ export class SdkProductAdapter {
     const observedChainId = Number(await this.writer.getConnectedChainId());
     if (observedChainId !== CHAIN_ID) {
       throw new Error(`Wrong network: wallet is on chain ${observedChainId}, Reclose requires ${CHAIN_ID} (${"studio-dev"}). Switch networks and preview again.`);
+    }
+    // Signer-binding requirement: when this draft was reviewed/prepared for a specific address
+    // (EAP reporter, expected owner, or target's cached owner), the CURRENTLY connected wallet
+    // account must match it exactly, checked immediately before this signature - never a stale
+    // address captured when the draft was first built. Drafts with no single expected signer
+    // (e.g. a policy-construction step) skip this check - there is nothing to bind against.
+    if (payload.expectedSigner) {
+      if (typeof this.writer.getConnectedAccount !== "function") {
+        throw new Error("Refusing to sign: the connected writer cannot report its signing account. Signer identity cannot be verified.");
+      }
+      const connectedAccount = String(await this.writer.getConnectedAccount()).toLowerCase();
+      if (connectedAccount !== String(payload.expectedSigner).toLowerCase()) {
+        throw new Error(`Signer mismatch: connected wallet is ${connectedAccount}, but this draft was reviewed for ${payload.expectedSigner}. Reconnect the correct account and preview again.`);
+      }
     }
     const method = {
       incident: "submitIncident",

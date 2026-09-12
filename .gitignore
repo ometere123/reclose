@@ -22,6 +22,7 @@ artifacts/
 
 # build artifacts
 dist/
+frontend/vendor/
 build/
 *.tsbuildinfo
 

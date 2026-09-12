@@ -1,94 +1,80 @@
 # A3 Attempt 2 - Known Limitations
 
-(Updated for the THIRD remediation sub-pass, responding directly to an independent audit's
-findings against the prior checkpoint `ad38a3920892c5c0681e4d603afc8ef07254228d`. That audit
-correctly identified that several "closures" were code existing without the real runtime/identity
-pieces wired behind them. This pass fixes the specific defects named, not a superficial relabeling.)
+(Fourth and final remediation sub-pass. This pass implements the corrected real browser wallet
+architecture - injected provider -> genlayer-js@2.0.0-rc.1 write client -> writeContract(), no
+Snap, no custom signer, no host-injected-writer requirement for ordinary use - plus signer-identity
+binding, a strict sequential policy construction/activation state machine, Kernel-equivalent
+judgeVersion preservation, the non-zero bond journey, an additive recovery-lineage indexer hook,
+and the getEffectiveProviderStatus authority-revoked fix.)
 
-## Fixed this pass (previously real defects, not just presentation gaps)
+## Fixed this pass
 
-1. **Trace identity bug (FIXED):** the live Incident Explorer trace previously displayed
-   `decisionId` (a canonical RECORD identity, e.g. `"<incidentId>:FINAL"`) as if it were a
-   transaction hash (`txId`). Fixed: the Judge-parent trace entry now uses
-   `decisionView.transaction.txId`, the real resolved transaction identity.
-2. **Action-identity bug (FIXED):** `trackActionTrace`/`trackKernelToTargetChild` were called with
-   the bare `incidentId`, which is not a valid Kernel action identity at all (actions are dispatched
-   per EFFECT, not per incident). Fixed: `protocol-sdk::listIncidentActionIds` derives the real
-   Kernel `action_id` (`_ck(incident_id, policy_key, action_type, resource_id)`, mirroring
-   `contracts/assurance_kernel.py::_dispatch_action` exactly) for every enabled effect of the
-   incident's matched rule (capped at `MAX_EFFECTS_PER_DECISION`), and the live adapter now tracks
-   each one individually, labeling each hop with its action type/resource.
-3. **Reduced policy diff (FIXED):** `diffCanonicalApm` previously tracked only resource/action/
-   judge-set membership and human-override - a bounty increase, a parameter change, or a
-   release-phase change on an otherwise-identical effect was invisible to it. Fixed:
-   `extractKernelRuleEffectModel` + the rewritten `diffCanonicalApm` mirror
-   `contracts/assurance_kernel.py::_classify_expansion` exactly - rule identity is
-   `(ruleId, judge, judgeVersion, ruleKind, provisionalAllowed, reportBond)` mapped to
-   confirmedBounty (expansion if a bounty increases or an identity is new), and effects are the
-   tuple `(ruleId, actionType, resourceId, paramU256, paramStr, releasePhase)` (expansion if the
-   new effect set is not a subset of the old - ANY field change on an effect is conservatively
-   treated as potential expansion, matching the Kernel's own subset semantics, never a
-   human-judged "this one's obviously fine" carve-out).
-4. **Unvalidated resource selection (FIXED):** `buildIncidentReport` now rejects any `resourceId`
-   that is not governed by a real ENABLED effect of the chosen rule in the target's active policy,
-   and the report form's resource `<select>` is filtered PER RULE (via each effect's own `ruleId`,
-   newly exposed on `PolicyEffect`) rather than a rule-agnostic union of every resource in the
-   policy.
-5. **No browser wallet/reporter-identity path (FIXED):** `frontend/lib/wallet.js` is a real
-   EIP-1193-style connect-wallet integration (`eth_requestAccounts`/`eth_chainId` against
-   `window.genlayer` or `window.ethereum`). The shell now renders a real connect-wallet control;
-   incident/recovery previews bind `reporterAddress` to the connected address and REFUSE to preview
-   in live mode without one (previously there was no path to a reporter identity at all, meaning
-   `buildIncidentReport` could never actually be called successfully from the browser).
-6. **Single-button policy "construction" fiction (FIXED):** the policy-author screen now has a
-   real "Build construction sequence" action that compiles the manifest through the canonical
-   `@reclose/policy-compiler::compileCanonicalApm` (injected by the host, like `sdk`/`writer`/
-   `indexer`, since the bundler-less frontend cannot import it directly and `protocol-sdk` cannot
-   depend on it without circularity) into its exact ordered `begin_policy` / `add_policy_resource`*
-   / `add_policy_rule`* / `add_policy_effect`* / `seal_policy` / `activate_policy` calls, each
-   becoming its OWN independently fee-estimated, review-hashed, individually-signed
-   `PreparedRecloseWrite` - never one button standing in for six-plus real transactions.
-7. **Reduced signing-boundary review (FIXED):** every write-preview panel (incident, recovery,
-   registration, owner controls, policy construction/activation) now renders through one shared
-   `renderPreparedWriteFields` helper that shows chainId, contract, method, EVERY positional
-   argument, valueWei, semanticKind and reviewHash - not just contract/method/reviewHash as before.
-8. **Recovery surface showing nothing live (PARTIALLY FIXED):** live `getIncident` now populates
-   `recovery.remainingRestrictions` from the incident's own real restriction records
-   (`protocol-sdk::getIncidentOwnRestrictions`, newly exposed). The remediation/recovery-validation
-   CHAIN fields (`remediationSubmitted`, `remediationDecision`, `recoveryValidated`) are explicitly
-   marked unknown rather than guessed - see the genuine protocol read-gap below.
+1. **Real browser write runtime:** `frontend/lib/genlayerWriter.js` creates a GenLayerJS write
+   client (`createClient({chain: studioDevnet, account, provider})`) over the connected injected
+   provider and submits every write through the pinned SDK's own `writeContract()`. The vendor
+   bundle (`scripts/build-frontend-vendor.mjs`, run via `npm run frontend:vendor:build`, wired into
+   `verify:js`) re-exports genlayer-js@2.0.0-rc.1's own `createClient`/`studioDevnet` into a
+   browser-consumable ESM file - the frontend otherwise has no bundler, so this is the one build
+   step needed to reach the exact pinned SDK from plain static files. No Snap, no Reclose-custodied
+   key, no homemade calldata signer, no requirement that a host inject a writer for ordinary usage.
+2. **Signer identity binding:** every draft with a known signer (`expectedSigner` - the EAP
+   reporter for incident/recovery, the target's cached owner for owner-bounded writes) is checked
+   against the connected wallet's `getConnectedAccount()` immediately before every signature, not
+   at preview time. `accountsChanged`/`chainChanged` on the injected provider clear every prepared
+   draft (including dynamically-keyed policy-construction steps, via the new
+   `draftRegistry.clearAll()`) and force reconnection.
+3. **Strict sequential policy construction:** the policy-author screen now compiles the manifest
+   into a PLAN (`compilePolicyConstruction`) without pre-building any step, then builds and signs
+   exactly ONE step at a time (`buildPolicyConstructionStep`) - begin_policy, then each resource/
+   rule/effect call, then seal_policy - reads back the real on-chain seal state
+   (`getPolicyHeaderReadback`) before building the activation draft, which is never pre-built
+   alongside the construction steps.
+4. **judgeVersion preserved:** `PolicyRule.judgeVersion` is read from `get_policy_rule`'s real
+   tuple index 1 and carried through every read/diff path; `diffCanonicalApm` now correctly treats
+   a judge-version bump as a new rule identity (tested).
+5. **Non-zero Reporter bond journey:** `buildOpenBond` prepares `IncentiveVault.open_bond` bound to
+   the exact predicted incident identity and the rule's real immutable economics;
+   `buildIncidentReport` now REFUSES to prepare a non-zero-bond rule's submission without a
+   verified `bondId`. The report form gates the incident preview behind a real "Open reporter
+   bond" step for bonded rules; zero-bond rules remain the direct path.
+6. **getEffectiveProviderStatus fix:** `authorityRevoked` no longer collapses into the same
+   `available: false` reason as a real active restriction - it now returns the distinct
+   `AUTHORITY_REVOKED` reason code, since losing Reclose's control authority is not the same fact
+   as the underlying provider/resource actually being down. `available` itself stays a
+   conservative `false` in both cases because the method's `available` field is one of the frozen
+   14 RecloseSDK methods' return fields (a strict boolean, not nullable) - UNKNOWN is expressed
+   through the reason code instead.
+7. **Recovery-lineage read-gap (partially closed):** the Kernel's `get_incident_detail` has no
+   `parent_incident_id` field and no "child incidents of X" view - confirmed by reading
+   `contracts/assurance_kernel.py` in full. Rather than leaving this purely documented, an OPTIONAL
+   `indexer.resolveIncidentLineage(incidentId)` hook (the same convenience-infrastructure pattern
+   already used for `resolveActionTransaction`) is now wired into `getIncident`: when an indexer
+   supplies a remediation/recovery-validation incident id, it is read back against AUTHORITATIVE
+   protocol state (`sdk.getIncident`/`getDecision`, cross-checked against `targetId`) before being
+   trusted - an indexer is convenience infrastructure (CLAUDE.md Section 32), never taken as truth
+   on its own. Without a connected indexer, the fields remain explicitly unknown, never fabricated.
 
-## Genuine, now-diagnosed protocol read-gap (not fixable from the frontend/SDK layer alone)
+## Genuine, now-diagnosed protocol read-gaps (require a Kernel view, out of SDK/frontend scope)
 
-9. The Kernel's `get_incident_detail` view has no `parent_incident_id` field, and there is no view
-   enumerating "child incidents of X". Remediation/recovery-validation are, Kernel-side, SEPARATE
-   incidents linked by `parent_incident_id` - so a live product cannot currently reconstruct "has
-   remediation been submitted for this incident, and what was its decision" from protocol reads
-   alone. Closing this requires either a new Kernel view (a contract change, with the full Python
-   test matrix and a fresh live deployment that implies, explicitly out of scope for a frontend/SDK
-   remediation pass) or an index/indexer-side mapping (already the documented pattern for
-   transaction-identity resolution elsewhere in this codebase). Recorded here as a genuine A3-H08
-   architecture finding, not glossed over.
+8. `get_policy_header` exposes no `sealed_at`/`activation_not_before` field, so the real expansion
+   timelock countdown cannot be read. The sequential construction journey reads what IS available
+   (the `sealed` flag) and explicitly states this limitation rather than fabricating a countdown.
+9. No protocol view enumerates "child incidents of X" - the indexer hook in item 7 is the smallest
+   additive answer available without a contract change; a full closure (a new Kernel view plus
+   redeployment and the full Python test matrix) was judged too large and too risky to attempt
+   blind on a live network within this remediation pass, and is recorded here as the honest reason
+   rather than attempted destructively.
 
-## Still-open, reported honestly (not newly discovered, not newly closed)
+## Still open, reported honestly
 
-10. A3-H08's remaining scope (policy-level/cross-incident audit export, beyond the per-incident
-    export already shipped) was not attempted this pass.
-11. The canonical 156-row `docs/execution/Requirements Status.csv` ledger was not rewritten; this
-    packet's own `requirements.csv` now mirrors the full canonical set for every category
-    FINAL_REMEDIATION.md Section 16 lists (ACC/TGT/POL/REP/INC/REC/EXP/DEV/BEN, NFR-SEC/REL/UX -
-    117 rows, not a curated subset), with this session's specific frontend-layer deltas overlaid
-    where they materially changed C4 status.
-12. No automated axe-core/Lighthouse accessibility scan was run against this exact SHA.
-13. No full manual screen-reader pass was performed.
-14. No actual GenLayer-aware wallet SIGNER was exercised - `frontend/lib/wallet.js` proves a real
-    connected address/chain ID, but actually signing a GenLayer contract call still requires a
-    host-injected writer (CLAUDE.md Section 21: Reclose never custodies a key). This was verified
-    live in the Browser pane in fixture mode (the owner-control/policy-review flows); no live
-    wallet extension was available in this sandboxed browser to prove the signing leg end-to-end.
-15. A2-C01 (Studio-dev Judge -> Kernel `fee no_matching_allocation # internal`) remains open,
-    unchanged by this pass, and now ALSO explains why A3-H04's Kernel->Target second hop (and the
-    new per-effect action tracking built this pass) cannot be live-proven: the first hop fails
-    before any action dispatch fires on the only live network available.
-16. E1/H1-live/A4/R1/S1 work was not attempted, per FINAL_REMEDIATION.md Section 17's explicit
-    sequencing.
+10. No real wallet extension was available in this sandboxed Browser pane to prove the live
+    signing leg end-to-end (the "Connect wallet" control correctly reports "No wallet provider
+    detected" here) - the genlayer-js write-client wiring is proven by the vendor-bundle export
+    check and the writer's structural tests, not a live transaction.
+11. A3-H08's remaining policy-level/cross-incident export scope (beyond the per-incident export)
+    was not attempted this pass.
+12. No automated axe-core/Lighthouse accessibility scan was run against this exact SHA; no full
+    manual screen-reader pass was performed.
+13. A2-C01 (Studio-dev Judge -> Kernel `fee no_matching_allocation # internal`) remains open,
+    unchanged, and continues to block both E1/R1 closure and live proof of A3-H04's second hop.
+14. E1/H1-live/A4/R1/S1 work was not attempted, per FINAL_REMEDIATION.md Section 17.

@@ -4,7 +4,8 @@ import {
 } from "./lib/domain.js";
 import { selectProductAdapter } from "./lib/adapters.js";
 import { PendingTransactionStore, persistThenTrack } from "./lib/persistence.js";
-import { connectBrowserWallet, walletProviderAvailable } from "./lib/wallet.js";
+import { connectBrowserWallet, switchToStudioDev, walletProviderAvailable } from "./lib/wallet.js";
+import { createGenLayerWriter } from "./lib/genlayerWriter.js";
 
 const app = document.getElementById("app");
 const adapter = selectProductAdapter();
@@ -24,7 +25,12 @@ const state = {
   /** Real connected browser wallet identity (address + live chain ID) - null until
    * connectBrowserWallet() succeeds. This is the reporterAddress every write preview now binds
    * to; there is no other path to a reporter identity in the browser. */
-  wallet: null
+  wallet: null,
+  /** Sequential policy construction/activation journey state - see renderPolicyJourneyStep. */
+  policyJourney: null,
+  /** The currently-confirmed reporter bond for the report form's selected rule, if one was
+   * opened this session - see renderBondGate/handleOpenBondSubmit. */
+  openedBond: null
 };
 
 /**
@@ -97,7 +103,8 @@ function shell(content, currentRoute) {
 function walletChip() {
   if (state.wallet) {
     const wrongNetwork = state.wallet.chainId !== CHAIN_ID;
-    return `<span class="network-chip" data-action="wallet-status" title="${escapeHtml(state.wallet.address)}">${wrongNetwork ? "WRONG NETWORK · " : ""}${escapeHtml(shortHash(state.wallet.address, 6, 4))} · chain ${escapeHtml(state.wallet.chainId)}</span>`;
+    const status = `<span class="network-chip" data-action="wallet-status" title="${escapeHtml(state.wallet.address)}">${wrongNetwork ? "WRONG NETWORK · " : ""}${escapeHtml(shortHash(state.wallet.address, 6, 4))} · chain ${escapeHtml(state.wallet.chainId)}</span>`;
+    return wrongNetwork ? `${status} <button class="button" type="button" data-action="switch-network">Switch network</button>` : status;
   }
   if (!walletProviderAvailable()) return `<span class="muted" style="font-size:11px">No wallet provider detected</span>`;
   return `<button class="button" type="button" data-action="connect-wallet">Connect wallet</button>`;
@@ -301,6 +308,12 @@ async function renderReport() {
     }
     for (const k of Object.keys(ruleResourceMap)) ruleResourceMap[k] = [...ruleResourceMap[k]];
   }
+  // FINAL_REMEDIATION.md Section 5: the non-zero Reporter bond journey. ruleBondMap lets the
+  // report form know, per rule, whether a Vault bond must be opened (and verified) before an
+  // incident preview is even attempted - a bonded report is never presented as signable without
+  // a confirmed open bond.
+  const ruleBondMap = {};
+  for (const r of policy?.rules?.filter((r) => r.enabled) ?? []) ruleBondMap[r.ruleId] = r.reportBond;
   const firstRuleId = policy?.rules?.find((r) => r.enabled)?.ruleId ?? "";
   const initialResourceIds = ruleResourceMap[firstRuleId] ?? [];
   const resourceOptionsHtml = (ids) => ids.length
@@ -317,15 +330,79 @@ async function renderReport() {
   return `${pageHead("write flow", "Report incident", "Evidence is built and fee/bond requirements are previewed before any signing step.")}
     ${adapter.mode === "mock" ? notice("No mock writes", "Fixture mode can preview this flow but will never fabricate a submitted transaction.", "warning") : ""}
     ${governedNotice}
-    <div class="grid">${panel("Incident report", `<form id="incident-form" novalidate data-rule-resource-map='${escapeHtml(JSON.stringify(ruleResourceMap))}'>
+    <div class="grid">${panel("Incident report", `<form id="incident-form" novalidate data-rule-resource-map='${escapeHtml(JSON.stringify(ruleResourceMap))}' data-rule-bond-map='${escapeHtml(JSON.stringify(ruleBondMap))}'>
       <div id="incident-errors" class="error-summary" hidden></div>
       <div class="field"><label for="report-target">Target ID</label><input id="report-target" name="targetId" value="${escapeHtml(target)}" required autocomplete="off"></div>
       <div class="field"><label for="report-rule">Rule</label><select id="report-rule" name="ruleId">${ruleOptions}</select></div>
       <div class="field"><label for="report-resource">Affected resource</label>${resourceField}</div>
       <div class="field"><label for="report-url">Evidence URL</label><input id="report-url" name="url" type="url" value="https://status.example.com/incident" required><span class="hint">Public HTTPS only. Evidence content is never rendered as HTML.</span></div>
       <div class="field"><label for="report-class">Source class</label><select id="report-class" name="sourceClass"><option>AUTHORITATIVE_PUBLIC</option><option>INDEPENDENT_PUBLIC</option><option>ONCHAIN</option><option>CONTENT_ADDRESSED_SNAPSHOT</option></select></div>
+      <div id="bond-gate"></div>
       <div class="form-actions"><button class="button primary" type="submit">Preview fee & bond</button></div>
     </form>`, "span-7")}${panel("Signing boundary", `<div id="incident-preview" class="empty">No fee preview yet.</div>`, "span-5")}</div>`;
+}
+
+/** FINAL_REMEDIATION.md Section 5: renders the bond gate for the currently selected rule. A
+ * non-zero-bond rule shows an "Open reporter bond" control and BLOCKS the incident preview
+ * (handleIncidentSubmit checks `state.openedBond`) until that bond is signed and its real bondId
+ * captured. Zero-bond rules render nothing - they remain the direct path. */
+function renderBondGate() {
+  const form = document.getElementById("incident-form");
+  const gate = document.getElementById("bond-gate");
+  if (!form || !gate) return;
+  const map = JSON.parse(form.dataset.ruleBondMap || "{}");
+  const ruleId = document.getElementById("report-rule")?.value;
+  const reportBond = map[ruleId] ?? "0";
+  if (!ruleId || BigInt(reportBond || "0") <= 0n) { gate.innerHTML = ""; state.openedBond = null; return; }
+  if (state.openedBond?.ruleId === ruleId) {
+    gate.innerHTML = notice("Reporter bond open", `Bond ${state.openedBond.bondId} confirmed (tx ${shortHash(state.openedBond.txId)}). This report will reference it.`, "success");
+    return;
+  }
+  gate.innerHTML = `${notice("Reporter bond required", `This rule requires a ${reportBond} wei bond. Open it before the incident can be previewed - a bonded report is never signable without a confirmed open bond.`, "warning")}<button class="button" type="button" data-action="open-bond">Open reporter bond</button><div id="bond-preview" class="empty">No bond preview yet.</div>`;
+  document.querySelector('[data-action="open-bond"]')?.addEventListener("click", handleOpenBondSubmit);
+}
+
+async function handleOpenBondSubmit() {
+  const targetId = document.getElementById("report-target")?.value || "";
+  const ruleId = document.getElementById("report-rule")?.value || "";
+  const el = document.getElementById("bond-preview");
+  if (!state.wallet?.address) { el.innerHTML = notice("Wallet required", "Connect a wallet first - the bond is opened by the reporter's own account.", "danger"); return; }
+  try {
+    const preview = await adapter.previewOpenBond({ targetId, ruleId, reporterAddress: state.wallet.address });
+    el.className = "";
+    draftRegistry.registerDraft("openBond", preview.draft);
+    el.innerHTML = `${renderPreparedWriteFields(preview.draft)}<button class="button primary" type="button" data-action="submit-openBond">Sign & open bond</button>`;
+    document.querySelector('[data-action="submit-openBond"]')?.addEventListener("click", async () => {
+      const draft = draftRegistry.getDraft("openBond");
+      const ok = await submitLiveWriteReturningTxId("openBond");
+      if (ok) {
+        state.openedBond = { ruleId, bondId: draft.args[0], txId: ok };
+        renderBondGate();
+      }
+    });
+  } catch (error) {
+    el.className = "";
+    el.innerHTML = notice("Bond preview unavailable", error.message, "danger");
+  }
+}
+
+/** Like submitLiveWrite, but for the bond step specifically: stays on this page (never navigates
+ * to #/pending) and returns the confirmed txId so the bond gate can capture it. */
+async function submitLiveWriteReturningTxId(kind) {
+  const draft = draftRegistry.getDraft(kind);
+  if (!draft) return null;
+  try {
+    const result = await adapter.submitWrite(kind, draft);
+    if (!result?.txId) throw new Error("Writer returned no transaction ID");
+    draftRegistry.invalidateDraft(kind);
+    await persistThenTrack(pendingStore, { txId: result.txId, kind, incidentId: null }, globalThis.__RECLOSE_PRODUCT_RUNTIME__?.trackTransaction, ({ phase }) => setLiveMessage(`Bond transaction ${phase}: ${shortHash(result.txId)}`));
+    state.pending = pendingStore.loadAll();
+    return result.txId;
+  } catch (error) {
+    setLiveMessage(`Bond submission failed: ${error.message}`);
+    alert(`Bond submission failed: ${error.message}`);
+    return null;
+  }
 }
 
 /** Refreshes `#report-resource`'s options to exactly the resources the NEWLY selected rule
@@ -336,10 +413,12 @@ function handleReportRuleChange(event) {
   const map = JSON.parse(form.dataset.ruleResourceMap || "{}");
   const ids = map[event.currentTarget.value] ?? [];
   const select = document.getElementById("report-resource");
-  if (!select || select.tagName !== "SELECT") return;
-  select.innerHTML = ids.length
-    ? ids.map((r) => `<option value="${escapeHtml(r)}">${escapeHtml(r || "(target-wide)")}</option>`).join("")
-    : `<option value="">No governed resource for this rule</option>`;
+  if (select && select.tagName === "SELECT") {
+    select.innerHTML = ids.length
+      ? ids.map((r) => `<option value="${escapeHtml(r)}">${escapeHtml(r || "(target-wide)")}</option>`).join("")
+      : `<option value="">No governed resource for this rule</option>`;
+  }
+  renderBondGate();
 }
 
 async function renderRecovery(parts) {
@@ -375,10 +454,15 @@ async function renderPolicyAuthor(parts) {
     </div>`;
 }
 
-/** FINAL_REMEDIATION.md Section 3: the real multi-transaction journey. Each compiled Kernel call
- * becomes its own draftRegistry entry (`policyStep:<index>`, or `policyActivate` for the final
- * activate_policy call) so a reviewer previews and signs EVERY step individually, in the exact
- * order the Kernel itself requires - never one button standing in for six+ real transactions. */
+/**
+ * FINAL_REMEDIATION.md Section 3 (strict sequential state machine, independent-audit requirement):
+ * prepare/sign/track/verify begin_policy FIRST, then each resource/rule/effect transaction ONE AT
+ * A TIME, then seal, read the readback, then - only after that - build a fresh activation draft.
+ * `state.policyJourney` holds the compiled PLAN (call descriptions only) and `currentIndex`; a
+ * PreparedRecloseWrite is built for exactly ONE step at a time, never pre-built/pre-estimated for
+ * a step whose prerequisite has not yet been submitted and tracked. Activation is built only after
+ * `seal_policy` is confirmed, never pre-enabled alongside the construction steps.
+ */
 async function handlePolicyBuildConstruction() {
   const el = document.getElementById("policy-construction-output");
   const targetId = document.getElementById("policy-target")?.value || "";
@@ -386,27 +470,92 @@ async function handlePolicyBuildConstruction() {
   try { apm = JSON.parse(document.getElementById("policy-json")?.value || "{}"); }
   catch (error) { el.className = ""; el.innerHTML = notice("Manifest is not valid JSON", error.message, "danger"); return; }
   try {
-    const result = await adapter.previewPolicyConstruction({ targetId, apm });
+    const { manifestHash, calls } = await adapter.compilePolicyConstruction(apm);
+    state.policyJourney = { targetId, apm, policyKey: apm.policyId, manifestHash, calls, currentIndex: 0, sealConfirmed: false, activationBuilt: false };
     el.className = "";
-    const stepPanel = (kind, index, step) => {
-      draftRegistry.registerDraft(kind, step.draft);
-      const expansionNotice = step.authorityExpands !== undefined
-        ? notice("Signing consequence", step.authorityExpands ? "This activation expands authority and must respect the configured activation delay." : "No authority expansion is represented by this diff.", step.authorityExpands ? "danger" : "success")
-        : "";
-      return `<div class="notice" style="margin-top:10px"><strong>Step ${index + 1}: ${escapeHtml(step.description)}</strong>${renderPreparedWriteFields(step.draft)}${expansionNotice}<button class="button primary" type="button" data-action="submit-${kind}">Sign & submit step ${index + 1}</button></div>`;
-    };
-    const stepsHtml = result.steps.map((step, i) => stepPanel(`policyStep:${i}`, i, step)).join("");
-    const activateHtml = stepPanel("policyActivate", result.steps.length, result.activation);
-    el.innerHTML = `${recordRows([["Manifest hash", `<span class="hash">${escapeHtml(result.manifestHash)}</span>`], ["Total steps (construction + activation)", `<span class="mono">${result.steps.length + 1}</span>`]])}${stepsHtml}${activateHtml}`;
-    document.querySelectorAll('[data-action^="submit-policyStep:"], [data-action="submit-policyActivate"]').forEach((btn) => {
-      const kind = btn.dataset.action.replace("submit-", "");
-      btn.addEventListener("click", () => submitLiveWrite(kind));
-    });
+    renderPolicyJourneyStep();
   } catch (error) {
     el.className = "";
     el.innerHTML = notice("Construction sequence unavailable", error.message, "danger");
   }
-  setLiveMessage("Policy construction sequence built. Each step requires its own signature.");
+}
+
+function renderPolicyJourneyPlan() {
+  const j = state.policyJourney;
+  const rows = j.calls.map((c, i) => `<li class="${i < j.currentIndex ? "" : i === j.currentIndex ? "" : "muted"}">${i < j.currentIndex ? "done" : i === j.currentIndex ? "next" : "waiting"} - ${escapeHtml(c.description)}</li>`).join("");
+  return recordRows([["Manifest hash", `<span class="hash">${escapeHtml(j.manifestHash)}</span>`], ["Progress", `<span class="mono">${j.currentIndex}/${j.calls.length} construction steps signed</span>`]]) + `<ol class="trace">${rows}</ol>`;
+}
+
+/** Prepares and renders ONLY the CURRENT step - builds its PreparedRecloseWrite fresh (fee
+ * estimate + review hash over THIS exact call), never reusing a stale estimate from an earlier
+ * render. Never builds or shows a later step's draft. */
+async function renderPolicyJourneyStep() {
+  const el = document.getElementById("policy-construction-output");
+  const j = state.policyJourney;
+  if (!j) return;
+  if (j.currentIndex >= j.calls.length) {
+    el.innerHTML = `${renderPolicyJourneyPlan()}${j.sealConfirmed
+      ? (j.activationBuilt ? "" : `<div class="form-actions" style="margin-top:10px"><button class="button primary" type="button" data-action="policy-build-activation">Build activation draft</button></div>`)
+      : `<div class="form-actions" style="margin-top:10px"><button class="button" type="button" data-action="policy-verify-seal">Verify seal on-chain</button></div>`}`;
+    document.querySelector('[data-action="policy-verify-seal"]')?.addEventListener("click", handlePolicyVerifySeal);
+    document.querySelector('[data-action="policy-build-activation"]')?.addEventListener("click", handlePolicyBuildActivation);
+    return;
+  }
+  try {
+    const step = await adapter.buildPolicyConstructionStep(j.calls[j.currentIndex]);
+    draftRegistry.registerDraft(`policyStep:${j.currentIndex}`, step.draft);
+    el.innerHTML = `${renderPolicyJourneyPlan()}<div class="notice" style="margin-top:10px"><strong>Step ${j.currentIndex + 1} of ${j.calls.length}: ${escapeHtml(step.description)}</strong>${renderPreparedWriteFields(step.draft)}<button class="button primary" type="button" data-action="submit-policyStep:${j.currentIndex}">Sign & submit step ${j.currentIndex + 1}</button></div>`;
+    document.querySelector(`[data-action="submit-policyStep:${j.currentIndex}"]`)?.addEventListener("click", () => submitPolicyJourneyStep());
+  } catch (error) {
+    el.innerHTML = `${renderPolicyJourneyPlan()}${notice(`Step ${j.currentIndex + 1} unavailable`, error.message, "danger")}`;
+  }
+}
+
+/** Submits the CURRENT step, then only advances to preparing the next one after this step's
+ * transaction ID is persisted - a later step is never prepared while an earlier one is still
+ * in flight or unconfirmed. */
+async function submitPolicyJourneyStep() {
+  const j = state.policyJourney;
+  const ok = await submitLiveWrite(`policyStep:${j.currentIndex}`);
+  if (!ok) return; // a failed/rejected step must never advance the sequence
+  j.currentIndex += 1;
+  await renderPolicyJourneyStep();
+}
+
+/** "Read activation_not_before, wait the real timelock where required" (FINAL_REMEDIATION.md
+ * Section 3) - honestly bounded: the Kernel exposes no view for `sealed_at`/`activation_not_before`
+ * (confirmed by reading contracts/assurance_kernel.py::get_policy_header in full - it returns only
+ * version/manifestHash/sealed/active/humanOverrideEnabled). This reads what IS available (sealed
+ * flag via getPolicyHeaderReadback) rather than fabricating a timelock countdown this SDK cannot
+ * actually observe. */
+async function handlePolicyVerifySeal() {
+  const j = state.policyJourney;
+  const el = document.getElementById("policy-construction-output");
+  try {
+    const summary = await adapter.getPolicyHeaderReadback(j.policyKey);
+    if (!summary.sealed) { el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Not sealed yet", "On-chain readback reports sealed=false. The seal_policy transaction may still be pending.", "warning")}`; return; }
+    j.sealConfirmed = true;
+    el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Seal confirmed on-chain", `Readback: version=${summary.version}, manifestHash=${summary.manifestHash}, sealed=true. Activation_not_before cannot be read - the Kernel exposes no view for it (see known-limitations.md) - confirm any required expansion delay has elapsed before activating.`, "success")}<div class="form-actions" style="margin-top:10px"><button class="button primary" type="button" data-action="policy-build-activation">Build activation draft</button></div>`;
+    document.querySelector('[data-action="policy-build-activation"]')?.addEventListener("click", handlePolicyBuildActivation);
+  } catch (error) {
+    el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Readback failed", error.message, "danger")}`;
+  }
+}
+
+/** Built ONLY after seal is confirmed - never pre-enabled alongside the construction steps. */
+async function handlePolicyBuildActivation() {
+  const j = state.policyJourney;
+  const el = document.getElementById("policy-construction-output");
+  try {
+    const activation = await adapter.buildPolicyActivation(j.targetId, j.policyKey, j.apm);
+    j.activationBuilt = true;
+    draftRegistry.registerDraft("policyActivate", activation.draft);
+    const expansionNotice = notice("Signing consequence", activation.authorityExpands ? "This activation expands authority and must respect the configured activation delay." : "No authority expansion is represented by this diff.", activation.authorityExpands ? "danger" : "success");
+    el.innerHTML = `${renderPolicyJourneyPlan()}<div class="notice" style="margin-top:10px"><strong>${escapeHtml(activation.description)}</strong>${renderPreparedWriteFields(activation.draft)}${expansionNotice}<button class="button primary" type="button" data-action="submit-policyActivate">Sign & submit activation</button></div>`;
+    document.querySelector('[data-action="submit-policyActivate"]')?.addEventListener("click", () => submitLiveWrite("policyActivate"));
+  } catch (error) {
+    el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Activation draft unavailable", error.message, "danger")}`;
+  }
 }
 
 /** A3-H02 (policy-activation half): real canonical validate/hash/diff, never a setLiveMessage-only
@@ -527,10 +676,17 @@ async function handleIncidentSubmit(event) {
   // derives the reporter nonce) - there is no other source for it in the browser besides a
   // connected wallet. Without one, preview must refuse rather than silently omitting it.
   if (adapter.mode !== "mock" && !state.wallet?.address) errors.push("Connect a wallet first - reporterAddress is required to build this report and cannot be fabricated.");
+  // FINAL_REMEDIATION.md Section 5: never present a bonded report as signable without a verified
+  // open bond - if the selected rule requires one and it isn't confirmed for THIS rule, refuse.
+  const bondMap = JSON.parse(form.dataset.ruleBondMap || "{}");
+  const requiredBond = bondMap[input.ruleId] ?? "0";
+  if (BigInt(requiredBond || "0") > 0n && state.openedBond?.ruleId !== input.ruleId) {
+    errors.push(`This rule requires a ${requiredBond} wei reporter bond. Open it first using the "Open reporter bond" control above.`);
+  }
   try { const u = new URL(input.url); if (u.protocol !== "https:") errors.push("Evidence URL must use HTTPS."); } catch { errors.push("Evidence URL is invalid."); }
   formError("incident-errors", errors);
   if (errors.length) return;
-  const preview = await adapter.previewIncident({ targetId: input.targetId, ruleId: input.ruleId, resourceId: input.resourceId, reporterAddress: state.wallet?.address, evidenceSources: [{ sourceId: "user-source-1", url: input.url, sourceClass: input.sourceClass, fetchedAt: new Date().toISOString(), availability: "AVAILABLE" }] });
+  const preview = await adapter.previewIncident({ targetId: input.targetId, ruleId: input.ruleId, resourceId: input.resourceId, reporterAddress: state.wallet?.address, bondId: state.openedBond?.bondId, evidenceSources: [{ sourceId: "user-source-1", url: input.url, sourceClass: input.sourceClass, fetchedAt: new Date().toISOString(), availability: "AVAILABLE" }] });
   const el = document.getElementById("incident-preview");
   el.className = "";
   // A3-H01: the draft registered here is EXACTLY `preview.draft` - the same object rendered
@@ -653,7 +809,7 @@ async function submitLiveWrite(kind) {
   if (!draft) {
     setLiveMessage("No reviewed draft is available. Preview the write again before signing.");
     alert("No reviewed draft is available. Preview the write again before signing.");
-    return;
+    return false;
   }
   try {
     // A3-H01: pass EXACTLY the previewed/reviewed draft - never an empty or reconstructed object.
@@ -670,10 +826,15 @@ async function submitLiveWrite(kind) {
     draftRegistry.invalidateDraft(kind);
     await persistThenTrack(pendingStore, record, globalThis.__RECLOSE_PRODUCT_RUNTIME__?.trackTransaction, ({ phase }) => setLiveMessage(`Transaction ${phase}: ${shortHash(result.txId)}`));
     state.pending = pendingStore.loadAll();
-    location.hash = "#/pending";
+    // Sequential policy-journey steps stay on the policy-author page so the next step can be
+    // prepared in place - only one-shot writes navigate to the pending-transaction tracker.
+    const isPolicyJourneyStep = kind.startsWith("policyStep:") || kind === "policyActivate";
+    if (!isPolicyJourneyStep) location.hash = "#/pending";
+    return true;
   } catch (error) {
     setLiveMessage(`Submission failed: ${error.message}`);
     alert(`Submission failed: ${error.message}`);
+    return false;
   }
 }
 
@@ -686,28 +847,33 @@ function bindDynamicButtons() {
   document.querySelector('[data-action="submit-disableResource"]')?.addEventListener("click", () => submitLiveWrite("disableResource"));
 }
 
+/** Real provider event wiring (independent-audit requirement): an account or network switch in
+ * the connected wallet must invalidate every prepared draft and force a fresh connection/preview -
+ * a draft signed under a DIFFERENT account/network than the one it was reviewed for is exactly the
+ * review-to-sign integrity break A3-H01 closed for edits; the same guarantee must hold for wallet
+ * identity changes, not just form edits. */
+function wireWalletEvents(provider) {
+  if (typeof provider?.on !== "function") return;
+  const onChanged = (label) => () => {
+    draftRegistry.clearAll();
+    state.wallet = null;
+    adapter.writer = adapter.mode === "mock" ? adapter.writer : null;
+    setLiveMessage(`Wallet ${label} changed - every prepared draft was invalidated. Reconnect and preview again.`);
+    render();
+  };
+  provider.on("accountsChanged", onChanged("account"));
+  provider.on("chainChanged", onChanged("network"));
+}
+
 async function handleConnectWallet() {
   try {
     state.wallet = await connectBrowserWallet();
-    // If the host never injected a GenLayer-aware writer, wire the connected wallet in as a
-    // minimal writer so the real wrong-network check (`getConnectedChainId`) actually runs
-    // against this live connection instead of unconditionally throwing "no writer connected".
-    // Its submit* methods honestly refuse rather than fabricating a signed transaction - actually
-    // signing a GenLayer contract call needs a GenLayer-aware signer, which a raw EIP-1193
-    // provider alone does not supply (CLAUDE.md Section 21: Reclose never custodies a key, and
-    // this code has no GenLayer wallet-signing implementation to call into).
-    if (adapter.mode !== "mock" && !adapter.writer) {
-      adapter.writer = {
-        getConnectedChainId: () => state.wallet.getConnectedChainId(),
-        submitIncident: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for submitIncident. A host-injected writer is still required to actually sign this call."); },
-        submitRecovery: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for submitRecovery."); },
-        submitRemediation: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for submitRemediation."); },
-        registerTarget: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for registerTarget."); },
-        activatePolicy: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for activatePolicy."); },
-        revokeAuthority: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for revokeAuthority."); },
-        disableAction: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for disableAction."); },
-        disableResource: () => { throw new Error("Connected wallet can prove address/network but no GenLayer-aware signer is wired for disableResource."); },
-      };
+    wireWalletEvents(state.wallet.provider);
+    // Real GenLayerJS-backed writer over the connected provider/account - no host-injected writer
+    // is required for ordinary browser usage. This is the corrected architecture: injected
+    // provider -> genlayer-js write client -> writeContract(), never a fake/throwing stub.
+    if (adapter.mode !== "mock") {
+      adapter.writer = createGenLayerWriter({ account: state.wallet.address, provider: state.wallet.provider });
     }
     setLiveMessage(`Wallet connected: ${state.wallet.address} on chain ${state.wallet.chainId}.`);
   } catch (error) {
@@ -729,12 +895,22 @@ function bindShellEvents() {
     document.querySelector('[data-action="toggle-nav"]')?.setAttribute("aria-expanded", String(state.navOpen));
   });
   document.querySelector('[data-action="connect-wallet"]')?.addEventListener("click", handleConnectWallet);
+  document.querySelector('[data-action="switch-network"]')?.addEventListener("click", async () => {
+    try {
+      await switchToStudioDev(state.wallet?.provider);
+      setLiveMessage("Network switch requested. Reconnect once your wallet confirms Studio-dev.");
+    } catch (error) {
+      setLiveMessage(`Network switch failed: ${error.message}`);
+      alert(`Network switch failed: ${error.message}`);
+    }
+  });
 }
 
 function bindEvents() {
   bindShellEvents();
   document.getElementById("incident-form")?.addEventListener("submit", handleIncidentSubmit);
   document.getElementById("report-rule")?.addEventListener("change", handleReportRuleChange);
+  renderBondGate();
   document.getElementById("recovery-form")?.addEventListener("submit", handleRecoverySubmit);
   document.getElementById("onboard-form")?.addEventListener("submit", handleOnboardSubmit);
   document.getElementById("revoke-form")?.addEventListener("submit", handleRevokeSubmit);

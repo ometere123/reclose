@@ -1,0 +1,64 @@
+// Real browser write runtime over the EXACT pinned genlayer-js@2.0.0-rc.1, per the corrected A3
+// wallet architecture: injected provider -> genlayer-js write client -> writeContract(). There is
+// no Snap layer, no Reclose-custodied key, no homemade calldata signer, and no requirement that a
+// host inject a writer for ordinary browser usage - connecting a supported wallet is sufficient.
+//
+//   injected browser wallet/provider -> connected account -> genlayer-js write client
+//     -> writeContract() -> Reclose Kernel / Judge / Vault / Target
+//
+// The vendor bundle (frontend/vendor/genlayer-client.js, built by
+// `npm run frontend:vendor:build` via scripts/build-frontend-vendor.mjs) re-exports this exact
+// pinned package's own `createClient`/`studioDevnet` - nothing here reimplements genlayer-js, it
+// only wraps the SAME reviewed `PreparedRecloseWrite` draft into the SDK's own `writeContract`
+// call shape.
+import { createClient, studioDevnet } from "../vendor/genlayer-client.js";
+
+/**
+ * Creates a real GenLayerJS-backed writer for the connected account/provider. Every named method
+ * ultimately calls `writePreparedDraft`, which submits EXACTLY `draft.contractAddress`/
+ * `draft.functionName`/`draft.args`/`draft.valueWei` (plus the estimator-produced fee structure
+ * already embedded in `draft.feeEstimate`, when present) through `writeContract` - never
+ * re-encoding or re-deriving the call. The reviewed PreparedRecloseWrite remains the sole source
+ * of truth for what gets signed.
+ */
+export function createGenLayerWriter({ account, provider }) {
+  if (!account) throw new Error("createGenLayerWriter requires a connected account address");
+  if (!provider) throw new Error("createGenLayerWriter requires an injected provider");
+  const client = createClient({ chain: studioDevnet, account, provider });
+
+  async function writePreparedDraft(draft) {
+    if (!draft || typeof draft !== "object" || !draft.contractAddress || !draft.functionName || !Array.isArray(draft.args)) {
+      throw new Error("writePreparedDraft requires a complete PreparedRecloseWrite draft (contractAddress/functionName/args)");
+    }
+    // Fee estimation and the actual write MUST refer to the exact same account/contract/method/
+    // args/value - the draft's own feeEstimate (produced by the SDK's estimateTransactionFeesForWrite
+    // over this exact call) is passed straight through rather than re-estimated or hand-bisected.
+    const fees = draft.feeEstimate?.distributionSummary
+      ? { distribution: draft.feeEstimate.distributionSummary }
+      : undefined;
+    const txHash = await client.writeContract({
+      account,
+      address: draft.contractAddress,
+      functionName: draft.functionName,
+      args: draft.args,
+      value: BigInt(draft.valueWei ?? "0"),
+      ...(fees ? { fees } : {}),
+    });
+    return { txId: typeof txHash === "string" ? txHash : txHash?.hash ?? txHash?.txId ?? String(txHash) };
+  }
+
+  return {
+    getConnectedChainId: async () => Number(await client.getChainId()),
+    getConnectedAccount: () => account,
+    writePreparedDraft,
+    submitIncident: writePreparedDraft,
+    submitRecovery: writePreparedDraft,
+    submitRemediation: writePreparedDraft,
+    registerTarget: writePreparedDraft,
+    revokeAuthority: writePreparedDraft,
+    disableAction: writePreparedDraft,
+    disableResource: writePreparedDraft,
+    activatePolicy: writePreparedDraft,
+    callKernel: writePreparedDraft,
+  };
+}
