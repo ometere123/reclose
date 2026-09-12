@@ -2,7 +2,6 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { pathToFileURL } = require("url");
 
 const ROOT = path.join(__dirname, "..");
 const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
@@ -74,7 +73,7 @@ async function main() {
     assert.match(domain, /SAFE_MODE/);
   });
 
-  await test("malicious evidence cannot be rendered as HTML by the product helpers", () => {
+  await test("malicious evidence cannot be rendered as HTML by the product helpers", async () => {
     const source = read("frontend/lib/domain.js");
     const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
     const domain = await import(moduleUrl);
