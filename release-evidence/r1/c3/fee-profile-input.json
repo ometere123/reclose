@@ -1,26 +1,103 @@
 [
   {
-    "name": "Kernel.begin_policy (single-contract write, representative Kernel-only branch)",
-    "address": "0x39a3D52Bb89e501FFdb0229C21f0C2ec0CD6195D",
-    "functionName": "begin_policy",
-    "args": ["reclose-target-002", "policy-fee-profile-001", "0x3333333333333333333333333333333333333333333333333333333333333333"],
-    "value": "0",
-    "notes": "Single-hop Kernel write, no cross-contract dispatch. Representative baseline branch."
+    "id": "kernel-deploy",
+    "name": "AssuranceKernel deploy",
+    "notes": "PLACEHOLDER - deploy estimates are profiled via scripts/fee-profile.mjs's deploy-estimation path (genlayer estimate-fees --json, bare baseline), not a write simulation. Filled in with the real estimate captured during the fresh Studio-dev deployment."
   },
   {
-    "name": "IncentiveVault.fund_target_pool (single-contract payable write)",
-    "address": "0x2D8fd574095d13D9756C279f0972f73D822fd9Ad",
-    "functionName": "fund_target_pool",
-    "args": [],
-    "value": "1000000000000000000",
-    "notes": "Single-hop Vault write, permissionless, no cross-contract dispatch."
+    "id": "judge-deploy",
+    "name": "IncidentJudgeV1 deploy",
+    "notes": "PLACEHOLDER - same deploy-estimation path as kernel-deploy."
   },
   {
-    "name": "IncidentJudgeV1.submit_incident (Judge -> Kernel cross-contract branch, KNOWN live limitation - see docs/execution/C2 Live Proof Evidence.md Finding 2)",
-    "address": "0x0A519837D3983272A14710d5b6b2108bC27D2D96",
+    "id": "vault-deploy",
+    "name": "IncentiveVault deploy",
+    "notes": "PLACEHOLDER - same deploy-estimation path as kernel-deploy."
+  },
+  {
+    "id": "target-deploy",
+    "name": "ReferenceAgentProtocol deploy",
+    "notes": "PLACEHOLDER - same deploy-estimation path as kernel-deploy."
+  },
+  {
+    "id": "judge-report-no-provisional",
+    "name": "IncidentJudgeV1.submit_incident (REMEDIATION_CONFIRMED_V1 - provisional_allowed=false)",
+    "address": "PLACEHOLDER_JUDGE_ADDRESS",
     "functionName": "submit_incident",
-    "args": ["reclose-target-002", "policy-c2-002", "PROVIDER_COMPROMISE_V1", "provider_a", "0x4444444444444444444444444444444444444444444444444444444444444444", "{\"subject\":\"fee profiling probe\",\"sources\":[{\"url\":\"https://example.com/a\",\"sourceClass\":\"INDEPENDENT_PUBLIC\",\"extractedText\":\"probe\"}]}", 0, ""],
+    "args": [],
     "value": "0",
-    "notes": "Representative Judge->Kernel dispatch branch (CLAUDE.md Section 34: profile Judge->Kernel->Target branches). Included deliberately even though the underlying dispatch is known to fail live - an honest fee profile reports this, not a curated-to-succeed subset."
+    "notes": "PLACEHOLDER args/address - filled in after fresh deployment, once a remediation-kind incident exists to submit against."
+  },
+  {
+    "id": "judge-report-with-provisional",
+    "name": "IncidentJudgeV1.submit_incident (PROVIDER_COMPROMISE_V1 - provisional_allowed=true)",
+    "address": "PLACEHOLDER_JUDGE_ADDRESS",
+    "functionName": "submit_incident",
+    "args": [],
+    "value": "0",
+    "notes": "PLACEHOLDER args - filled in after fresh deployment."
+  },
+  {
+    "id": "judge-to-kernel",
+    "name": "IncidentJudgeV1.submit_incident (Judge -> Kernel cross-contract dispatch branch)",
+    "address": "PLACEHOLDER_JUDGE_ADDRESS",
+    "functionName": "submit_incident",
+    "args": [],
+    "value": "0",
+    "notes": "PLACEHOLDER args - same branch as judge-report-with-provisional; kept as a distinct coverage ID because CLAUDE.md Section 34 calls out Judge->Kernel->Target profiling explicitly, and because it is the branch with the currently-open live-dispatch finding."
+  },
+  {
+    "id": "kernel-to-target-one-effect",
+    "name": "AssuranceKernel -> ReferenceAgentProtocol dispatch, single effect (e.g. RESTRICT provider_a)",
+    "address": "PLACEHOLDER_KERNEL_ADDRESS",
+    "functionName": "redispatch_final_action",
+    "args": [],
+    "value": "0",
+    "notes": "PLACEHOLDER args - filled in with a real action_id from the fresh deployment's live incident flow."
+  },
+  {
+    "id": "kernel-to-target-two-effects",
+    "name": "AssuranceKernel -> ReferenceAgentProtocol dispatch, two effects on one decision (e.g. RESTRICT + ENTER_SAFE_MODE)",
+    "address": "PLACEHOLDER_KERNEL_ADDRESS",
+    "functionName": "redispatch_final_action",
+    "args": [],
+    "value": "0",
+    "notes": "PLACEHOLDER args - filled in with a real action_id."
+  },
+  {
+    "id": "remediation",
+    "name": "IncidentJudgeV1.submit_remediation",
+    "address": "PLACEHOLDER_JUDGE_ADDRESS",
+    "functionName": "submit_remediation",
+    "args": [],
+    "value": "0",
+    "notes": "PLACEHOLDER args - filled in after a CONFIRMED incident exists to remediate."
+  },
+  {
+    "id": "recovery-validation",
+    "name": "IncidentJudgeV1.submit_recovery_validation",
+    "address": "PLACEHOLDER_JUDGE_ADDRESS",
+    "functionName": "submit_recovery_validation",
+    "args": [],
+    "value": "0",
+    "notes": "PLACEHOLDER args - filled in after remediation is confirmed and the incident reaches RECOVERY."
+  },
+  {
+    "id": "vault-payout",
+    "name": "IncentiveVault.claim",
+    "address": "PLACEHOLDER_VAULT_ADDRESS",
+    "functionName": "claim",
+    "args": [],
+    "value": "0",
+    "notes": "PLACEHOLDER args - filled in after a bond is opened and settled."
+  },
+  {
+    "id": "reference-agent-provider-payment",
+    "name": "ReferenceAgentProtocol.purchase_service (provider payment branch)",
+    "address": "PLACEHOLDER_TARGET_ADDRESS",
+    "functionName": "purchase_service",
+    "args": [],
+    "value": "0",
+    "notes": "PLACEHOLDER args - filled in after the fresh deployment's treasury is funded."
   }
 ]
