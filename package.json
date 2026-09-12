@@ -27,6 +27,7 @@
     "sdk-product-truth:test": "node scripts/test-sdk-product-truth.js",
     "frontend:test": "node scripts/test-frontend-product.js",
     "benchmark:check": "node scripts/check-r1-benchmark.js",
+    "e1:evidence:check": "node scripts/check-e1-evidence.mjs",
     "contracts:lint": "node scripts/list-deployable-contracts.js",
     "contracts:lint:selftest": "node scripts/test-list-deployable-contracts.js",
     "genvm-lint-wrapper:selftest": "node scripts/test-genvm-lint-wrapper.js",
