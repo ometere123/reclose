@@ -46,8 +46,8 @@ The subsequent C1R/C1-FINAL hardening work moved semantic decisions through auth
 
 - **A2-C01:** Studio-dev Judge -> Kernel triggered child still fails with `fee no_matching_allocation # internal`, including estimator-derived allocation data. This is an E1/R1 release blocker unless resolved or governed release scope explicitly changes.
 - **A2-C02:** fee-profile coverage IDs exist but real final-deployment profile inputs/output must replace placeholders before A3/E1 closure. Blocked branches must remain blocked, not fabricated.
-- **A2-C03:** action-trace/product receipt truth had to stop fabricating/omitting target ID, post-state requirement and execution time. Product/I2 work on `chatgpt/r1-product-release` now implements protocol/index-derived fields and tests them, but final A3 review must verify the integrated runtime adapter.
-- **A2-C04:** stale phase/audit/ledger records must be brought forward without rewriting the historical first packet. This register and `Current Phase.md` now record the attempt-2 decision; RTM/threat rows may advance only from concrete evidence.
+- **A2-C03:** action-trace/product receipt truth had to stop fabricating/omitting target ID, post-state requirement and execution time. Product/I2 work on `chatgpt/r1-product-release` implements protocol/index-derived fields and tests them, but A3 attempt 1 found that the live product adapter still does not reconstruct the full causal child/action trace.
+- **A2-C04:** stale phase/audit/ledger records must be brought forward without rewriting the historical first packet. RTM/threat rows may advance only from concrete evidence.
 
 The PASS WITH CONDITIONS was justified by the materially implemented Judge evidence binding/source registry/independent validation, Kernel authority/replay/recovery controls, Reporter-owned policy-derived Vault economics, concrete SDK/tooling/Sentinel implementation, green exact-target GitHub CI, and a fresh Studio-dev deployment proving deploy/wiring/APM readback/activation and Judge-side real web/LLM execution. It explicitly did **not** claim the downstream live triggered-child path was successful.
 
@@ -55,14 +55,16 @@ The PASS WITH CONDITIONS was justified by the materially implemented Judge evide
 
 | Attempt | Audit target commit (full SHA) | Decision | Decision source | Notes |
 |---|---|---|---|---|
-| 1 | `264c14af8f83cbd2bcf0176c87d9950baf0b275a` (`chatgpt/r1-product-release`) | **AWAITING EXTERNAL REVIEW** | - | exact target CI run `34682294856` SUCCESS; packet at `docs/execution/audit-packets/A3/`; browser/accessibility captures remain NOT RUN and must not be fabricated |
+| 1 | `264c14af8f83cbd2bcf0176c87d9950baf0b275a` (`chatgpt/r1-product-release`) | **FAIL** | independent ChatGPT review designated by owner | exact target CI run `34682294856` SUCCESS; findings A3-H01..A3-H12; decision at `docs/execution/audit-packets/A3/AUDIT_DECISION.md`; one-shot remediation at `docs/execution/audit-packets/A3/FINAL_REMEDIATION.md` |
 
-The A3 target contains D1-D4/I1-I2 product implementation, SDK product-truth corrections, fixture/live adapter boundary, transaction persistence rules, malicious-evidence rendering protection, bounded agent `skill.md`, CLI incident/recovery preparation wrappers, and the threat-linked benchmark gate. Source CI success is recorded, but source CI is not a substitute for the browser/product evidence required by the Master Plan.
+A3 attempt 1 failed on source/integration correctness before browser evidence was considered. The critical finding is a review-to-sign integrity break: report/recovery preview state is discarded and the live writer is invoked with an empty payload. Additional high-severity findings cover presentation-only onboarding/policy write flows, absent wallet-network gating, missing live child/action trace composition, browser EAP construction not using the canonical evidence builder, fee estimation against shortened rather than real Judge calldata, incomplete target/recovery/policy/audit product surfaces, incomplete A3 requirement mapping and fail-open rendering of unknown assurance state as NORMAL.
 
-A3 does not close A2-C01. The Studio-dev Judge -> Kernel child limitation continues to block canonical E1 completion.
+The target's exact CI success and accepted positive controls remain valid evidence, but they do not override these integration defects. Browser/accessibility captures remain NOT RUN and must be captured only against the next remediated substantive candidate, not retroactively used to pass this failed target.
+
+A3 does not close A2-C01. The Studio-dev Judge -> Kernel child limitation continues to block canonical E1 completion even after A3 source remediation.
 
 ## Later gates
 
 | Gate | Status | Decision date | Decision source | Commit reviewed | Notes |
 |---|---|---|---|---|---|
-| A4 | NOT READY FOR EXTERNAL REVIEW | - | - | - | pre-staged packet explicitly waits for A3 decision, browser evidence, final fee profile, H1/E1 evidence and ledger reconciliation |
+| A4 | NOT READY FOR EXTERNAL REVIEW | - | - | - | waits for a passing A3, browser evidence, final fee profile, H1/E1 evidence and ledger reconciliation |
