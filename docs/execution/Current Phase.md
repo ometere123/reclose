@@ -1,32 +1,51 @@
-Current phase: **A2 - AWAITING EXTERNAL REVIEW.** C2 and C3 are DONE on branch `claude/r1-tooling`
-(head `ae3a508`). Per CLAUDE.md Section 41, this is a designated external-audit gate: the affected
-critical path (frontend/D1-D4 build-out) is stopped here, the audit packet is prepared at
-`docs/execution/audit-packets/A2/`, and only the repository owner (or an independent reviewer they
-designate) may render a PASS/FAIL/CONDITIONS decision - this file and the packet itself do not
-claim one.
+Current phase: **D1-D4 / I1-I2 PRODUCT IMPLEMENTATION AUTHORISED AFTER A2 PASS WITH CONDITIONS.**
 
-## What is ready for review
+Independent A2 attempt-2 review was performed against immutable target
+`6dc88f9393a2c8f94deae37d5c53af8bbcf9e9f5` on `claude/a2-remediation-integration`.
+Decision: **PASS WITH CONDITIONS**. The exact decision and conditions are preserved at
+`docs/execution/audit-packets/A2-attempt-2/AUDIT_DECISION.md`.
 
-- `docs/execution/audit-packets/A2/README.md` - full packet index and summary.
-- C2: IncidentJudgeV1, IncentiveVault, Kernel Judge-read-views, live Studio-dev deployment.
-- C3: real `@reclose/protocol-sdk` lifecycle mapping, `@reclose/policy-compiler`,
-  `@reclose/evidence-builder`, `@reclose/transaction-tracker`, `@reclose/cli`, `@reclose/sentinel`,
-  fee-profiling automation, deployment automation, operations runbook.
-- 185/185 Direct Mode tests, genvm-lint clean, `npm run verify:js` green (54 new JS/TS tests
-  across the six C3 packages).
-- Live Studio-dev proof including a materially narrowed finding: the Judge's own
-  deterministic-precheck/real-web-fetch/real-LLM-judgment pipeline is now proven live end-to-end;
-  only the Kernel-side effect of a decision (a fee-allocation-routing gap on the triggered child
-  transaction) remains unproven live - see `docs/execution/C2 Live Proof Evidence.md`.
+The historical first A2 packet at `docs/execution/audit-packets/A2/` remains unchanged as the
+first submission against `ae3a5083e1db805c3fa6692a11661d06e6679ec7`.
 
-## What is NOT yet started
+## Verified current baseline
 
-D1-D4/I1-I2 (frontend), A3, E1, H1, A4, R1, S1 - all remain blocked on this gate per the Master
-Plan's sequence, pending the owner's A2 decision.
+- GitHub Actions run `34676730787`: SUCCESS on exact audit target.
+- Node 24.16.0, npm 11.13.0, Python 3.14.4.
+- `npm run verify`: green from clean CI.
+- 43/43 schema fixtures valid.
+- 197/197 Python tests pass.
+- Fresh Studio-dev 61997 hardened stack deployed and wired.
+- Canonical APM compile/readback/timelocked activation proven live.
+- Real Judge-side deterministic precheck, canonical EAP binding, public-source fetch and LLM
+  judgment proven live.
 
-## Next step
+## Open A2 conditions
 
-Report to the repository owner that A2 is ready for independent review. On a PASS (or explicit
-owner authorization to continue), proceed to D1-D4/I1-I2 frontend build-out. On PASS WITH
-CONDITIONS, address the stated conditions first. On FAIL, the dependent phase remains blocked per
-CLAUDE.md Section 42.
+- **A2-C01:** Judge -> Kernel triggered child still fails live with
+  `fee no_matching_allocation # internal`. This blocks E1 completion, but not truthful product
+  implementation.
+- **A2-C02:** real fee-profile inputs/output must replace placeholder-only branch coverage before
+  A3 closes / E1 begins.
+- **A2-C03:** action-trace `ExecutionReceipt` must stop fabricating/omitting protocol truth where
+  target ID, post-state requirement and execution time can be derived. Close during I2.
+- **A2-C04:** current phase/audit register/ledgers must reflect the current A2 attempt-2 evidence
+  without rewriting the historical first packet.
+
+## Authorised critical path
+
+Proceed directly through:
+
+`D1 -> D2 -> D3 -> I1 -> I2 -> D4 -> A3`
+
+Product implementation must be truth-preserving. In particular:
+
+- never show a child dispatch as successful when it failed;
+- preserve REJECTED vs UNDETERMINED vs CONFIRMED;
+- never manufacture an `asOfBlock`, post-state proof or fee amount;
+- accepted transactions are not final;
+- final consensus is not the same as successful execution.
+
+After product implementation, prepare A3 for independent review. E1 may be prepared but cannot be
+closed while A2-C01 remains unresolved. H1/A4/R1/S1 work may be implemented and packaged where it
+does not require fabricated live evidence, but their release gates remain evidence-bound.
