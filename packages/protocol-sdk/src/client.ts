@@ -35,9 +35,28 @@ export interface RecloseAddresses {
   vault?: string;
 }
 
+/**
+ * Index-provided action execution identity. Every required value is either protocol-derived or an
+ * explicit nullable proof field. `executionTime` is the block/transaction execution time, never
+ * the wall clock of the reader constructing an ExecutionReceipt.
+ */
+export interface ResolvedActionTransaction {
+  parentTxId: string;
+  childTxId: string;
+  targetId: string;
+  adapterId: string;
+  executionTime: string;
+  preStateHash: string | null;
+  postStateHash: string | null;
+  expectedPostStateRequired: boolean;
+  observedPostState?: Record<string, unknown> | null;
+  postStateMatchesExpected?: boolean | null;
+}
+
 /** Direct protocol adapter. A genlayer-js client can satisfy this with a thin wrapper. */
 export interface RecloseTransport {
   getChainId(): Promise<number | bigint>;
+  getBlockNumber(): Promise<number | bigint>;
   readContract(args: { address: string; functionName: string; args?: unknown[] }): Promise<unknown>;
   getTransaction(args: { hash: string }): Promise<RawGenLayerTransaction & { executionResult?: ExecutionResult }>;
   getTriggeredTransactionIds(args: { hash: string }): Promise<string[]>;
@@ -47,7 +66,7 @@ export interface RecloseTransport {
     args: unknown[];
     value?: bigint;
   }): Promise<{ feeValue?: bigint | string | number; distribution?: Record<string, unknown> | null }>;
-  resolveActionTransaction?(actionId: string): Promise<{ parentTxId: string; childTxId: string } | null>;
+  resolveActionTransaction?(actionId: string): Promise<ResolvedActionTransaction | null>;
 }
 
 export interface CreateRecloseClientOptions {
@@ -206,10 +225,6 @@ export class DirectRecloseClient implements RecloseSDK {
   async getAssuranceState(targetId: string): Promise<AssuranceStateSummary> {
     const target = await this.getTarget(targetId);
     const activeRestrictions: AssuranceStateSummary["activeRestrictions"] = [];
-    // A2-remediation: enumerate real restrictions via the target->incident reverse index and
-    // per-incident restriction storage the Kernel now exposes, rather than fabricating an empty
-    // array regardless of actual state (CLAUDE.md Section 23: never more certain - or less - than
-    // the protocol actually is).
     const incidentCount = num(await this.kernel("get_target_incident_count", [targetId]));
     const restrictionActionTypes = new Set<string>(["MONITOR", "RESTRICT", "THROTTLE", "REVOKE_CAPABILITY", "REROUTE", "ENTER_SAFE_MODE", "PAUSE"]);
     for (let i = 0; i < incidentCount; i++) {
@@ -237,7 +252,8 @@ export class DirectRecloseClient implements RecloseSDK {
         : [];
     }
 
-    return { targetId, state: target.assuranceState, activeRestrictions, effectiveCapabilities, asOfBlock: 0 };
+    const asOfBlock = num(await this.transport.getBlockNumber());
+    return { targetId, state: target.assuranceState, activeRestrictions, effectiveCapabilities, asOfBlock };
   }
 
   async getActivePolicy(targetId: string): Promise<PolicyDetail> {
@@ -292,6 +308,12 @@ export class DirectRecloseClient implements RecloseSDK {
   async getIncident(incidentId: string): Promise<Incident> {
     const i = tuple(await this.kernel("get_incident_detail", [incidentId]));
     if (!str(i[0])) throw new Error(`Unknown incident ${incidentId}`);
+    let status = INCIDENT_STATUSES[num(i[11])] ?? "OPEN";
+    if (status === "CLOSED") {
+      const finalOutcome = OUTCOMES[num(i[10])];
+      if (finalOutcome === "REJECTED") status = "FINAL_REJECTED";
+      else if (finalOutcome === "UNDETERMINED") status = "FINAL_UNDETERMINED";
+    }
     return {
       incidentId,
       targetId: str(i[0]),
@@ -302,7 +324,7 @@ export class DirectRecloseClient implements RecloseSDK {
       judge: str(i[6]),
       evidenceHash: str(i[7]),
       conditionCode: str(i[8]),
-      status: INCIDENT_STATUSES[num(i[11])] ?? "OPEN",
+      status,
       createdAt: iso(i[12]),
       closedAt: num(i[13]) === 0 ? null : iso(i[13]),
     };
@@ -322,9 +344,6 @@ export class DirectRecloseClient implements RecloseSDK {
     const ordinal = stage === "PROVISIONAL" ? num(i[9]) : num(i[10]);
     const outcome = OUTCOMES[ordinal];
     if (!outcome) throw new Error(`${stage} decision is not recorded for ${incidentId}`);
-    // Read the ACTUAL judge_version the policy has configured for this rule, rather than
-    // assuming 1 - a policy upgrade can bind a rule to a newer Judge module version, and a
-    // fabricated "1" would silently misreport decisions made under that newer version.
     const rule = tuple(await this.kernel("get_policy_rule", [str(i[1]), str(i[3])]));
     return {
       schemaVersion: "1.0.0",
@@ -428,24 +447,30 @@ export class DirectRecloseClient implements RecloseSDK {
     if (!this.transport.resolveActionTransaction) throw new Error("Action trace requires a transaction index adapter");
     const mapping = await this.transport.resolveActionTransaction(actionId);
     if (!mapping) throw new Error(`No transaction mapping for action ${actionId}`);
+    if (!mapping.targetId) throw new Error(`Action trace ${actionId} has no protocol-derived targetId`);
+    if (!mapping.executionTime || Number.isNaN(Date.parse(mapping.executionTime))) throw new Error(`Action trace ${actionId} has no protocol-derived executionTime`);
     const parent = await this.trackTransaction(mapping.parentTxId as `0x${string}`);
     const childRaw = await this.transport.getTransaction({ hash: mapping.childTxId });
     const childLifecycle = mapRawTransaction(childRaw);
     const executionResult = childRaw.executionResult ?? "NOT_VOTED";
     const failure: ExecutionResult[] = ["FINISHED_WITH_ERROR", "TIMEOUT", "NONDET_DISAGREE", "DETERMINISTIC_VIOLATION"];
+    let finalStatus: ExecutionReceipt["finalStatus"] = executionResult === "FINISHED_WITH_RETURN" ? "SUCCESS" : failure.includes(executionResult) ? "FAILURE" : "UNKNOWN";
+    if (finalStatus === "SUCCESS" && mapping.expectedPostStateRequired && mapping.postStateMatchesExpected !== true) finalStatus = "FAILURE";
     return {
       schemaVersion: "1.0.0",
       actionId,
-      targetId: "",
-      adapterId: "kernel-target",
+      targetId: mapping.targetId,
+      adapterId: mapping.adapterId,
       parentTxId: parent.txId,
       childTx: { txId: mapping.childTxId, parentTxId: parent.txId, role: "TARGET_ACTION", lifecycle: childLifecycle, executionResult },
       executionResult,
-      finalStatus: executionResult === "FINISHED_WITH_RETURN" ? "SUCCESS" : failure.includes(executionResult) ? "FAILURE" : "UNKNOWN",
-      preStateHash: null,
-      postStateHash: null,
-      expectedPostStateRequired: false,
-      executionTime: new Date().toISOString(),
+      finalStatus,
+      preStateHash: mapping.preStateHash,
+      postStateHash: mapping.postStateHash,
+      expectedPostStateRequired: mapping.expectedPostStateRequired,
+      observedPostState: mapping.observedPostState ?? null,
+      postStateMatchesExpected: mapping.postStateMatchesExpected ?? null,
+      executionTime: mapping.executionTime,
     };
   }
 }
