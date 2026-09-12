@@ -258,3 +258,31 @@ def test_max_length_target_incident_identity_is_within_bound(judge_harness):
     judge, gl, _log, _config = judge_harness
     incident_id = judge._derive_incident_id("t" * 96, gl.message.sender_address, (1 << 64) - 1)
     assert len(incident_id) <= 160
+
+
+def test_submit_incident_normalizes_calldata_typed_reporter_and_policy_hash(judge_harness, direct_vm):
+    """Live Studio-dev deployment finding: the exact pinned genlayer CLI's calldata encoder
+    auto-types a nested 40-hex string (e.g. EAP.reporter) as a real Address, and a nested 64-hex
+    string (e.g. EAP.policyHash/contentHash/artifactHash) as a plain int - not just the
+    already-handled top-level dict-vs-string coercion. Simulates both forms arriving as their
+    coerced Python types (Address/int) inside the evidence_json dict, rather than strings, and
+    confirms the Judge still accepts and correctly judges the submission."""
+    judge, gl, log, config = judge_harness
+    direct_vm.mock_web(EAP_URL, {"method": "GET", "status": 200, "body": "evidence body"})
+    direct_vm.mock_llm(".*", json.dumps({"condition_code": "CREDENTIAL_COMPROMISE"}))
+    eap = make_eap(gl, config)
+    eap_with_coerced_scalars = json.loads(canonical_json(eap))
+    eap_with_coerced_scalars["reporter"] = gl.Address(eap["reporter"])
+    eap_with_coerced_scalars["policyHash"] = int(eap["policyHash"], 16)
+    eap_with_coerced_scalars["artifactHash"] = int(eap["artifactHash"], 16)
+    eap_with_coerced_scalars["sources"][0]["contentHash"] = int(eap["sources"][0]["contentHash"], 16)
+    eap_with_coerced_scalars["contentHashes"] = [int(h, 16) for h in eap["contentHashes"]]
+
+    incident_id = judge.submit_incident(
+        "target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a",
+        eap["artifactHash"], eap_with_coerced_scalars, 0, "",
+    )
+    assert incident_id != ""
+    decisions = [item for item in log if "decision_stage" in item]
+    assert len(decisions) == 2
+    assert all(item["outcome"] == 1 for item in decisions)

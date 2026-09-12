@@ -202,11 +202,44 @@ def _normalize_str_arg(value):
     return value
 
 
+_HASH_FIELD_NAMES = {"policyHash", "contentHash", "artifactHash"}
+_HASH_LIST_FIELD_NAMES = {"contentHashes"}
+
+
+def _int_to_hash_hex(value: int) -> str:
+    return "0x" + format(value, "064x")
+
+
+def _sanitize_calldata_scalars(value, key=None):
+    """The exact pinned genlayer CLI's calldata encoder auto-types any nested string that LOOKS
+    like a 0x-prefixed hex value as a real scalar, not a string - confirmed live on Studio-dev
+    (chain 61997) in TWO distinct forms: a 40-hex (20-byte) string such as an EAP's `reporter`
+    field becomes a real Address (json.dumps can't serialize it - TypeError: Object of type
+    Address is not JSON serializable), and a 64-hex (32-byte) string such as `policyHash`/
+    `contentHash`/`artifactHash` becomes a plain Python int (json.dumps happily serializes an int,
+    but then an EAP's policyHash field that should compare equal to the Kernel's hash STRING
+    compares unequal to an int - E_JDG_006 EAP policyHash mismatch - a silent semantic corruption,
+    not a crash). Both forms must be converted back to canonical hex strings, by key name for the
+    hash-shaped fields (there is no type tag at this layer to distinguish a hash-int from any
+    other numeric field) and by type for Address."""
+    if isinstance(value, gl.Address):
+        return value.as_hex
+    if isinstance(value, dict):
+        return {k: _sanitize_calldata_scalars(v, key=k) for k, v in value.items()}
+    if isinstance(value, list):
+        if key in _HASH_LIST_FIELD_NAMES:
+            return [_int_to_hash_hex(v) if isinstance(v, int) else _sanitize_calldata_scalars(v) for v in value]
+        return [_sanitize_calldata_scalars(v) for v in value]
+    if key in _HASH_FIELD_NAMES and isinstance(value, int):
+        return _int_to_hash_hex(value)
+    return value
+
+
 def _normalize_json_arg(value):
     if isinstance(value, str):
         return value
     if isinstance(value, (dict, list)):
-        return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+        return json.dumps(_sanitize_calldata_scalars(value), separators=(",", ":"), ensure_ascii=False)
     return value
 
 
