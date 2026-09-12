@@ -19,6 +19,7 @@ import type {
   PolicyRule,
   PolicySecurityDiff,
   PolicySecurityDiffChange,
+  PredictedIncidentIdentity,
   PreparedRecloseWrite,
   PreparedWriteSemanticKind,
   RuleId,
@@ -37,6 +38,12 @@ import { buildEapObject } from "./evidence";
  * refreshed without altering what is being signed. */
 function computeReviewHash(draft: Omit<PreparedRecloseWrite, "reviewHash" | "feeEstimate">): `0x${string}` {
   return canonicalKeccak256(draft);
+}
+
+/** A3-H12: mirrors contracts/incident_judge_v1.py::_derive_incident_id exactly - same separator,
+ * same field order, same lower-level representation the contract evaluates at execution time. */
+function deriveIncidentId(targetId: string, reporterAddress: string, reporterNonce: number): string {
+  return `${targetId}:${reporterAddress.toLowerCase()}:${reporterNonce}`;
 }
 
 export interface RecloseAddresses {
@@ -528,7 +535,17 @@ export class DirectRecloseClient implements RecloseSDK {
       semanticKind: "INCIDENT_REPORT" as PreparedWriteSemanticKind,
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
-    const report: PreparedRecloseWrite = { ...draft, reviewHash: computeReviewHash(forHash) };
+    const report: PreparedRecloseWrite & { predictedIncidentId: PredictedIncidentIdentity } = {
+      ...draft,
+      reviewHash: computeReviewHash(forHash),
+      // A3-H12: derived with the EXACT formula contracts/incident_judge_v1.py::_derive_incident_id
+      // evaluates on-chain (`f"{target_id}:{reporter.as_hex}:{int(nonce)}"`) - computable now,
+      // before this transaction resolves, because target_id/reporterAddress/reporterNonce are all
+      // already protocol-read inputs to this same draft. The caller persists this alongside the
+      // txId the instant the draft is signed - never waiting on (or substituting) whatever value
+      // a writer's return object happens to carry.
+      predictedIncidentId: { incidentId: deriveIncidentId(input.targetId, reporterAddress, reporterNonce), targetId: input.targetId, reporterAddress, reporterNonce },
+    };
     return { report, feePreview: feeEstimate };
   }
 
@@ -571,8 +588,97 @@ export class DirectRecloseClient implements RecloseSDK {
       semanticKind: "RECOVERY_VALIDATION_REPORT" as PreparedWriteSemanticKind,
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
-    const report: PreparedRecloseWrite = { ...draft, reviewHash: computeReviewHash(forHash) };
+    const report: PreparedRecloseWrite & { predictedIncidentId: PredictedIncidentIdentity } = {
+      ...draft,
+      reviewHash: computeReviewHash(forHash),
+      predictedIncidentId: { incidentId: deriveIncidentId(incident.targetId, reporterAddress, reporterNonce), targetId: incident.targetId, reporterAddress, reporterNonce },
+    };
     return { report, feePreview: feeEstimate };
+  }
+
+  /**
+   * A3-H07: bounded owner bearing-authority controls that already exist on the deployed Kernel
+   * (`revoke_authority`, `disable_action`, `disable_resource` - contracts/assurance_kernel.py) but
+   * were never exposed as a governed write in the product. No separate "emergency pause" method
+   * exists on the Kernel beyond these three bounded, immediate, owner-gated writes - they ARE the
+   * Kernel's bounded pause/authority-reduction mechanism (CLAUDE.md Section 7 item 6: an accepted-
+   * phase action must be authority-reducing and non-value-moving, which all three satisfy). Adding
+   * a fourth distinct contract method would be an architecture change outside this remediation
+   * pass's scope, so this builder wires the product to the bounded controls that already exist
+   * rather than inventing a new one.
+   */
+  async buildRevokeAuthority(input: { targetId: string }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
+    const args: unknown[] = [input.targetId];
+    const feeEstimate = await this.feePreview("revoke_authority", args, this.addresses.kernel);
+    const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
+      schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress: this.addresses.kernel,
+      functionName: "revoke_authority", args, valueWei: "0", feeEstimate, semanticKind: "AUTHORITY_REVOCATION" as PreparedWriteSemanticKind,
+    };
+    const { feeEstimate: _omitted, ...forHash } = draft;
+    return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate };
+  }
+
+  async buildDisableAction(input: { targetId: string; actionType: number }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
+    const args: unknown[] = [input.targetId, input.actionType];
+    const feeEstimate = await this.feePreview("disable_action", args, this.addresses.kernel);
+    const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
+      schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress: this.addresses.kernel,
+      functionName: "disable_action", args, valueWei: "0", feeEstimate, semanticKind: "DISABLE_ACTION" as PreparedWriteSemanticKind,
+    };
+    const { feeEstimate: _omitted, ...forHash } = draft;
+    return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate };
+  }
+
+  async buildDisableResource(input: { targetId: string; resourceId: string }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
+    const args: unknown[] = [input.targetId, input.resourceId];
+    const feeEstimate = await this.feePreview("disable_resource", args, this.addresses.kernel);
+    const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
+      schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress: this.addresses.kernel,
+      functionName: "disable_resource", args, valueWei: "0", feeEstimate, semanticKind: "DISABLE_RESOURCE" as PreparedWriteSemanticKind,
+    };
+    const { feeEstimate: _omitted, ...forHash } = draft;
+    return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate };
+  }
+
+  /**
+   * A3-H02 (policy-activation half): replaces the presentation-only "Validate & diff" stub with
+   * real canonical validation (`validateCanonicalApmStructure`), real deterministic hashing
+   * (RFC8785/JCS + Keccak-256 via `canonicalKeccak256`), and a real authority diff against the
+   * target's CURRENTLY active policy (read live from protocol state, not a caller-supplied "from"
+   * value that could be stale or fabricated). Blocks on an invalid manifest before any diff/fee
+   * work, per FINAL_REMEDIATION.md Section 3 item 6. This covers steps 1-6 and 12 of that section's
+   * required path (construct/accept -> validate -> canonicalize/hash -> diff -> show consequence ->
+   * expose raw manifest/hash); it intentionally does NOT attempt the multi-transaction
+   * sequence (begin_policy, then add_policy_resource, add_policy_rule and add_policy_effect
+   * repeated per item, then seal_policy, then activate_policy) in this pass - that remains a
+   * distinct, larger write-sequence feature, honestly left open rather than claimed closed here.
+   */
+  async buildPolicyActivationReview(input: { targetId: string; apm: unknown }): Promise<{
+    valid: boolean;
+    errors: string[];
+    manifestHash: string | null;
+    diff: PolicySecurityDiff | null;
+  }> {
+    const validation = await this.validateAPM(input.apm);
+    if (!validation.valid) return { valid: false, errors: validation.errors, manifestHash: null, diff: null };
+    const manifestHash = await this.hashAPM(input.apm);
+    let fromApm: unknown = {};
+    try {
+      const current = await this.getActivePolicy(input.targetId);
+      // Reconstructed from the currently active policy's real rules/effects (not a fabricated
+      // snapshot) - this is everything getActivePolicy's PolicyDetail actually carries forward
+      // from the original APM; fields the APM had but the on-chain PolicyDetail does not persist
+      // (e.g. free-form metadata) are necessarily absent from this reconstruction.
+      fromApm = {
+        version: current.summary.version,
+        protectedResources: [...new Set(current.effects.map((e) => e.resourceId).filter(Boolean))],
+        capabilities: [...new Set(current.effects.map((e) => e.actionType))],
+        judgeModules: [...new Set(current.rules.map((r) => r.judge))],
+        humanOverride: current.summary.humanOverrideEnabled,
+      };
+    } catch { /* target has no active policy yet - diffing against an empty baseline is correct, not an error */ }
+    const diff = diffCanonicalApm(fromApm, input.apm);
+    return { valid: true, errors: [], manifestHash, diff };
   }
 
   async validateAPM(apm: unknown): Promise<{ valid: boolean; errors: string[] }> {
@@ -597,6 +703,26 @@ export class DirectRecloseClient implements RecloseSDK {
     const raw = await this.transport.getTransaction({ hash: txId });
     const lifecycle = mapRawTransaction(raw);
     return raw.executionResult ? { ...lifecycle, executionResult: raw.executionResult } : lifecycle;
+  }
+
+  /**
+   * A3-H04 (second hop): `trackActionTrace` resolves the Judge -> Kernel child
+   * (`receive_decision`); this resolves the NEXT hop, Kernel -> Target (the `_dispatch_action`
+   * call the Kernel's child transaction itself triggers), using the transport's own
+   * `getTriggeredTransactionIds` against the Judge->Kernel child's tx hash - the same mechanism
+   * genlayer-js exposes for any triggered-transaction walk, not a second index layer. Returns null
+   * (never a fabricated hop) when the Kernel->Target child does not exist yet or the transport
+   * cannot report triggered transactions - e.g. the target adapter's action required no further
+   * dispatch, or (per A2-C01) the Kernel->Target dispatch itself never fires because the Judge->
+   * Kernel call already failed at the `fee no_matching_allocation # internal` step.
+   */
+  async trackKernelToTargetChild(actionId: string): Promise<(GenLayerTransactionLifecycle & { executionResult?: ExecutionResult }) | null> {
+    if (!this.transport.resolveActionTransaction) throw new Error("Action trace requires a transaction index adapter");
+    const mapping = await this.transport.resolveActionTransaction(actionId);
+    if (!mapping) throw new Error(`No transaction mapping for action ${actionId}`);
+    const triggered = await this.transport.getTriggeredTransactionIds({ hash: mapping.childTxId });
+    if (!triggered.length) return null;
+    return this.trackTransaction(triggered[0] as `0x${string}`);
   }
 
   async trackActionTrace(actionId: string): Promise<ExecutionReceipt> {

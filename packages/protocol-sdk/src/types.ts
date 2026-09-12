@@ -346,7 +346,10 @@ export type PreparedWriteSemanticKind =
   | "REMEDIATION_REPORT"
   | "RECOVERY_VALIDATION_REPORT"
   | "TARGET_REGISTRATION"
-  | "POLICY_ACTIVATION";
+  | "POLICY_ACTIVATION"
+  | "AUTHORITY_REVOCATION"
+  | "DISABLE_ACTION"
+  | "DISABLE_RESOURCE";
 
 export interface PreparedRecloseWrite {
   schemaVersion: "1.0.0";
@@ -523,4 +526,21 @@ export interface FeeTransactionPreview {
   isEstimate: true;
   bondWei?: string | null;
   distributionSummary?: FeeDistributionSummary | null;
+}
+
+/**
+ * A3-H12: the IncidentJudge contract derives `incident_id` deterministically as
+ * `f"{target_id}:{reporter.as_hex}:{int(nonce)}"` (contracts/incident_judge_v1.py::_derive_incident_id)
+ * BEFORE the submission transaction resolves - so the exact same string is computable client-side
+ * from protocol-read inputs alone (the target_id being submitted against, the caller's reporter
+ * address, and the reporter's CURRENT nonce read from `get_reporter_nonce`). This is not a guess or
+ * a post-hoc persistence of whatever a writer happens to return: it is the same formula the
+ * contract itself evaluates, so the caller can persist the predicted incident identity
+ * immediately, before signing, with no dependency on transaction execution order.
+ */
+export interface PredictedIncidentIdentity {
+  incidentId: string;
+  targetId: string;
+  reporterAddress: string;
+  reporterNonce: number;
 }

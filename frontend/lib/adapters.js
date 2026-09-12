@@ -65,6 +65,22 @@ export class MockProductAdapter {
     await delay();
     return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "80000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
   }
+  async previewRevokeAuthority(input) {
+    await delay();
+    return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "60000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
+  }
+  async previewDisableAction(input) {
+    await delay();
+    return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "55000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
+  }
+  async previewDisableResource(input) {
+    await delay();
+    return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "55000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
+  }
+  async previewPolicyActivation(input) {
+    await delay();
+    return { valid: false, errors: ["Fixture mode cannot validate against a live active policy - connect a live SDK."], manifestHash: null, diff: null, synthetic: true };
+  }
   async submitWrite() {
     throw new Error("Fixture mode never submits transactions. Switch to a host-provided live Reclose SDK writer.");
   }
@@ -139,8 +155,10 @@ export class SdkProductAdapter {
         executionResult: decisionView.transaction.executionResult ?? null,
         finalStatus: decisionView.transaction.executionResult === "FINISHED_WITH_ERROR" ? "FAILURE" : decisionView.transaction.derived?.isFinal ? "SUCCESS" : "UNKNOWN"
       });
+      let kernelChildFailed = false;
       try {
         const childReceipt = await this.sdk.trackActionTrace(incidentId);
+        kernelChildFailed = childReceipt.finalStatus === "FAILURE";
         trace.push({
           role: "Judge -> Kernel child",
           txId: childReceipt.childTx?.txId ?? "unavailable",
@@ -152,7 +170,23 @@ export class SdkProductAdapter {
       } catch {
         // A3-H04: no fabricated child. The index/trace layer cannot currently resolve this
         // incident's action ID to a child transaction - render that explicitly.
+        kernelChildFailed = true;
         trace.push({ role: "Judge -> Kernel child", txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+      }
+      // A3-H04 (second hop): attempt Kernel -> Target reconstruction only when the Judge -> Kernel
+      // child did not already fail - a failed dispatch never triggers its own child, so attempting
+      // this hop after a known failure would either throw noisily or (worse) resolve a stale/
+      // unrelated triggered transaction. When the Kernel child succeeded, try the real second hop;
+      // render NOT_YET_AVAILABLE (never a fabricated success) if the transport cannot resolve it.
+      if (!kernelChildFailed && typeof this.sdk.trackKernelToTargetChild === "function") {
+        try {
+          const targetChild = await this.sdk.trackKernelToTargetChild(incidentId);
+          trace.push(targetChild
+            ? { role: "Kernel -> Target child", txId: targetChild.txId, rawStatus: targetChild.rawStatus, executionResult: targetChild.executionResult ?? null, finalStatus: targetChild.executionResult === "FINISHED_WITH_RETURN" ? "SUCCESS" : targetChild.executionResult ? "FAILURE" : "UNKNOWN" }
+            : { role: "Kernel -> Target child", txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+        } catch {
+          trace.push({ role: "Kernel -> Target child", txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+        }
       }
     }
     return { ...incident, finalOutcome: finalDecision?.outcome ?? null, decisionStage: finalDecision?.decisionStage ?? null, judgmentTx: decisionView?.transaction ?? null, trace };
@@ -184,6 +218,30 @@ export class SdkProductAdapter {
     const built = await this.sdk.buildTargetRegistration(input);
     return { ...built.feePreview, draft: built.report, synthetic: false };
   }
+  /** A3-H07: bounded owner controls wired to the real Kernel methods that already exist
+   * (revoke_authority/disable_action/disable_resource) through the same preview -> draftRegistry
+   * -> sign pipeline as every other write. */
+  async previewRevokeAuthority(input) {
+    if (typeof this.sdk.buildRevokeAuthority !== "function") throw new Error("Connected SDK does not support authority revocation preparation");
+    const built = await this.sdk.buildRevokeAuthority(input);
+    return { ...built.feePreview, draft: built.report, synthetic: false };
+  }
+  async previewDisableAction(input) {
+    if (typeof this.sdk.buildDisableAction !== "function") throw new Error("Connected SDK does not support disable-action preparation");
+    const built = await this.sdk.buildDisableAction(input);
+    return { ...built.feePreview, draft: built.report, synthetic: false };
+  }
+  async previewDisableResource(input) {
+    if (typeof this.sdk.buildDisableResource !== "function") throw new Error("Connected SDK does not support disable-resource preparation");
+    const built = await this.sdk.buildDisableResource(input);
+    return { ...built.feePreview, draft: built.report, synthetic: false };
+  }
+  /** A3-H02 (policy-activation half): real validate/hash/diff against the target's current live
+   * policy - never a presentation-only stub. */
+  async previewPolicyActivation(input) {
+    if (typeof this.sdk.buildPolicyActivationReview !== "function") throw new Error("Connected SDK does not support policy activation review");
+    return { ...(await this.sdk.buildPolicyActivationReview(input)), synthetic: false };
+  }
 
   /**
    * A3-H01: `payload` MUST be the exact PreparedRecloseWrite draft the caller previewed and
@@ -209,7 +267,10 @@ export class SdkProductAdapter {
       remediation: "submitRemediation",
       recovery: "submitRecovery",
       activatePolicy: "activatePolicy",
-      registerTarget: "registerTarget"
+      registerTarget: "registerTarget",
+      revokeAuthority: "revokeAuthority",
+      disableAction: "disableAction",
+      disableResource: "disableResource"
     }[kind];
     if (!method || typeof this.writer[method] !== "function") throw new Error(`Writer does not support ${kind}`);
     return this.writer[method](payload);

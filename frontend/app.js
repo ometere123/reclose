@@ -29,7 +29,10 @@ const state = {
  */
 const draftRegistry = createDraftRegistry();
 
-const PREVIEW_ELEMENT_IDS = { incident: "incident-preview", recovery: "recovery-preview", registerTarget: "onboard-preview" };
+const PREVIEW_ELEMENT_IDS = {
+  incident: "incident-preview", recovery: "recovery-preview", registerTarget: "onboard-preview",
+  revokeAuthority: "revoke-preview", disableAction: "disable-action-preview", disableResource: "disable-resource-preview"
+};
 
 function invalidateDraft(kind) {
   draftRegistry.invalidateDraft(kind);
@@ -135,9 +138,28 @@ async function renderTargetDetail(targetId) {
     ["Authority revoked", target.authorityRevoked ? "yes" : "no"],
     ["As-of block", assurance.asOfBlock ? `<span class="mono">${assurance.asOfBlock}</span>` : '<span class="muted">not provided by current data source</span>']
   ]);
+  const ownerControls = `
+    <div class="field-row" style="display:flex;gap:12px;flex-wrap:wrap">
+      <form id="revoke-form" data-target="${escapeHtml(targetId)}" novalidate style="flex:1;min-width:220px">
+        <fieldset><legend>Revoke authority</legend><p class="muted" style="font-size:12px">Immediate, authority-reducing, non-value-moving (Kernel <span class="mono">revoke_authority</span>).</p>
+        <div class="form-actions"><button class="button" type="submit">Preview revocation</button></div></form>
+        <div id="revoke-preview" class="empty">No revocation preview yet.</div>
+      </form>
+      <form id="disable-action-form" data-target="${escapeHtml(targetId)}" novalidate style="flex:1;min-width:220px">
+        <fieldset><legend>Disable action</legend><div class="field"><label for="disable-action-type">Action type ordinal</label><input id="disable-action-type" name="actionType" type="number" min="0" max="10" value="8" required></div>
+        <div class="form-actions"><button class="button" type="submit">Preview disable</button></div></fieldset>
+        <div id="disable-action-preview" class="empty">No disable-action preview yet.</div>
+      </form>
+      <form id="disable-resource-form" data-target="${escapeHtml(targetId)}" novalidate style="flex:1;min-width:220px">
+        <fieldset><legend>Disable resource</legend><div class="field"><label for="disable-resource-id">Resource ID</label><input id="disable-resource-id" name="resourceId" value="provider_a" required></div>
+        <div class="form-actions"><button class="button" type="submit">Preview disable</button></div></fieldset>
+        <div id="disable-resource-preview" class="empty">No disable-resource preview yet.</div>
+      </form>
+    </div>`;
   return `${pageHead("target", targetId, "Effective authority and restrictions are derived from protocol state, not from a frontend policy engine.", `<a class="button" href="#/report?target=${encodeURIComponent(targetId)}">Report incident</a><a class="button" href="#/policies/${encodeURIComponent(targetId)}">Policy</a>`)}
     <div class="metric-strip"><div class="metric"><span class="label">assurance state</span><span class="value" style="font-size:16px">${stateMarker(target.assuranceState ?? assurance.state)}</span></div><div class="metric"><span class="label">active restrictions</span><span class="value">${assurance.activeRestrictions?.length ?? 0}</span></div><div class="metric"><span class="label">effective capabilities</span><span class="value">${assurance.effectiveCapabilities?.length ?? 0}</span></div><div class="metric"><span class="label">policy version</span><span class="value">${policy?.summary?.version ?? "—"}</span></div></div>
-    <div class="grid">${panel("Identity & authority", details, "span-6")}${panel("Active reasons", restrictions ? `<ul class="trace">${restrictions}</ul>` : '<div class="empty">No active restrictions.</div>', "span-6")}</div>`;
+    <div class="grid">${panel("Identity & authority", details, "span-6")}${panel("Active reasons", restrictions ? `<ul class="trace">${restrictions}</ul>` : '<div class="empty">No active restrictions.</div>', "span-6")}
+    ${panel("Owner bounded controls", ownerControls, "span-12")}</div>`;
 }
 
 async function renderIncidents(parts) {
@@ -170,7 +192,8 @@ async function renderIncidentExplorer(incidentId) {
     ["Remaining restrictions", (incident.recovery.remainingRestrictions || []).map((r) => `<span class="mono">${escapeHtml(r)}</span>`).join(", ") || "none"]
   ]) : '<div class="empty">Recovery data unavailable.</div>';
   const traceFailure = (incident.trace || []).find((t) => t.finalStatus === "FAILURE");
-  return `${pageHead("incident explorer", shortHash(incidentId, 26, 12), "The five causal bands deliberately prevent judgment, policy consequence and execution from collapsing into one status.", `<a class="button" href="#/recover/${encodeURIComponent(incidentId)}">Recovery flow</a>`)}
+  window.__RECLOSE_LAST_INCIDENT__ = incident;
+  return `${pageHead("incident explorer", shortHash(incidentId, 26, 12), "The five causal bands deliberately prevent judgment, policy consequence and execution from collapsing into one status.", `<a class="button" href="#/recover/${encodeURIComponent(incidentId)}">Recovery flow</a><button class="button" type="button" data-action="export-audit-trail">Export audit trail</button>`)}
     ${traceFailure ? notice("Execution failure is downstream of judgment", `${traceFailure.role} finalized with ${traceFailure.executionResult}${traceFailure.error ? `: ${traceFailure.error}` : ""}. The semantic decision is not rewritten as failed.`, "danger") : ""}
     <section class="panel"><div class="causal-rail">
       <div class="causal-band"><div class="causal-index">01</div><div class="causal-content"><div class="eyebrow">claim & evidence</div><h3>${escapeHtml(incident.evidence?.subject || incident.ruleId)}</h3>${claim}</div></div>
@@ -291,14 +314,35 @@ async function renderOnboard() {
 
 async function renderPolicyAuthor(parts) {
   const targetId = parts[0] ? decodeURIComponent(parts[0]) : "";
-  let diff = null; try { diff = await adapter.getPolicyDiff(); } catch {}
   return `${pageHead("write flow", "Author & review policy", "Policy activation is a security boundary. Authority expansion is explicit and delayed.")}
-    <div class="grid">${panel("Manifest", `<form id="policy-form"><div class="field"><label for="policy-target">Target ID</label><input id="policy-target" value="${escapeHtml(targetId)}" required></div><div class="field"><label for="policy-json">Canonical APM</label><textarea id="policy-json" spellcheck="false" aria-describedby="policy-hint">{\n  "schema": "reclose-apm/1",\n  "policyId": "new-policy",\n  "version": 1\n}</textarea><span class="hint" id="policy-hint">The production compiler validates the full governed APM shape and hashes RFC8785/JCS with Keccak-256.</span></div><div class="form-actions"><button class="button" type="button" data-action="policy-review">Validate & diff</button></div></form>`, "span-7")}${panel("Authority review", diff ? `<div class="authority-diff">${diff.changes.map(c => `<div class="diff-row ${c.isExpansion ? "expand" : "reduce"}"><div class="diff-sign">${c.isExpansion ? "+" : "−"}</div><div class="mono">${escapeHtml(c.kind)}</div><div>${escapeHtml(c.description)}</div></div>`).join("")}</div>${notice("Signing consequence", diff.authorityExpands ? "This change expands authority and is timelocked. Review every added action, resource and Judge before signing." : "No expansion is represented in this fixture diff.", diff.authorityExpands ? "danger" : "success")}` : '<div class="empty">Diff unavailable.</div>', "span-5")}</div>`;
+    ${notice("Scope of this review", "This validates, canonically hashes, and diffs the manifest against the target's real active policy. It does not yet perform the multi-transaction begin_policy/add_policy_rule/seal_policy/activate_policy construction sequence - that remains a separate write flow.", "warning")}
+    <div class="grid">${panel("Manifest", `<form id="policy-form"><div class="field"><label for="policy-target">Target ID</label><input id="policy-target" value="${escapeHtml(targetId)}" required></div><div class="field"><label for="policy-json">Canonical APM</label><textarea id="policy-json" spellcheck="false" aria-describedby="policy-hint">{\n  "schema": "reclose-apm/1",\n  "policyId": "new-policy",\n  "version": 1\n}</textarea><span class="hint" id="policy-hint">The production compiler validates the full governed APM shape and hashes RFC8785/JCS with Keccak-256.</span></div><div class="form-actions"><button class="button" type="button" data-action="policy-review">Validate & diff</button></div></form>`, "span-7")}${panel("Authority review", '<div id="policy-review-output" class="empty">No review yet.</div>', "span-5")}</div>`;
+}
+
+/** A3-H02 (policy-activation half): real canonical validate/hash/diff, never a setLiveMessage-only
+ * stub. Invalid manifests are blocked from producing any diff/hash output. */
+async function handlePolicyReview() {
+  const el = document.getElementById("policy-review-output");
+  const targetId = document.getElementById("policy-target")?.value || "";
+  let apm;
+  try { apm = JSON.parse(document.getElementById("policy-json")?.value || "{}"); }
+  catch (error) { el.className = ""; el.innerHTML = notice("Manifest is not valid JSON", error.message, "danger"); return; }
+  try {
+    const result = await adapter.previewPolicyActivation({ targetId, apm });
+    el.className = "";
+    if (!result.valid) { el.innerHTML = notice("Manifest rejected", result.errors.join("; "), "danger"); return; }
+    const diffHtml = result.diff ? `<div class="authority-diff">${result.diff.changes.map((c) => `<div class="diff-row ${c.isExpansion ? "expand" : "reduce"}"><div class="diff-sign">${c.isExpansion ? "+" : "−"}</div><div class="mono">${escapeHtml(c.kind)}</div><div>${escapeHtml(c.description)}</div></div>`).join("") || '<div class="muted">No authority changes represented.</div>'}</div>` : "";
+    el.innerHTML = `${recordRows([["Manifest hash", `<span class="hash">${escapeHtml(result.manifestHash)}</span>`]])}${diffHtml}${notice("Signing consequence", result.diff?.authorityExpands ? "This change expands authority and must respect the configured activation delay." : "No authority expansion is represented by this diff.", result.diff?.authorityExpands ? "danger" : "success")}`;
+  } catch (error) {
+    el.className = "";
+    el.innerHTML = notice("Review failed", error.message, "danger");
+  }
+  setLiveMessage("Policy manifest review complete.");
 }
 
 async function renderPending() {
   state.pending = pendingStore.loadAll();
-  const body = state.pending.length ? `<div class="table-wrap"><table><thead><tr><th>Transaction</th><th>Incident</th><th>Kind</th><th>Persisted</th></tr></thead><tbody>${state.pending.map((p) => `<tr><td class="hash">${escapeHtml(p.txId)}</td><td class="hash">${p.incidentId ? escapeHtml(p.incidentId) : '<span class="muted">not yet known</span>'}</td><td>${escapeHtml(p.kind || "write")}</td><td>${formatIso(p.persistedAt)}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty">No pending transaction IDs are persisted in this browser.</div>';
+  const body = state.pending.length ? `<div class="table-wrap"><table><thead><tr><th>Transaction</th><th>Incident</th><th>Kind</th><th>Persisted</th></tr></thead><tbody>${state.pending.map((p) => `<tr><td class="hash">${escapeHtml(p.txId)}</td><td class="hash">${p.incidentId ? `${escapeHtml(p.incidentId)}${p.predicted ? ' <span class="muted" style="font-size:11px">(predicted pre-sign)</span>' : ""}` : '<span class="muted">not yet known</span>'}</td><td>${escapeHtml(p.kind || "write")}</td><td>${formatIso(p.persistedAt)}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty">No pending transaction IDs are persisted in this browser.</div>';
   return `${pageHead("transaction tracker", "Pending writes", "Transaction IDs are persisted immediately. Polling errors never trigger blind resubmission.")}${panel("Local resume queue", body)}`;
 }
 
@@ -380,6 +424,7 @@ async function handleIncidentSubmit(event) {
         ["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`],
         ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`],
         ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`],
+        ...(preview.draft.predictedIncidentId ? [["Predicted incident ID", `<span class="hash">${escapeHtml(preview.draft.predictedIncidentId.incidentId)}</span>`]] : []),
       ])
     : "";
   el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Reporter bond", `<span class="mono">${escapeHtml(preview.bondWei ?? "0")} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode will not sign or submit this report.", "warning") : '<button class="button primary" type="button" data-action="submit-incident">Sign & submit</button>'}`;
@@ -408,6 +453,7 @@ async function handleRecoverySubmit(event) {
         ["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`],
         ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`],
         ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`],
+        ...(preview.draft.predictedIncidentId ? [["Predicted incident ID", `<span class="hash">${escapeHtml(preview.draft.predictedIncidentId.incidentId)}</span>`]] : []),
       ])
     : "";
   el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate a recovery transaction.", "warning") : '<button class="button primary" type="button" data-action="submit-recovery">Sign & submit recovery</button>'}`;
@@ -436,11 +482,74 @@ async function handleOnboardSubmit(event) {
         ["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`],
         ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`],
         ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`],
+        ...(preview.draft.predictedIncidentId ? [["Predicted incident ID", `<span class="hash">${escapeHtml(preview.draft.predictedIncidentId.incidentId)}</span>`]] : []),
       ])
     : "";
   el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate a registration transaction.", "warning") : '<button class="button primary" type="button" data-action="submit-registerTarget">Sign & submit registration</button>'}`;
   setLiveMessage("Registration preview ready. The exact reviewed draft will be signed.");
   bindDynamicButtons();
+}
+
+async function handleOwnerControlSubmit(event, kind, previewFn, buildInput) {
+  event.preventDefault();
+  invalidateDraft(kind);
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const input = buildInput(Object.fromEntries(data.entries()), form.dataset.target);
+  const preview = await adapter[previewFn](input);
+  const el = document.getElementById(PREVIEW_ELEMENT_IDS[kind]);
+  el.className = "";
+  draftRegistry.registerDraft(kind, preview.draft);
+  invalidateDraftOnEdit(form, kind);
+  const draftHtml = preview.draft?.reviewHash
+    ? recordRows([["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`], ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`], ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`]])
+    : "";
+  el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`], ["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate this transaction.", "warning") : `<button class="button primary" type="button" data-action="submit-${kind}">Sign & submit</button>`}`;
+  setLiveMessage("Owner-control preview ready. The exact reviewed draft will be signed.");
+  bindDynamicButtons();
+}
+
+function handleRevokeSubmit(event) {
+  return handleOwnerControlSubmit(event, "revokeAuthority", "previewRevokeAuthority", (_input, targetId) => ({ targetId }));
+}
+function handleDisableActionSubmit(event) {
+  return handleOwnerControlSubmit(event, "disableAction", "previewDisableAction", (input, targetId) => ({ targetId, actionType: Number(input.actionType) }));
+}
+function handleDisableResourceSubmit(event) {
+  return handleOwnerControlSubmit(event, "disableResource", "previewDisableResource", (input, targetId) => ({ targetId, resourceId: input.resourceId }));
+}
+
+/**
+ * A3-H08: a complete causal-reconstruction export (claim -> EAP/artifact -> DecisionRecord ->
+ * policy/rule/effect -> parent/child transaction trace -> ExecutionReceipt/post-state ->
+ * recovery, per FINAL_REMEDIATION.md Section 10) assembled ONLY from the exact incident object the
+ * Incident Explorer already rendered - never re-fetched/re-derived/fabricated separately, so the
+ * export can never disagree with what was on screen. Missing links remain explicitly null/absent
+ * rather than silently omitted.
+ */
+function handleExportAuditTrail() {
+  const incident = window.__RECLOSE_LAST_INCIDENT__;
+  if (!incident) { setLiveMessage("No incident is currently loaded to export."); return; }
+  const bundle = {
+    schemaVersion: "1.0.0",
+    exportedAt: new Date().toISOString(),
+    claim: { reporter: incident.reporter, ruleId: incident.ruleId, resourceId: incident.resourceId ?? null, evidenceHash: incident.evidenceHash },
+    evidence: incident.evidence ?? null,
+    decision: { finalOutcome: incident.finalOutcome ?? null, decisionStage: incident.decisionStage ?? null, conditionCode: incident.conditionCode ?? null },
+    policyConsequence: incident.consequences ?? [],
+    transactionTrace: incident.trace ?? [],
+    recovery: incident.recovery ?? null,
+  };
+  const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `reclose-audit-trail-${incident.incidentId}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setLiveMessage("Audit trail exported as a downloadable JSON file.");
 }
 
 async function submitLiveWrite(kind) {
@@ -454,10 +563,14 @@ async function submitLiveWrite(kind) {
     // A3-H01: pass EXACTLY the previewed/reviewed draft - never an empty or reconstructed object.
     const result = await adapter.submitWrite(kind, draft);
     if (!result?.txId) throw new Error("Writer returned no transaction ID");
-    // A3-H12: persist the transaction ID immediately, AND the associated incident identity the
-    // moment it is known (either deterministically derivable or returned by the writer) - a
-    // reload must never lose either identity or cause a resubmission.
-    const record = { txId: result.txId, kind, incidentId: result.incidentId ?? null };
+    // A3-H12: persist the transaction ID immediately. The incident identity is known even BEFORE
+    // the writer returns, for incident/recovery writes: `draft.predictedIncidentId` was derived
+    // client-side with the exact formula the IncidentJudge contract itself evaluates
+    // (target_id:reporter:nonce). Prefer it over whatever a writer's return object happens to
+    // carry; fall back to the writer's own value only if no prediction exists (e.g. for writes
+    // that don't mint an incident identity at all).
+    const incidentId = draft.predictedIncidentId?.incidentId ?? result.incidentId ?? null;
+    const record = { txId: result.txId, kind, incidentId, predicted: Boolean(draft.predictedIncidentId) };
     draftRegistry.invalidateDraft(kind);
     await persistThenTrack(pendingStore, record, globalThis.__RECLOSE_PRODUCT_RUNTIME__?.trackTransaction, ({ phase }) => setLiveMessage(`Transaction ${phase}: ${shortHash(result.txId)}`));
     state.pending = pendingStore.loadAll();
@@ -472,6 +585,9 @@ function bindDynamicButtons() {
   document.querySelector('[data-action="submit-incident"]')?.addEventListener("click", () => submitLiveWrite("incident"));
   document.querySelector('[data-action="submit-recovery"]')?.addEventListener("click", () => submitLiveWrite("recovery"));
   document.querySelector('[data-action="submit-registerTarget"]')?.addEventListener("click", () => submitLiveWrite("registerTarget"));
+  document.querySelector('[data-action="submit-revokeAuthority"]')?.addEventListener("click", () => submitLiveWrite("revokeAuthority"));
+  document.querySelector('[data-action="submit-disableAction"]')?.addEventListener("click", () => submitLiveWrite("disableAction"));
+  document.querySelector('[data-action="submit-disableResource"]')?.addEventListener("click", () => submitLiveWrite("disableResource"));
 }
 
 function bindShellEvents() {
@@ -487,7 +603,11 @@ function bindEvents() {
   document.getElementById("incident-form")?.addEventListener("submit", handleIncidentSubmit);
   document.getElementById("recovery-form")?.addEventListener("submit", handleRecoverySubmit);
   document.getElementById("onboard-form")?.addEventListener("submit", handleOnboardSubmit);
-  document.querySelector('[data-action="policy-review"]')?.addEventListener("click", () => setLiveMessage("Policy review uses canonical compiler validation in live integration. No activation has been submitted."));
+  document.getElementById("revoke-form")?.addEventListener("submit", handleRevokeSubmit);
+  document.getElementById("disable-action-form")?.addEventListener("submit", handleDisableActionSubmit);
+  document.getElementById("disable-resource-form")?.addEventListener("submit", handleDisableResourceSubmit);
+  document.querySelector('[data-action="policy-review"]')?.addEventListener("click", handlePolicyReview);
+  document.querySelector('[data-action="export-audit-trail"]')?.addEventListener("click", handleExportAuditTrail);
   bindDynamicButtons();
 }
 

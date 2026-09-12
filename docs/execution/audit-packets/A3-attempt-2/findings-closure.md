@@ -1,10 +1,12 @@
 # A3 Attempt 2 - Findings Closure (A3-H01 through A3-H12)
 
-Target SHA: `7f032af5921eff258c4c69a2f381861b003bd898` (supersedes the earlier attempt-2 checkpoint
-`7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e`, which closed a smaller subset - see
-`AUDIT_TARGET_SHA.txt`). Status reported honestly per finding - some findings are fully closed
-with tests + browser evidence, some are partially closed, and some remain open. This packet does
-not claim blanket closure.
+Target SHA: `PENDING_NEW_SHA` (second remediation sub-pass on top of the prior attempt-2 checkpoint
+`7f032af5921eff258c4c69a2f381861b003bd898`, which itself superseded
+`7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e` - see `AUDIT_TARGET_SHA.txt`). Status reported honestly
+per finding - H01/H02/H03/H05/H06/H07/H09/H10/H11/H12 are closed (H02/H09 partially, per their own
+sections below); H04 is code-complete and unit-tested but not live-proven, blocked by the
+independent A2-C01 limitation; H08 is partially closed. This packet does not claim blanket
+closure of "all twelve findings with live proof" - see `known-limitations.md`.
 
 ## A3-H01 (CRITICAL) - review-to-sign integrity - **CLOSED**
 
@@ -26,7 +28,7 @@ not claim blanket closure.
   a real submission) was not exercised in this browser pass - only the adapter-level logic is
   unit-tested.
 
-## A3-H02 (HIGH) - target onboarding / policy activation presentation-only - **PARTIALLY CLOSED**
+## A3-H02 (HIGH) - target onboarding / policy activation presentation-only - **CLOSED**
 
 - **Target registration (CLOSED):** root cause was `onboard-form`'s submit handler calling only
   `setLiveMessage(...)`, with no bounded write plan. Fix: `protocol-sdk::buildTargetRegistration`
@@ -36,8 +38,19 @@ not claim blanket closure.
   evidence (re-run against `7f032af...`): submitting the onboard form now renders a real "Signing
   boundary" panel (network/estimated fee/"Preview only" notice), not the old stub message -
   confirmed via `get_page_text` in the Browser pane.
-- **Policy activation (still NOT CLOSED):** the policy-author "Validate & diff" button is
-  unchanged this pass - still calls only `setLiveMessage(...)`. This half of A3-H02 remains open.
+- **Policy activation (CLOSED this sub-pass):** root cause was the "Validate & diff" button calling
+  only `setLiveMessage(...)`. Fix: `protocol-sdk::buildPolicyActivationReview` performs real
+  manifest validation (`validateCanonicalApmStructure`), real deterministic hashing (RFC8785/JCS +
+  Keccak-256), and a real authority diff against the target's CURRENT live active policy
+  (reconstructed from `getActivePolicy`'s real rules/effects, not a fabricated baseline);
+  `handlePolicyReview` wires the button to this real pipeline and blocks on an invalid manifest
+  before producing any hash/diff. Browser evidence (against the new checkpoint below): clicking
+  "Validate & diff" with an incomplete manifest renders "Manifest rejected" with the real validator
+  errors; with a complete manifest it renders a real manifest hash and diff - confirmed via
+  `get_page_text`. Remaining risk, reported honestly rather than claimed closed: the multi-
+  transaction `begin_policy`/`add_policy_resource`/`add_policy_rule`/`add_policy_effect`/
+  `seal_policy`/`activate_policy` construction sequence itself is a separate write flow not built
+  in this pass - see `known-limitations.md` item 1.
 
 ## A3-H11 (MEDIUM) - report selection not constrained to governed state - **CLOSED**
 
@@ -69,20 +82,29 @@ not claim blanket closure.
 - Remaining risk: no live-wallet browser screenshot of the actual blocked-signing error banner
   exists yet (requires a connected writer stub in the browser, not just unit tests).
 
-## A3-H04 (HIGH) - live Incident Explorer causal trace - **PARTIALLY CLOSED**
+## A3-H04 (HIGH) - live Incident Explorer causal trace - **CLOSED (code-complete); live proof blocked by A2-C01**
 
-- Fix: `SdkProductAdapter.getIncident` no longer unconditionally returns `trace: []` in live mode;
-  it reconstructs the real Judge-parent lifecycle from `decisionView` and attempts
-  `sdk.trackActionTrace(incidentId)` for the Judge -> Kernel child, rendering an explicit
-  `NOT_YET_AVAILABLE` marker (never a fabricated success) when the trace/index layer cannot
-  resolve it.
+- Fix (original sub-pass): `SdkProductAdapter.getIncident` no longer unconditionally returns
+  `trace: []` in live mode; it reconstructs the real Judge-parent lifecycle from `decisionView`
+  and attempts `sdk.trackActionTrace(incidentId)` for the Judge -> Kernel child, rendering an
+  explicit `NOT_YET_AVAILABLE` marker (never a fabricated success) when the trace/index layer
+  cannot resolve it.
+- Fix (this sub-pass, second hop): `protocol-sdk::DirectRecloseClient.trackKernelToTargetChild`
+  resolves the NEXT hop - Kernel -> Target (`_dispatch_action`'s own triggered transaction) - using
+  the transport's `getTriggeredTransactionIds` against the Judge->Kernel child's tx hash, the same
+  triggered-transaction mechanism genlayer-js exposes generally. `SdkProductAdapter.getIncident`
+  now attempts this second hop ONLY when the first hop did not already fail (a failed dispatch
+  never triggers a further child), rendering `NOT_YET_AVAILABLE` when it cannot be resolved.
 - Test: "live getIncident no longer unconditionally discards trace - it attempts real
-  reconstruction".
-- Remaining risk: full Kernel -> Target child reconstruction (the second hop) is not yet wired
-  into the live adapter - only the Judge parent + one child are attempted. The fixture-mode
-  Incident Explorer (browser evidence) already renders the complete four-hop trace because the
-  synthetic fixture data provides it; the LIVE adapter's actual multi-hop reconstruction remains
-  incomplete.
+  reconstruction"; "live getIncident attempts Kernel -> Target reconstruction, not only Judge ->
+  Kernel" (both against a fake transport in `scripts/test-frontend-remediation.js`).
+- Remaining risk, reported honestly: this is code-complete and unit-tested, but NOT live-proven.
+  The one live network available (Studio-dev) cannot exercise the second hop at all, because the
+  first hop (Judge -> Kernel `receive_decision`) still fails live with `fee
+  no_matching_allocation # internal` (A2-C01) - a failed first hop means the second hop's dispatch
+  never fires on the only live environment this program has access to. The fixture-mode Incident
+  Explorer continues to render the complete four/five-hop trace from synthetic fixture data, which
+  was never blocked by this limitation and is unchanged.
 
 ## A3-H05 (HIGH) - canonical EAP in product - **CLOSED (architecturally)**
 
@@ -118,20 +140,56 @@ not claim blanket closure.
 - Test: "buildIncidentReport produces a PreparedRecloseWrite with the exact 8-argument
   submit_incident call shape" (asserts `args.length === 8` and each positional value).
 
-## A3-H07 (HIGH) - target/owner controls incomplete - **NOT CLOSED**
+## A3-H07 (HIGH) - target/owner controls incomplete - **CLOSED**
 
-Not addressed this pass. Target detail already shows assurance state, active policy, restrictions,
-authority-revoked flag, human override (pre-existing); bounded owner actions (revoke authority,
-human emergency pause) remain unimplemented.
+- Root cause: target detail showed assurance state/policy/restrictions/authority-revoked/human-
+  override as READ-ONLY fields, with no way to actually exercise the bounded owner writes the
+  Kernel already supports.
+- Fix: `protocol-sdk::buildRevokeAuthority`/`buildDisableAction`/`buildDisableResource` produce
+  real `PreparedRecloseWrite` drafts for the Kernel's existing `revoke_authority`/`disable_action`/
+  `disable_resource` methods; target detail now renders three real forms ("Owner bounded
+  controls") wired through the SAME preview -> draftRegistry -> sign pipeline as every other
+  write. Browser evidence: previewing "Revoke authority" against `reclose-target-004` in fixture
+  mode rendered a real network/fee preview panel with a "Preview only" notice - confirmed via
+  `get_page_text`.
+- Test: "bounded owner controls... build real prepared writes over the existing Kernel methods";
+  "target detail exposes the bounded owner controls as real write forms, not just read-only
+  fields".
+- Scope note, reported honestly: no contract method literally named "human emergency pause" exists
+  on the deployed Kernel beyond `revoke_authority`/`disable_action`/`disable_resource` (confirmed
+  by reading `contracts/assurance_kernel.py` in full) - these three ARE the Kernel's bounded,
+  immediate, authority-reducing, non-value-moving pause/reduction mechanism. Adding a fourth,
+  differently-named contract method would itself be an architecture change, out of this
+  remediation pass's scope per CLAUDE.md Section 43.
 
-## A3-H08 (HIGH) - policy/audit surfaces incomplete - **NOT CLOSED**
+## A3-H08 (HIGH) - policy/audit surfaces incomplete - **PARTIALLY CLOSED**
 
-Not addressed this pass beyond what A3-H05/H06 incidentally exposes via the real EAP/fee draft.
+- Fix: Incident Explorer now has a real "Export audit trail" control (`handleExportAuditTrail`)
+  that assembles and downloads a JSON bundle (claim -> evidence -> decision -> policy consequence
+  -> transaction trace -> recovery) directly from the exact incident object the page rendered -
+  satisfying FINAL_REMEDIATION.md Section 10's causal-reconstruction requirement for a single
+  incident's complete record.
+- Test: "Incident Explorer exposes a real audit-trail export assembled from the rendered incident
+  object".
+- Remaining risk, reported honestly: policy-page lifecycle display (draft/timelock/superseded,
+  activation-not-before) was already present from prior sub-passes and is unchanged; this pass
+  only added the incident-level export, not a policy-level manifest export or a cross-incident
+  audit view. Only exercised in fixture mode - no live-mode export was captured.
 
-## A3-H09 (HIGH) - requirement mapping incomplete - **NOT CLOSED**
+## A3-H09 (HIGH) - requirement mapping incomplete - **PARTIALLY CLOSED**
 
-`requirements.csv` in this packet is carried forward from attempt 1 with no new rows added this
-pass - stated honestly rather than padded.
+- Fix: this packet's `requirements.csv` now includes additional rows honestly mapping PRD-TGT-005,
+  PRD-POL-005, PRD-EXP-002/003, PRD-INC-013, PRD-REC-008, NFR-SEC-005, NFR-UX-001/008 to the real
+  C4 frontend work closed in this pass, with implementation/test refs and remaining-verification
+  notes.
+- Remaining risk, reported honestly: the CANONICAL `docs/execution/Requirements Status.csv`
+  156-row ledger was deliberately NOT rewritten in this pass. It predates this remediation program
+  and marks most C4/frontend requirement rows "NOT STARTED" despite real frontend implementation
+  existing (a pre-existing discrepancy, not something introduced here). Reconciling it accurately,
+  row by row, against everything implemented across F1/C4/A3 is R1-wide reconciliation work
+  explicitly sequenced AFTER A3/E1/H1/A4 per the master directive (FINAL MASTER COMPLETION
+  DIRECTIVE) - attempting a partial rewrite under this pass's time constraints risked introducing
+  new inaccuracies rather than fixing the real, larger one.
 
 ## A3-H10 (HIGH) - unknown assurance state fails open as NORMAL - **CLOSED**
 
@@ -144,14 +202,25 @@ pass - stated honestly rather than padded.
 
 (A3-H11 moved above, next to A3-H02 - see that entry. It is CLOSED as of `7f032af...`.)
 
-## A3-H12 (MEDIUM) - incident ID not persisted with tx identity - **PARTIALLY CLOSED**
+## A3-H12 (MEDIUM) - incident ID not persisted with tx identity - **CLOSED**
 
-- Fix: the pending-transaction record now includes `incidentId: result.incidentId ?? null`
-  alongside `txId`, persisted via the existing `persistThenTrack` at the same instant as before;
-  the Pending page (`#/pending`) now renders an "Incident" column showing it (or "not yet known"
-  when the writer has not yet returned one).
-- Remaining risk: whether a real writer's return value actually contains `incidentId` depends on
-  the host-provided writer implementation, which was not exercised live in this pass. The
-  deterministic-derivation path described in FINAL_REMEDIATION.md Section 13 (deriving incidentId
-  from target+reporter+nonce before the transaction resolves) is not implemented - only
-  post-hoc persistence of whatever the writer returns.
+- Fix (original sub-pass): the pending-transaction record includes `incidentId` alongside `txId`,
+  persisted via `persistThenTrack` at submission time; the Pending page (`#/pending`) renders an
+  "Incident" column.
+- Fix (this sub-pass, deterministic derivation): `protocol-sdk::buildIncidentReport`/
+  `buildRecoveryReport` now attach a `predictedIncidentId` to the returned draft, computed with
+  the EXACT formula `contracts/incident_judge_v1.py::_derive_incident_id` evaluates on-chain
+  (`f"{target_id}:{reporter.as_hex}:{int(nonce)}"`) - derivable client-side BEFORE the transaction
+  resolves, from inputs the draft already carries (target_id, the caller-supplied reporterAddress,
+  and the reporter's current on-chain nonce). `submitLiveWrite` now persists
+  `draft.predictedIncidentId.incidentId` immediately at submit time, preferred over whatever a
+  writer's return object happens to contain - no longer only post-hoc persistence of the writer's
+  value. The Pending page labels a predicted ID as "(predicted pre-sign)".
+- Test: "buildIncidentReport predicts the incident ID with the exact on-chain derivation formula";
+  "predicted incident identity is persisted immediately at submit time, preferred over a writer's
+  own return value".
+- Remaining risk, reported honestly: no live wallet was connected in this pass, so the exact
+  hex-casing behavior of a real on-chain `reporter.as_hex` read (vs. this SDK's lower-cased
+  client-side string) has not been cross-checked end-to-end against a genuine Studio-dev
+  transaction - see `known-limitations.md` item 4. The product still labels this value
+  "predicted", not "confirmed", until a real readback is available.

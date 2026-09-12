@@ -215,7 +215,132 @@ async function main() {
     assert.match(app, /Governed selection/, "a governed-selection notice must confirm the options come from real policy state");
   });
 
-  const total = 16;
+  await test("A3-H12: buildIncidentReport predicts the incident ID with the exact on-chain derivation formula", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, false, false];
+        if (functionName === "get_policy_header") return [1, "0x" + "a".repeat(64), true, true, false];
+        if (functionName === "get_policy_counts") return [1, 1, 1];
+        if (functionName === "get_policy_rule_id_at") return "PROVIDER_COMPROMISE_V1";
+        if (functionName === "get_policy_rule") return ["0xJudge", 1, 1, true, true];
+        if (functionName === "get_policy_rule_economics") return ["0", "0"];
+        if (functionName === "get_policy_resource_at") return "provider_a";
+        if (functionName === "get_policy_effect_at") return ["PROVIDER_COMPROMISE_V1", 3, "provider_a", "0", "", 1, true];
+        if (functionName === "get_reporter_nonce") return 7;
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "123", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const reporterAddress = "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd";
+    const { report } = await client.buildIncidentReport({
+      targetId: "target-001", ruleId: "PROVIDER_COMPROMISE_V1", resourceId: "provider_a", reporterAddress,
+      evidenceSources: [{ sourceId: "s1", url: "https://example.com/a", sourceClass: "INDEPENDENT_PUBLIC", fetchedAt: "2026-01-01T00:00:00.000Z", availability: "AVAILABLE" }],
+    });
+    assert.ok(report.predictedIncidentId, "a predicted incident identity must be attached to the draft before signing");
+    assert.strictEqual(report.predictedIncidentId.incidentId, `target-001:${reporterAddress.toLowerCase()}:7`);
+    assert.strictEqual(report.predictedIncidentId.reporterNonce, 7);
+  });
+
+  await test("A3-H07: bounded owner controls (revoke authority, disable action, disable resource) build real prepared writes over the existing Kernel methods", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract() { throw new Error("not used"); },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "10", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const revoke = await client.buildRevokeAuthority({ targetId: "target-1" });
+    assert.strictEqual(revoke.report.functionName, "revoke_authority");
+    assert.deepStrictEqual(revoke.report.args, ["target-1"]);
+    const disableAction = await client.buildDisableAction({ targetId: "target-1", actionType: 8 });
+    assert.strictEqual(disableAction.report.functionName, "disable_action");
+    assert.deepStrictEqual(disableAction.report.args, ["target-1", 8]);
+    const disableResource = await client.buildDisableResource({ targetId: "target-1", resourceId: "provider_a" });
+    assert.strictEqual(disableResource.report.functionName, "disable_resource");
+    assert.deepStrictEqual(disableResource.report.args, ["target-1", "provider_a"]);
+    for (const r of [revoke, disableAction, disableResource]) assert.match(r.report.reviewHash, /^0x[0-9a-f]{64}$/);
+  });
+
+  await test("A3-H07: target detail exposes the bounded owner controls as real write forms, not just read-only fields", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /revoke-form/);
+    assert.match(app, /disable-action-form/);
+    assert.match(app, /disable-resource-form/);
+    assert.match(app, /handleRevokeSubmit|handleOwnerControlSubmit/);
+  });
+
+  await test("A3-H02 (policy activation half): buildPolicyActivationReview performs real validate/hash/diff, blocking invalid manifests", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "", 0, 0, false, false];
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "0", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const rejected = await client.buildPolicyActivationReview({ targetId: "target-1", apm: { policyId: "x" } });
+    assert.strictEqual(rejected.valid, false, "an incomplete manifest must be rejected, not silently diffed");
+    assert.ok(rejected.errors.length > 0);
+
+    const validApm = {
+      schema: "reclose-apm/1", policyId: "policy-2", version: 2, target: "target-1", authority: {},
+      protectedResources: ["provider_b"], judgeModules: [{ address: "0xJudge", version: 1 }], semanticRules: [],
+      sourcePolicies: {}, capabilities: ["RESTRICT"], actionBounds: {}, stateMachine: {}, provisionalContainment: {},
+      recovery: {}, reporting: {}, crossChain: {}, humanOverride: { enabled: true }, evolutionEnvelope: {}, activation: {}, metadata: {},
+    };
+    const accepted = await client.buildPolicyActivationReview({ targetId: "target-1", apm: validApm });
+    assert.strictEqual(accepted.valid, true);
+    assert.match(accepted.manifestHash, /^0x[0-9a-f]{64}$/);
+    assert.ok(accepted.diff, "a real diff must be produced against the target's current (empty) active policy");
+  });
+
+  await test("A3-H02 (policy activation half): the product no longer treats Validate & diff as a setLiveMessage-only stub", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /handlePolicyReview/, "the policy-review action must be wired to a real handler");
+    assert.match(app, /adapter\.previewPolicyActivation/, "policy review must call the real validate\\/hash\\/diff pipeline");
+    assert.doesNotMatch(
+      app,
+      /data-action="policy-review"[^`]*addEventListener\("click",\s*\(\)\s*=>\s*setLiveMessage/,
+      "Validate & diff must not remain wired to a setLiveMessage-only stub"
+    );
+  });
+
+  await test("A3-H04 (second hop): live getIncident attempts Kernel -> Target reconstruction, not only Judge -> Kernel", () => {
+    const adapter = read("frontend/lib/adapters.js");
+    assert.match(adapter, /trackKernelToTargetChild/, "the live adapter must attempt the second causal hop");
+    assert.match(adapter, /Kernel -> Target child/, "the trace must label the second hop distinctly from the first");
+  });
+
+  await test("A3-H12: predicted incident identity is persisted immediately at submit time, preferred over a writer's own return value", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /draft\.predictedIncidentId\?\.incidentId\s*\?\?\s*result\.incidentId/, "the predicted (pre-sign, deterministic) incident ID must take priority over a post-hoc writer return value");
+  });
+
+  await test("A3-H08: Incident Explorer exposes a real audit-trail export assembled from the rendered incident object", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /export-audit-trail/, "an export control must exist on the Incident Explorer");
+    assert.match(app, /handleExportAuditTrail/);
+    assert.match(app, /window\.__RECLOSE_LAST_INCIDENT__/, "the export must reuse the exact rendered incident object, never re-derive a separate one");
+  });
+
+  const total = 24;
   console.log(`\n${total - failures}/${total} frontend A3-remediation checks passed.`);
   if (failures) process.exit(1);
 }
