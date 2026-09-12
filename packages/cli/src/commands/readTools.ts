@@ -1,4 +1,4 @@
-import type { RecloseSDK } from "@reclose/protocol-sdk";
+import type { EvidenceSource, RecloseSDK } from "@reclose/protocol-sdk";
 import type { CommandResult } from "./policyCompile";
 
 async function result(work: () => Promise<unknown>): Promise<CommandResult> {
@@ -28,6 +28,20 @@ export function runDecisionInspect(sdk: RecloseSDK, decisionId: string): Promise
 
 export function runActionTrace(sdk: RecloseSDK, actionId: string): Promise<CommandResult> {
   return result(() => sdk.trackActionTrace(actionId));
+}
+
+export function runIncidentReportPrepare(
+  sdk: RecloseSDK,
+  input: { targetId: string; ruleId: string; resourceId: string; evidenceSources: EvidenceSource[] },
+): Promise<CommandResult> {
+  return result(() => sdk.buildIncidentReport(input));
+}
+
+export function runRecoveryPrepare(
+  sdk: RecloseSDK,
+  input: { incidentId: string; evidenceSources: EvidenceSource[] },
+): Promise<CommandResult> {
+  return result(() => sdk.buildRecoveryReport(input));
 }
 
 export async function runAuditExport(
