@@ -1,102 +1,107 @@
-Current phase: **A3 PRODUCT & INTEGRATION CANDIDATE FROZEN / AWAITING EXTERNAL REVIEW.**
+Current phase: **A3 ATTEMPT 1 FAILED / PRODUCT-INTEGRATION REMEDIATION REQUIRED.**
 
-Independent A2 attempt-2 review was performed against immutable target
-`6dc88f9393a2c8f94deae37d5c53af8bbcf9e9f5` on `claude/a2-remediation-integration`.
-Decision: **PASS WITH CONDITIONS**. The exact decision and conditions are preserved at
-`docs/execution/audit-packets/A2-attempt-2/AUDIT_DECISION.md`.
+Independent A3 review was completed against immutable substantive target
+`264c14af8f83cbd2bcf0176c87d9950baf0b275a` on `chatgpt/r1-product-release`.
+Exact GitHub Actions run `34682294856` was **SUCCESS**, but A3 decision is **FAIL** because source/integration defects remain. The full decision is preserved at:
 
-The historical first A2 packet at `docs/execution/audit-packets/A2/` remains unchanged.
+`docs/execution/audit-packets/A3/AUDIT_DECISION.md`
 
-## Source-side product work now implemented
+The one-shot implementation instruction for the next submission is preserved at:
 
-D1, D2, D3, I1, I2 and D4 source work is present on `chatgpt/r1-product-release`:
+`docs/execution/audit-packets/A3/FINAL_REMEDIATION.md`
 
-- product shell, dashboard, target, policy, incident, benchmark and system/deployment surfaces;
-- flagship five-band Incident Explorer separating evidence, GenLayer judgment, policy consequence,
-  actual execution and recovery;
-- target onboarding, policy review, incident-report, fee/bond preview and recovery flows;
-- fixture adapter that is explicitly synthetic/read-only for writes;
-- live adapter that delegates protocol semantics to the RecloseSDK boundary;
-- immediate transaction-ID persistence/resume behaviour without blind resubmission;
-- escaped/untrusted evidence rendering;
-- responsive/accessibility/reduced-motion foundations;
-- product-level distinction between provisional/final, CONFIRMED/REJECTED/UNDETERMINED,
-  transaction finality, child execution and target post-state;
-- bounded R1 autonomous-agent `skill.md`;
-- CLI incident/recovery preparation that delegates to the canonical non-custodial SDK builders.
+## A3 attempt 1 findings
 
-The product work has executable source-level checks under `scripts/test-frontend-product.js`,
-`scripts/test-sdk-product-truth.js`, `scripts/test-agent-skill.js` and
-`scripts/test-cli-report-preparation.js`. Real browser evidence remains external and is explicitly
-indexed as NOT RUN rather than fabricated.
+Findings are `A3-H01` through `A3-H12`.
+
+The critical blocker is the review-to-sign integrity break: the incident/recovery forms preview one set of user inputs, but the live submission path discards that reviewed object and invokes the wallet writer with an empty payload. Additional high-severity findings cover:
+
+- target onboarding and policy author/activation routes that are presentation-only rather than functional governed writes;
+- no connected-wallet/writer chain-61997 enforcement at the actual signing boundary;
+- live Incident Explorer returning no Judge -> Kernel -> Target causal trace;
+- browser report/recovery flows not using the canonical evidence builder/EAP construction path;
+- SDK fee preview using shortened arguments rather than the exact deployed Judge calldata branch;
+- incomplete target/owner/recovery/policy/audit product surfaces;
+- incomplete A3 requirement coverage and overstated implementation statuses;
+- unknown assurance state rendering as `NORMAL` rather than failing closed;
+- report target/rule/resource selections not sufficiently constrained to governed protocol state;
+- persisted writes retaining the transaction ID but not the associated incident/report identity.
+
+The exact CI success remains valid evidence for the target and the accepted source controls remain useful. It does not override the integration findings.
+
+## Accepted source controls retained
+
+The next implementation pass does not need to reopen these unless its changes regress them:
+
+- fixture mode is visibly synthetic and refuses writes;
+- transaction ID is persisted before polling;
+- polling failure does not trigger blind resubmission;
+- external evidence text is escaped by the current render helpers;
+- the Incident Explorer structurally separates evidence, judgment, policy consequence, execution and recovery;
+- SDK assurance reads use real transport block height rather than a fabricated zero;
+- final REJECTED and final UNDETERMINED incident outcomes remain distinct;
+- required post-state mismatch cannot become execution SUCCESS;
+- the frozen 14-method SDK type boundary is still present;
+- bounded agent `skill.md` and benchmark preparation remain useful source-side work.
 
 ## A2 condition status
 
-- **A2-C01 OPEN / E1 BLOCKER:** Judge -> Kernel triggered child still fails live with
-  `fee no_matching_allocation # internal`. This remains an external Studio-dev/runtime limitation
-  on the current evidence and blocks canonical E1 closure.
-- **A2-C02 PARTIALLY CLOSED:** the fee-profile input is now bound to the final R1 addresses and a
-  strict `npm run fee-profile:final-check` evidence gate exists. Fresh dynamic call arguments and a
-  final live profile still require Studio-dev execution.
-- **A2-C03 CLOSED IN SOURCE:** SDK action receipts no longer fabricate target ID, execution time,
-  block height or required post-state truth. CLOSED incidents preserve final REJECTED vs
-  UNDETERMINED. Six executable SDK product-truth checks cover the correction.
-- **A2-C04 SUBSTANTIALLY CLOSED FOR AUDIT HISTORY:** A2 attempt-2 decision and current phase are
-  recorded without rewriting historical packets. Canonical requirements/threat/gate ledgers still
-  require final release reconciliation as evidence arrives; A3 contains its own truthful delta.
+Independent A2 attempt 2 remains **PASS WITH CONDITIONS** against
+`6dc88f9393a2c8f94deae37d5c53af8bbcf9e9f5`.
+
+- **A2-C01 OPEN / E1 BLOCKER:** Studio-dev Judge -> Kernel triggered child still fails live with `fee no_matching_allocation # internal`. This independently blocks canonical E1/R1 closure until resolved and successfully retested.
+- **A2-C02 PARTIALLY CLOSED:** fee-profile coverage exists, but final live profile evidence must use final deployment addresses plus the real call arguments/value branch.
+- **A2-C03 PARTIAL AT PRODUCT INTEGRATION:** SDK action-receipt truth is hardened, but A3 found the live product adapter does not yet reconstruct the full causal child/action trace.
+- **A2-C04 OPEN UNTIL RELEASE RECONCILIATION:** audit history is preserved, but canonical requirement/threat/gate ledgers still need final evidence-backed reconciliation.
+
+## Browser evidence status
+
+A3 browser/accessibility evidence remains **NOT RUN** for the failed target. Do not spend effort capturing a complete evidence set against `264c14a...` and then reuse it for a different implementation.
+
+Capture browser evidence only after the A3-H01..H12 remediation is complete and a new substantive candidate is frozen. The evidence must reference exactly that new candidate SHA.
 
 ## H1 status
 
-H1 preparation is materially implemented:
+H1 preparation remains materially implemented:
 
 - threat-linked benchmark corpus: 78 scenarios;
 - 70 automated/evidence-mapped scenarios;
-- 8 live/evidence-bound scenarios explicitly marked BLOCKED_EXTERNAL or NOT_RUN where appropriate;
+- 8 live/evidence-bound scenarios explicitly blocked/not run where appropriate;
 - hard release targets remain exactly zero;
 - benchmark structure/evidence references are machine-checked in normal CI.
 
-This does **not** mean every live benchmark scenario has passed.
-
-## A3 status
-
-Substantive audit target:
-
-`264c14af8f83cbd2bcf0176c87d9950baf0b275a`
-
-Exact GitHub Actions run:
-
-`34682294856` - **SUCCESS**
-
-`docs/execution/audit-packets/A3/` is prepared as **AWAITING EXTERNAL REVIEW** and includes the
-immutable target record, scope, files changed, requirements mapping, tests, security self-review,
-threat delta, compatibility findings, architecture-deviation status, known limitations, open
-questions, evidence index and browser-evidence index.
-
-A3 is not self-certified. Browser screenshots/recordings, keyboard/accessibility evidence and any
-findings from that real review must be attached before an external reviewer can close the gate.
+This is preparation, not proof that every live scenario passed.
 
 ## E1 status
 
-E1 is prepared but **NOT COMPLETE**. The repository contains:
+E1 remains **NOT AUTHORISED AS A RELEASE-CLOSING GATE** and **NOT COMPLETE**.
 
-- `release-evidence/r1/e1/run-template.json`;
-- `release-evidence/r1/e1/README.md`;
-- `scripts/check-e1-evidence.mjs`;
-- `npm run e1:evidence:check`.
+The repository may retain its E1 template/checker, but E1 cannot close until:
 
-The evidence gate requires two independent clean 61997 runs and successful required child execution
-plus post-state. It must continue to fail until those real artifacts exist.
+1. A3 passes on a remediated product candidate;
+2. the Judge -> Kernel child path succeeds live;
+3. the canonical 61997 scenario succeeds from a clean deployment twice;
+4. real test GEN behaviour changes as required;
+5. remediation, RECOVERY, validation and restoration succeed;
+6. the full causal trace and required target post-state evidence exist;
+7. `npm run e1:evidence:check` passes on real run artifacts.
 
-## Next evidence-dependent sequence
+## A4 / R1 / S1 status
 
-1. capture real browser/accessibility evidence against A3 target `264c14af8f83cbd2bcf0176c87d9950baf0b275a`;
-2. obtain an external A3 decision;
-3. complete the final live fee profile and pass `npm run fee-profile:final-check`;
-4. resolve/retest the Judge -> Kernel child path;
-5. execute two clean E1 runs and pass `npm run e1:evidence:check`;
-6. reconcile canonical requirements/threat/gate ledgers;
-7. promote the pre-staged A4 packet to AWAITING EXTERNAL REVIEW only when its entry conditions are satisfied;
-8. close R1/S1 only on real evidence.
+- **A4:** NOT READY FOR EXTERNAL REVIEW.
+- **R1:** NOT READY FOR RELEASE CLOSURE.
+- **S1:** NOT AUTHORISED.
 
-`docs/execution/External Execution Handoff.md` is the exact operator handoff for steps requiring a
-browser, unlocked signer or live Studio-dev execution.
+## Authorised next sequence
+
+1. Claude remediates every item in `docs/execution/audit-packets/A3/FINAL_REMEDIATION.md` as one consolidated product/integration pass.
+2. Run the full canonical verification suite.
+3. Push substantive remediation and require exact-target GitHub Actions SUCCESS.
+4. Freeze one new immutable A3 attempt-2 substantive SHA.
+5. Capture the complete browser/accessibility evidence set against exactly that SHA.
+6. Reconcile the A3 requirement/threat scope truthfully.
+7. Prepare A3 attempt 2 as `AWAITING EXTERNAL REVIEW` while preserving attempt 1 FAIL.
+8. Return only the new audit target SHA, CI run/result, browser-evidence status, requirement-status summary, external blockers and ready-for-review statement.
+9. Only after A3 passes should the programme advance to live fee-profile closure, A2-C01 retest, two clean E1 runs, final ledgers, A4 and R1/S1.
+
+No ZIP is required. GitHub remains the canonical audit surface.
