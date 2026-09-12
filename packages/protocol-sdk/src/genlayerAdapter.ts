@@ -6,6 +6,7 @@ import type { RecloseTransport } from "./client";
  * real client methods at runtime. */
 export interface GenLayerJsClientLike {
   getChainId(): Promise<number | bigint>;
+  getBlockNumber(): Promise<number | bigint>;
   readContract(args: { address: string; functionName: string; args?: unknown[] }): Promise<unknown>;
   getTransaction(args: { hash: string }): Promise<{
     statusName?: string;
@@ -32,6 +33,7 @@ function executionResult(value: unknown): ExecutionResult | undefined {
 export function createGenLayerTransport(client: GenLayerJsClientLike): RecloseTransport {
   return {
     getChainId: () => client.getChainId(),
+    getBlockNumber: () => client.getBlockNumber(),
     readContract: (args) => client.readContract(args),
     async getTransaction({ hash }) {
       const tx = await client.getTransaction({ hash });
