@@ -6,3 +6,4 @@ export * from "./canonical";
 export * from "./evidence";
 export * from "./client";
 export * from "./genlayerAdapter";
+export * from "./feeAllocation";

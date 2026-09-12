@@ -1,5 +1,50 @@
 Current phase: **A3 ATTEMPT 2 SUBMITTED - AWAITING EXTERNAL REVIEW.**
 
+## A2-C01 status update (nested message-allocation investigation)
+
+**A2-C01: REOPENED — LIKELY RECLOSE MESSAGE-ALLOCATION-TREE DEFECT, fix implemented and
+unit-tested, live verification pending (no funded Studio-dev account/credentials available in this
+execution environment — only `.env.example` is present, no `.env`).**
+
+Investigation finding: the live `fee no_matching_allocation # internal` failure
+(`docs/execution/C2 Live Proof Evidence.md`) occurs inside the Kernel-side CHILD transaction that
+`IncidentJudgeV1.submit_incident` genuinely triggers (`receive_decision`), specifically when that
+decision is FINAL/CONFIRMED and `AssuranceKernel._apply_final_incident` dispatches an effect,
+which synchronously emits a FURTHER outbound internal message from the Kernel to
+`ReferenceAgentProtocol.apply_assurance_action` (`contracts/assurance_kernel.py::_dispatch_action`).
+Inspected the real pinned `genlayer-js@2.0.0-rc.1` shipped types
+(`node_modules/genlayer-js/dist/index-BT1ApAqQ.d.ts`, `node_modules/genlayer-js/dist/index.d.ts`):
+`estimateTransactionFeesForWrite` builds its `messageAllocations` tree from a single
+`simulateWriteContract` of ONLY the root call - it has no way to recursively observe the Kernel's
+own later, separately-triggered child transaction's outbound message. The existing
+`scripts/fee-profile.mjs` / `DirectRecloseClient.feePreview` path therefore produces a flat,
+one-level allocation tree (Judge -> Kernel only), which is exactly the shape that leaves the
+Kernel's own Kernel -> Target message without a matching allocation node at the child's
+execution time.
+
+Fix implemented: `packages/protocol-sdk/src/feeAllocation.ts` exports
+`buildNestedMessageAllocationTree` (generic, reusable for any call-chain topology - no-effect,
+one-effect, multi-effect, bonded, remediation, recovery) and the convenience wrapper
+`buildJudgeKernelTargetAllocationTree` for the exact Judge->Kernel->Target case. It estimates the
+root call, then separately estimates each further hop (simulated AS the real upstream caller, e.g.
+the Kernel call simulated as the Judge, so `gl.message.sender_address == rule.judge` holds), and
+grafts each hop's own allocation nodes under the correct node in the merged tree by rewriting
+`parentIndex` - real genlayer-js-computed budgets/feeParams throughout, no hand-invented fee
+arithmetic (CLAUDE.md Section 34). Unit-tested in
+`scripts/test-nested-message-allocation.js` (7/7 passing, wired into `verify:js` via
+`npm run nested-message-allocation:test`): correct parentIndex nesting, duplicate call-key safety,
+specific-vs-wildcard node ordering, total nested budget coverage, the no-effect degenerate case, and
+a loud failure (never a silent drop) when a hop has no addressable graft target.
+
+**Not yet done / explicitly unverified:** no live Studio-dev re-submission of
+`submit_incident` with the new nested tree has been attempted from this environment - there is no
+funded test account or `PRIVATE_KEY`/credentials configured (only `.env.example`). The hypothesis
+that this grafted tree resolves the live child failure therefore remains UNVERIFIED IN PRODUCTION
+until someone with Studio-dev credentials runs the real end-to-end flow and confirms the Kernel
+child transaction reaches `FINISHED_WITH_RETURN` instead of `fee no_matching_allocation # internal`.
+Do not treat A2-C01 as CLOSED until that live run is captured as evidence per the Master Plan's E1
+process.
+
 A3 attempt 1 (`264c14af8f83cbd2bcf0176c87d9950baf0b275a` on `chatgpt/r1-product-release`) remains
 **FAIL**, preserved unchanged at `docs/execution/audit-packets/A3/AUDIT_DECISION.md`.
 
