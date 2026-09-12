@@ -2,63 +2,94 @@
 
 ## OB-001 - No funded Studio-dev credential for deploy/fee verification [RESOLVED 2026-09-10]
 
-**Opened:** 2026-09-10
-**Resolved:** 2026-09-10 (same G0 phase, funded follow-up session)
+**Opened:** 2026-09-10  
+**Resolved:** 2026-09-10  
 **Phase:** G0
-**Resolution:** repository owner funded a newly created, Reclose-dedicated Studio-dev account
-(`reclose-deployer`, `0x24fAe7cD031Ed702Be63BDeA8912141805B996bd`) with 100 GEN. Successful fee-funded deploys and
-writes were completed (both a floating-tag version and, after CF-010's resolution, the exact pinned-hash version),
-using the SDK-derived fee path (`--fee-profile` -> `genlayer-js` `estimateTransactionFees()`), with lifecycle,
-execution result, and post-state all independently verified. See CF-011/CF-012 and
-`release-evidence/r1/g0/smoke-test-report.txt` Session 2.
-The original unfunded revert (`FeesDistributionMissing`, tx
-`0x90140b97d71bd1904ad263085399c6b494fae259680a22f4f054dd59a33b9d2a`) remains preserved as historical evidence
-(CF-009), not deleted.
-**Note:** the pre-existing, unrelated-project CLI accounts found on this machine (`praest-deployer`, `deployer`,
-etc.) were deliberately never used for Reclose.
+
+The repository owner funded the Reclose-dedicated Studio-dev account `reclose-deployer` (`0x24fAe7cD031Ed702Be63BDeA8912141805B996bd`) with 100 GEN. Successful fee-funded deployment/write/read evidence was subsequently captured. The original unfunded revert remains historical evidence. Pre-existing unrelated-project CLI accounts were not used for Reclose.
 
 ## OB-002 - GenLayer Test Direct Mode not yet exercised for G0-TEST-01 [RESOLVED 2026-09-10]
 
-**Opened:** 2026-09-10
-**Resolved:** 2026-09-10 (external-review closure session)
+**Opened:** 2026-09-10  
+**Resolved:** 2026-09-10  
 **Phase:** G0
-**Original framing (incorrect):** this item was originally opened as "no local Docker `localnet` simulator
-available," and `G0-TEST-01` was marked `PARTIAL / EXTERNAL BLOCKER` on that basis.
-**Correction:** external review identified that Docker/`localnet` is a *Studio Mode* requirement per GenLayer's
-own testing-suite documentation, not a *Direct Mode* requirement. `genlayer-test==0.30.0rc2` ships a fully
-in-memory, Python-only Direct Mode (`gltest.direct`, fixtures `direct_vm`/`direct_deploy`) that needs no Docker,
-simulator, or network. This session had simply never tried Direct Mode - it only exercised `gltest`'s
-network-mode CLI runner, which does need a network target.
-**Resolution:** ran `pytest` against the exact pinned smoke contract using the `direct_deploy` fixture. Result:
-**PASSED** - in-memory deploy, `get_counter()==0`, `increment()`, post-state `get_counter()==1`, no Docker/
-simulator/network involved. See `docs/execution/Studio-dev Toolchain & Network Compatibility Record.md` CF-013
-and `release-evidence/r1/g0/direct-mode-report.md`. (A genuine, disclosed Windows-native bug in Direct Mode's
-temp-file handling was hit and worked around by running under WSL/Linux, not by patching Reclose or GenLayer code
-- see CF-013.)
-**Owner:** Claude Code (closed in-session).
 
-## OB-004 - Runner-hash discrepancy (CF-010) between S10 registry snapshot and Studio-dev's live runner family [RESOLVED 2026-09-10]
-
-**Opened:** 2026-09-10 (as part of the original CF-010 finding)
-**Resolved:** 2026-09-10 (external-review closure session)
-**Phase:** G0
-**Resolution:** investigated and closed. The exact accepted `py-genlayer` runner hash for the Reclose R1 pinned
-Studio-dev/v0.6 RC baseline is `5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng` (with stdlib hash
-`kzr02ndm9et4qkmbqpq5djjt5sme2yt76n7sz1qbzax0knt6mam0`), not the previously-recorded S10 "current" snapshot hash,
-which was proven unresolvable in the actual `genvm-manager` v0.6.0-rc3/rc4 release family that Studio `v0.123.0-rc.6`
-ships. `toolchain/runner.lock` was corrected; the smoke contract's dependency header was changed from the floating
-`:test` tag to this exact hash; the pinned contract was re-linted, re-validated, re-schema-checked, run through
-Direct Mode, and redeployed live to Studio-dev 61997 with a full read/write/post-state cycle. See
-`docs/execution/Studio-dev Toolchain & Network Compatibility Record.md` CF-010 for the full investigation and
-rationale, and `release-evidence/r1/g0/deploy-success-pinned/` for the evidence.
-**Owner:** Claude Code (closed in-session).
+The original Docker/localnet framing was corrected. `genlayer-test==0.30.0rc2` Direct Mode was exercised successfully under WSL/Linux using the pinned smoke contract. See the compatibility record and G0 Direct Mode evidence.
 
 ## OB-003 - No git repository initialized [RESOLVED 2026-09-10]
 
-**Opened:** 2026-09-10
-**Resolved:** 2026-09-10 (F0)
-**Phase:** G0 (identified during G0; resolved at F0 as planned)
-**Resolution:** `git init` performed; initial commit `fe86a2f7ae8f113956cc4815410b79dd26df3f2d` on `main` contains
-the R0 seed, the full G0 evidence pack, and F0/F1 scaffolding. Branch `claude/r1-foundation` created from that
-commit for the audited F0-A0 tranche.
-**Owner:** Claude Code.
+**Opened:** 2026-09-10  
+**Resolved:** 2026-09-10  
+**Phase:** F0
+
+Git was initialized, historical audited commits were preserved, and the controlled branch/audit process was established.
+
+## OB-004 - Runner-hash discrepancy between registry snapshot and live Studio-dev runner family [RESOLVED 2026-09-10]
+
+**Opened:** 2026-09-10  
+**Resolved:** 2026-09-10  
+**Phase:** G0
+
+The accepted R1 `py-genlayer` runner hash is `5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng`, with stdlib hash `kzr02ndm9et4qkmbqpq5djjt5sme2yt76n7sz1qbzax0knt6mam0`. The pinned baseline was re-linted, Direct-Mode-tested and live-deployed.
+
+## OB-005 - Studio-dev Judge -> Kernel triggered child fails live [OPEN / RELEASE BLOCKER]
+
+**Opened:** 2026-09-11  
+**Phase:** A2 / E1  
+**External audit reference:** A2-C01
+
+The current fresh R1 deployment proves Judge-side deterministic precheck, public-source fetch, LLM judgment and Judge state persistence, but the required Judge -> Kernel triggered child still fails live with:
+
+`fee no_matching_allocation # internal`
+
+This has reproduced on fresh deployment/evidence and is currently treated as a Studio-dev/runtime limitation rather than silently blamed on application semantics.
+
+**Release consequence:**
+
+- E1 cannot close.
+- The canonical compromise -> Kernel consequence -> target restriction/safe-mode -> fallback -> remediation -> RECOVERY -> validation -> restoration sequence is not yet live-proven end to end.
+- Direct Mode proof does not substitute for the required live E1 child-execution evidence.
+- A final R1 release claim must not state that this path works live until it does.
+
+**Closure evidence required:** successful live child execution on the current/final stack, target post-state verification and inclusion in two clean E1 runs.
+
+## OB-006 - A3 product/integration attempt 1 failed [OPEN / NEXT IMPLEMENTATION BLOCKER]
+
+**Opened:** 2026-09-12  
+**Phase:** A3  
+**Audit target:** `264c14af8f83cbd2bcf0176c87d9950baf0b275a`  
+**Exact target CI:** `34682294856` - SUCCESS
+
+Independent A3 review found source/integration defects `A3-H01` through `A3-H12`. The gate decision is preserved at:
+
+`docs/execution/audit-packets/A3/AUDIT_DECISION.md`
+
+The single consolidated remediation instruction is preserved at:
+
+`docs/execution/audit-packets/A3/FINAL_REMEDIATION.md`
+
+The critical defect is the review-to-sign integrity break in the current report/recovery path: reviewed form data is previewed, then the live submission path discards the reviewed object and invokes the wallet writer with an empty payload. Other blockers include presentation-only owner write flows, no wallet-network check at the actual signing boundary, no complete live child/action trace in the Incident Explorer, browser flows not using the canonical EAP builder, fee previews that do not estimate the exact deployed Judge call, incomplete P0 target/recovery/policy/audit surfaces, incomplete A3 requirement mapping and fail-open handling of unknown assurance state.
+
+**Closure evidence required:** one consolidated remediation pass, new immutable substantive A3 target, exact-target green CI, complete browser/accessibility evidence captured against the same SHA, and an evidence-backed A3 attempt-2 packet.
+
+## OB-007 - Final live fee profile incomplete [OPEN / A3-E1 RELEASE BLOCKER]
+
+**Opened:** 2026-09-12  
+**Phase:** A3 / E1 / R1  
+**External audit reference:** A2-C02
+
+Coverage tooling and final-address templates exist, but the final release fee profile is not yet complete. The current SDK product audit also found that incident/recovery fee-preview builders estimate shortened argument lists rather than the exact deployed Judge call shape.
+
+**Closure evidence required:**
+
+- product/SDK builders produce exact real-call signing drafts;
+- fee estimation uses exactly the method, arguments and value that will be signed;
+- final deployment addresses and real branch arguments are profiled;
+- blocked runtime branches remain explicitly blocked rather than receiving fabricated values;
+- final fee evidence passes the repository's release checks.
+
+## Current critical path
+
+`A3-H01..H12 remediation -> exact-target CI -> browser evidence -> A3 attempt 2 -> final live fee profile -> OB-005 retest -> two clean E1 runs -> canonical ledger reconciliation -> A4 -> R1/S1`
+
+No blocker in this file authorises weakening the locked architecture, product requirements or security invariants to make the demo easier.
