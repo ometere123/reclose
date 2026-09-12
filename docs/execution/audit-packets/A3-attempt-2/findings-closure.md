@@ -1,8 +1,10 @@
 # A3 Attempt 2 - Findings Closure (A3-H01 through A3-H12)
 
-Target SHA: `7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e`. Status reported honestly per finding -
-some findings are fully closed with tests + browser evidence, some are partially closed, and some
-remain open. This packet does not claim blanket closure.
+Target SHA: `7f032af5921eff258c4c69a2f381861b003bd898` (supersedes the earlier attempt-2 checkpoint
+`7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e`, which closed a smaller subset - see
+`AUDIT_TARGET_SHA.txt`). Status reported honestly per finding - some findings are fully closed
+with tests + browser evidence, some are partially closed, and some remain open. This packet does
+not claim blanket closure.
 
 ## A3-H01 (CRITICAL) - review-to-sign integrity - **CLOSED**
 
@@ -24,12 +26,37 @@ remain open. This packet does not claim blanket closure.
   a real submission) was not exercised in this browser pass - only the adapter-level logic is
   unit-tested.
 
-## A3-H02 (HIGH) - target onboarding / policy activation presentation-only - **NOT CLOSED**
+## A3-H02 (HIGH) - target onboarding / policy activation presentation-only - **PARTIALLY CLOSED**
 
-Root cause unchanged: `onboard-form`'s submit handler and the policy-author "Validate & diff"
-button still only call `setLiveMessage(...)`, with no bounded write plan, network check or
-persisted transaction. Browser evidence (`#/onboard`) confirms this directly. Deferred to the next
-remediation pass - explicitly not claimed as fixed.
+- **Target registration (CLOSED):** root cause was `onboard-form`'s submit handler calling only
+  `setLiveMessage(...)`, with no bounded write plan. Fix: `protocol-sdk::buildTargetRegistration`
+  produces a real `PreparedRecloseWrite` for `AssuranceKernel.register_target` (the exact
+  3-argument call), including an optional pre-sign owner-handshake check; `handleOnboardSubmit`
+  now runs the SAME preview -> draftRegistry -> sign pipeline as incident/recovery. Browser
+  evidence (re-run against `7f032af...`): submitting the onboard form now renders a real "Signing
+  boundary" panel (network/estimated fee/"Preview only" notice), not the old stub message -
+  confirmed via `get_page_text` in the Browser pane.
+- **Policy activation (still NOT CLOSED):** the policy-author "Validate & diff" button is
+  unchanged this pass - still calls only `setLiveMessage(...)`. This half of A3-H02 remains open.
+
+## A3-H11 (MEDIUM) - report selection not constrained to governed state - **CLOSED**
+
+- Fix: `renderReport` now calls `adapter.getPolicy(target)` when a target is known and populates
+  the rule/resource `<select>` options from that policy's real `rules[].ruleId` /
+  `effects[].resourceId`, with a visible "Governed selection" notice naming the exact policy and
+  counts. When no policy can be resolved, the form still allows entry but states the SDK will
+  independently verify it before signing (`buildIncidentReport` already throws for a rule that
+  isn't active for the target).
+- **Bug found and fixed while verifying this in the browser:** `domain.js::routeFromHash` never
+  stripped a query string before splitting on "/", so `#/report?target=reclose-target-004` (the
+  exact link Target Detail's "Report incident" button produces) always rendered "404 Route not
+  found" - a genuine pre-existing defect, not introduced this session. Confirmed live: before the
+  fix the route 404'd; after the fix, navigating to that exact URL rendered the report form with a
+  "Governed selection" notice reading "Rule and resource options below are the 4 rule(s) and 1
+  resource(s) actually active in policy policy-r1-004 for reclose-target-004" and populated
+  dropdowns - screenshotted in `browser-evidence-index.md`.
+- Test: "routeFromHash must strip query strings before matching a route", "report flow requests
+  the active policy for a known target and offers only its real rules/resources".
 
 ## A3-H03 (HIGH) - wrong-network signing boundary - **CLOSED**
 
@@ -115,10 +142,7 @@ pass - stated honestly rather than padded.
 - Browser evidence: not separately screenshotted (no live source currently produces an unknown
   state to render), but the fixture/unit-level behavior is proven directly.
 
-## A3-H11 (MEDIUM) - report selection not constrained to governed state - **NOT CLOSED**
-
-The report form's rule/resource/source-class fields remain free selects/free text, not resolved
-against `getActivePolicy`/`getTarget` before preview. Not addressed this pass.
+(A3-H11 moved above, next to A3-H02 - see that entry. It is CLOSED as of `7f032af...`.)
 
 ## A3-H12 (MEDIUM) - incident ID not persisted with tx identity - **PARTIALLY CLOSED**
 

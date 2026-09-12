@@ -1,6 +1,7 @@
 # A3 Attempt 2 - Known Limitations
 
-1. A3-H02, A3-H07, A3-H08, A3-H09, A3-H11 are not closed this pass - see `findings-closure.md`.
+1. A3-H07, A3-H08, A3-H09 are not closed this pass; A3-H02 is only partially closed (target
+   registration is real, policy activation is still a stub) - see `findings-closure.md`.
 2. A3-H04's live trace reconstruction attempts the Judge parent + one child; the Kernel -> Target
    second hop is not yet wired into the live adapter (the fixture-mode Incident Explorer shows the
    full four-hop trace only because the synthetic fixture data supplies it directly).

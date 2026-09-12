@@ -4,8 +4,10 @@
 **Attempt:** 2
 **Audit status:** **AWAITING EXTERNAL REVIEW — OWNER EXECUTION OVERRIDE**
 **Branch:** `claude/r1-product-final`
-**Audited substantive target:** `7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e`
-**Exact target CI:** GitHub Actions run `34684832850` - **SUCCESS**
+**Audited substantive target:** `7f032af5921eff258c4c69a2f381861b003bd898`
+**Exact target CI:** GitHub Actions run `34686497909` - **SUCCESS**
+(supersedes the earlier attempt-2 checkpoint `7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e`, CI run
+`34684832850`, also SUCCESS - see `AUDIT_TARGET_SHA.txt`)
 **Attempt 1 (preserved, unchanged):** `264c14af8f83cbd2bcf0176c87d9950baf0b275a` - **FAIL**
 (`../A3/AUDIT_DECISION.md`)
 **Previous audit:** A2 attempt 2, target `6dc88f9393a2c8f94deae37d5c53af8bbcf9e9f5`, PASS WITH
@@ -23,19 +25,20 @@ See `findings-closure.md` for the finding-by-finding detail. Summary:
   boundary), A3-H05 (canonical EAP - one implementation, relocated to resolve a real circular
   package-dependency blocker), A3-H06 (exact Judge call fee preview, real 8-argument
   `submit_incident` / 6-argument `submit_recovery_validation` shape), A3-H10 (fail-closed unknown
-  assurance state).
-- **PARTIALLY CLOSED:** A3-H04 (live Incident Explorer now attempts real Judge-parent + one-child
-  reconstruction instead of unconditionally returning an empty trace; the Kernel -> Target second
-  hop is not yet wired), A3-H12 (incident identity now persisted alongside the transaction ID when
-  a writer returns one; deterministic pre-resolution derivation is not implemented).
-- **NOT CLOSED, stated honestly:** A3-H02 (target onboarding/policy activation remain
-  presentation-only), A3-H07 (target/owner bounded controls), A3-H08 (policy/audit surface
-  completeness), A3-H09 (requirement mapping expansion), A3-H11 (report selection constrained to
-  governed state).
+  assurance state), A3-H11 (report rule/resource now populated from the target's real active
+  policy, plus a genuine pre-existing routing bug found and fixed along the way).
+- **PARTIALLY CLOSED:** A3-H02 (target registration is now a real bounded write with a genuine
+  preview/fee/sign draft; policy activation's "Validate & diff" button remains a stub), A3-H04
+  (live Incident Explorer now attempts real Judge-parent + one-child reconstruction instead of
+  unconditionally returning an empty trace; the Kernel -> Target second hop is not yet wired),
+  A3-H12 (incident identity now persisted alongside the transaction ID when a writer returns one;
+  deterministic pre-resolution derivation is not implemented).
+- **NOT CLOSED, stated honestly:** A3-H07 (target/owner bounded controls), A3-H08 (policy/audit
+  surface completeness), A3-H09 (requirement mapping expansion).
 
 This attempt does not claim full closure of all twelve findings. It closes the CRITICAL finding
-and several HIGH findings with real code, tests, and browser evidence, and reports the remainder
-honestly as open for a further remediation pass.
+and six of the eight remaining HIGH/MEDIUM findings with real code, tests, and browser evidence,
+and reports the remainder honestly as open for a further remediation pass.
 
 ## Verification performed against this exact SHA
 

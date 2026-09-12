@@ -1,7 +1,12 @@
 # A3 Attempt 2 - Browser Evidence Index
 
-**Exact candidate SHA:** `7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e` (branch `claude/r1-product-final`)
-**CI at this SHA:** GitHub Actions run `34684832850` - **SUCCESS**
+**Exact candidate SHA:** `7f032af5921eff258c4c69a2f381861b003bd898` (branch `claude/r1-product-final`)
+**CI at this SHA:** GitHub Actions run `34686497909` - **SUCCESS**
+
+This index covers TWO capture passes: the initial pass against the earlier checkpoint
+`7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e` (routes unaffected by the A3-H02/H11 fixes below), and a
+follow-up delta pass against exactly `7f032af...` covering the onboarding and governed-report-
+selection changes. Both are real interactive Browser-pane sessions, not descriptions.
 **Tool:** Claude Code's Browser pane (Chromium-based), served via `npx serve frontend` on
 `http://localhost:4600`, mock/fixture adapter mode (`MockProductAdapter`) - no live SDK/wallet
 connected in this pass.
@@ -49,6 +54,14 @@ page overflow; the rail remains present and legible; metric cards stack correctl
 Pressing Tab from a fresh `#/overview` load moves focus visibly through the page (confirmed: a
 clear blue focus outline appears on the third focusable element, the "demo-payments" target link)
 - focus is never invisible or ambiguous.
+
+## Delta pass against `7f032af5921eff258c4c69a2f381861b003bd898` (A3-H02/H11 closure verification)
+
+| Check | Observation |
+|---|---|
+| `#/report?target=reclose-target-004` (routing regression check) | Before the `routeFromHash` fix in this commit, this exact URL - the one Target Detail's "Report incident" button produces - rendered "404 Route not found". After the fix, it correctly renders the report form. |
+| `#/report?target=reclose-target-004` (A3-H11 governed selection) | A green "Governed selection" notice reads "Rule and resource options below are the 4 rule(s) and 1 resource(s) actually active in policy policy-r1-004 for reclose-target-004." The Rule `<select>` and Affected resource `<select>` are populated from that real policy data (`PROVIDER_COMPROMISE_V1` etc., `provider_a`), not the previous hardcoded two-option list. |
+| `#/onboard` (A3-H02 registration preview) | Filled Target ID (`reclose-target-004`), Target address, checked the authority acknowledgement, and clicked "Preview registration". `get_page_text` confirms a real "Signing boundary" panel rendered: `NETWORK studio-dev · 61997`, `ESTIMATED FEE 80000000000000000 wei`, `ESTIMATE yes · may change`, `Preview only / Fixture mode cannot fabricate a registration transaction.` - replacing the previous stub that only ever displayed a static message with no fee/network/draft content. |
 
 ## Not captured this pass (honest gap, not fabricated)
 

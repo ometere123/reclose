@@ -1,3 +1,10 @@
-7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e
+7f032af5921eff258c4c69a2f381861b003bd898
 branch: claude/r1-product-final
-CI: GitHub Actions run 34684832850 - SUCCESS
+CI: GitHub Actions run 34686497909 - SUCCESS
+
+Supersedes the earlier attempt-2 checkpoint 7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e (CI run
+34684832850, also SUCCESS), which additionally closed A3-H02 and A3-H11 plus a real pre-existing
+routing bug found while verifying A3-H11 in the browser (routeFromHash never stripped a query
+string, so `#/report?target=...` - the exact link Target Detail's "Report incident" button
+produces - always 404'd). Both checkpoints are on branch claude/r1-product-final; this file names
+the current, most-complete one as the audit target.

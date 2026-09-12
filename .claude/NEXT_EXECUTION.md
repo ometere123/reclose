@@ -7,14 +7,14 @@ picks this up cold.
 
 ## Where things stand
 
-- A3 attempt 2 target SHA: `7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e` on `claude/r1-product-final`.
-- Exact-target CI: GitHub Actions run `34684832850` - SUCCESS.
+- A3 attempt 2 target SHA: `7f032af5921eff258c4c69a2f381861b003bd898` on `claude/r1-product-final`.
+- Exact-target CI: GitHub Actions run `34686497909` - SUCCESS.
 - Browser/accessibility evidence captured against exactly this SHA:
   `docs/execution/audit-packets/A3-attempt-2/browser-evidence-index.md`.
 - Full packet: `docs/execution/audit-packets/A3-attempt-2/`.
-- Findings closed: A3-H01 (CRITICAL), A3-H03, A3-H05, A3-H06, A3-H10.
-- Findings partially closed: A3-H04, A3-H12.
-- Findings NOT closed: A3-H02, A3-H07, A3-H08, A3-H09, A3-H11.
+- Findings closed: A3-H01 (CRITICAL), A3-H03, A3-H05, A3-H06, A3-H10, A3-H11.
+- Findings partially closed: A3-H02 (registration real; policy activation still a stub), A3-H04, A3-H12.
+- Findings NOT closed: A3-H07, A3-H08, A3-H09.
 
 ## If resuming without a new owner decision on A3 attempt 2 yet
 
