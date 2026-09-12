@@ -1,65 +1,44 @@
 {
-  "directive": "Reclose R1 Master Execution",
+  "directive": "Reclose R1 Master Execution - Final Completion Directive (A3 remediation -> A3 attempt 2 -> E1 x2 -> H1 -> A4 -> R1 -> S1)",
   "status": "AWAITING_EXTERNAL_REVIEW",
-  "current_major_phase": "A2",
-  "current_section": 46,
-  "current_task": "A2 audit packet prepared and committed - awaiting repository owner / external reviewer decision before D1-D4/I1-I2 frontend work begins",
-  "last_completed_section": 44,
-  "last_completed_commit": "ae3a508",
-  "c1_final_head_commit": "40e9de1",
-  "c1_final_ci_run": "34611072036",
-  "owner_permission_required": true,
-  "owner_permission_reason": "A2 is a designated external-audit gate (CLAUDE.md Section 41) - do not self-PASS; D1-D4 frontend work should not begin until the owner/external reviewer renders a decision on this packet.",
-  "mandatory_final_stop": "S1",
-  "phases": {
-    "C1-FINAL": "DONE",
-    "C2": "DONE",
-    "C3": "DONE",
-    "A2": "AWAITING_EXTERNAL_REVIEW",
-    "D1": "NOT_STARTED",
-    "D2": "NOT_STARTED",
-    "D3": "NOT_STARTED",
-    "I1": "NOT_STARTED",
-    "I2": "NOT_STARTED",
-    "D4": "NOT_STARTED",
-    "A3": "NOT_STARTED",
-    "E1": "NOT_STARTED",
-    "H1": "NOT_STARTED",
-    "A4": "NOT_STARTED",
-    "R1": "NOT_STARTED",
-    "S1": "NOT_STARTED"
+  "current_major_phase": "A3",
+  "current_attempt": 2,
+  "current_task": "A3 attempt 2 submitted (source remediation + exact-target CI + browser evidence complete). Awaiting owner/external decision before proceeding to live fee-profile closure, A2-C01 retest, E1 x2, H1, A4, R1/S1.",
+  "branch": "claude/r1-product-final",
+  "base_branch": "chatgpt/r1-product-release",
+  "base_branch_tip_at_directive_issue": "967ab3742f8230398aa67386e367cdaffae75b87",
+  "a3_attempt_1": {
+    "target_sha": "264c14af8f83cbd2bcf0176c87d9950baf0b275a",
+    "branch": "chatgpt/r1-product-release",
+    "decision": "FAIL",
+    "preserved": true,
+    "decision_doc": "docs/execution/audit-packets/A3/AUDIT_DECISION.md"
   },
-  "c1_final_sections_done": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
-  "c2_sections_done": [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35],
-  "c3_sections_done": [36, 37, 38, 39, 40, 41, 42, 43, 44],
-  "c2_live_deployment": {
-    "network": "studio-dev",
-    "chainId": 61997,
-    "manifest": "deployment/61997/c2-manifest.json",
-    "evidence": "docs/execution/C2 Live Proof Evidence.md",
-    "kernel": "0x39a3D52Bb89e501FFdb0229C21f0C2ec0CD6195D",
-    "reference_agent_protocol": "0x33b843f3578b1C980F99014661e532ce8eeab1d4",
-    "incident_judge_v1_current": "0x0A519837D3983272A14710d5b6b2108bC27D2D96",
-    "incident_judge_v1_superseded_buggy": "0xe8642bB4B0b8c8D829EbeAA14e83746018F9cf5C",
-    "incentive_vault": "0x2D8fd574095d13D9756C279f0972f73D822fd9Ad",
-    "active_policy_key": "policy-c2-002",
-    "target_id": "reclose-target-002"
+  "a3_attempt_2": {
+    "target_sha": "7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e",
+    "branch": "claude/r1-product-final",
+    "ci_run_id": "34684832850",
+    "ci_result": "SUCCESS",
+    "status": "AWAITING_EXTERNAL_REVIEW",
+    "packet": "docs/execution/audit-packets/A3-attempt-2/",
+    "browser_evidence": "docs/execution/audit-packets/A3-attempt-2/browser-evidence-index.md",
+    "findings_closed": ["A3-H01", "A3-H03", "A3-H05", "A3-H06", "A3-H10"],
+    "findings_partially_closed": ["A3-H04", "A3-H12"],
+    "findings_not_closed": ["A3-H02", "A3-H07", "A3-H08", "A3-H09", "A3-H11"]
   },
-  "c3_packages": {
-    "protocol_sdk": "real lifecycle mapping (packages/protocol-sdk/src/lifecycle.ts)",
-    "policy_compiler": "packages/policy-compiler/",
-    "evidence_builder": "packages/evidence-builder/",
-    "transaction_tracker": "packages/transaction-tracker/",
-    "cli": "packages/cli/ (bin: reclose)",
-    "sentinel": "packages/sentinel/ (library only, no standing service yet)"
+  "local_verification_at_a3_attempt_2": {
+    "npm_run_verify_js": "ALL PASS",
+    "python_pytest": "197/197 passed",
+    "genvm_lint": "clean (one documented narrow waiver, run_nondet_default reachability)"
   },
   "hard_blockers": [],
-  "known_open_findings": [
-    "InsufficientFees/AllocationTreeMalformed live cross-contract dispatch boundary (C1R, Kernel->Target) - documented, not fabricated as resolved, does not block C2/C3 per directive Section 11/21",
-    "Judge->Kernel receive_decision dispatch's triggered CHILD transaction fails live with a specific fee-allocation-routing error ('fee no_matching_allocation # internal') - narrowed from the original generic SystemError: 2: inval via C3 fee-profiling automation. The Judge's OWN pipeline (deterministic precheck, real web fetch, real eq_principle LLM judgment, state persistence) IS now live-proven end-to-end on Studio-dev (tx 0x002f88dd...). Only the Kernel-side effect of a decision remains unproven live; Direct Mode proves it (185/185). See docs/execution/C2 Live Proof Evidence.md Finding 2 and its update. Carry as MITIGATED/UNVERIFIED (live cross-contract dispatch) in Requirements Status.csv, not VERIFIED.",
-    "Judge validator-disagreement test could not run (genlayer-test spawn_sandbox requires optional cloudpickle package, not installed) - documented in tests/judge/test_incident_judge_v1.py",
-    "CLI --args parser coerces JSON-shaped string tokens into objects and 0x+hex tokens into ints (confirmed across Kernel and Judge) - defensive _normalize_*_arg/_normalize_json_arg helpers now cover hash/str/json shapes in both assurance_kernel.py and incident_judge_v1.py; future new string-typed write params should be reviewed against this pattern before live deployment.",
-    "Fee-profiling run found 2 of 3 representative branches (Kernel.begin_policy, IncentiveVault.fund_target_pool) returned ESTIMATION_FAILED with a generic RPC error on this run - not yet root-caused, see docs/execution/audit-packets/A2/known-limitations.md item 4."
+  "open_external_blockers": [
+    "A2-C01: Studio-dev Judge -> Kernel triggered child fails live with 'fee no_matching_allocation # internal' - independently blocks E1/R1 closure, unresolved by this A3 pass",
+    "A2-C02: final live fee profile still requires real final-deployment arguments/output",
+    "E1: not started this pass - requires A3 to pass first per FINAL_REMEDIATION.md Section 17"
   ],
-  "next_action": "STOPPED at the A2 gate per CLAUDE.md Section 41 (do not self-PASS). Report to the repository owner that docs/execution/audit-packets/A2/ is ready for independent review, covering C2+C3 (commit ae3a508 on branch claude/r1-tooling, pushed to origin). Once the owner supplies a decision (PASS / PASS WITH CONDITIONS / FAIL) via AUDIT_DECISION.md or direct instruction, resume: if PASS or explicitly authorized to continue, proceed to D1-D4/I1-I2 frontend build-out per the Master Plan; if conditions are attached, address them first; if FAIL, the dependent phase remains blocked per CLAUDE.md Section 42."
+  "pending_studio_dev_transactions": [],
+  "pending_ci": [],
+  "next_exact_action": "Await owner/external A3 attempt 2 decision. If PASS or explicit owner authorization to continue: proceed to (1) live fee-profile closure with final addresses, (2) A2-C01 Judge->Kernel child-routing investigation using estimator-produced allocation data (never hand-bisected), (3) E1 run A from a fresh clean deployment, (4) E1 run B from a second independent clean deployment, (5) H1 live-scenario execution, (6) A4 packet, (7) R1 requirements/threat reconciliation, (8) release/r1-agent-tank-candidate branch freeze (S1). If further A3 remediation is requested: close A3-H02/H07/H08/H09/H11 and the partial H04/H12 items, freeze a new attempt-3 SHA, capture fresh browser evidence against it.",
+  "resume_instructions": "Read this file, docs/execution/Current Phase.md, and docs/execution/R1 Master Execution Ledger.md FIRST in any new session before re-deriving context. Do not rediscover the programme from scratch."
 }

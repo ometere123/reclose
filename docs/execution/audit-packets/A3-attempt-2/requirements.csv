@@ -1,0 +1,27 @@
+requirement_id,status,implementation_ref,test_or_evidence_ref,remaining_verification
+PRD-ACC-001,IMPLEMENTED / UNVERIFIED,frontend/app.js public read routes; frontend/lib/adapters.js,scripts/test-frontend-product.js,real browser walkthrough
+PRD-ACC-002,IMPLEMENTED / UNVERIFIED,frontend/app.js read/write separation; frontend/lib/adapters.js,scripts/test-frontend-product.js,real wallet/browser walkthrough
+PRD-ACC-003,IMPLEMENTED / UNVERIFIED,packages/protocol-sdk/src/networkGuard.ts; frontend write-state presentation,scripts/test-network-guard.js; scripts/test-frontend-product.js,real wrong-network browser/write attempt
+PRD-ACC-004,IMPLEMENTED / UNVERIFIED,frontend/app.js onboarding route,scripts/test-frontend-product.js,guided wallet/browser flow
+PRD-ACC-005,IMPLEMENTED / UNVERIFIED,frontend/app.js onboarding/product-boundary copy,scripts/test-frontend-product.js,copy review in browser
+PRD-ACC-006,IMPLEMENTED / UNVERIFIED,frontend/app.js authority review and policy review surfaces,scripts/test-frontend-product.js,connected-wallet pre-sign browser evidence
+PRD-ACC-007,IMPLEMENTED / UNVERIFIED,frontend/lib/persistence.js; packages/transaction-tracker,scripts/test-frontend-product.js; scripts/test-transaction-tracker.js,real refresh/resume browser evidence
+PRD-ACC-008,IMPLEMENTED / UNVERIFIED,frontend/app.js system/deployment routes; frontend/README.md,scripts/test-frontend-product.js,real browser link/copy verification
+PRD-EXP-001,IMPLEMENTED / UNVERIFIED,frontend/app.js Incident Explorer five-band causal view,scripts/test-frontend-product.js,real browser/recording review
+PRD-EXP-002,IMPLEMENTED / UNVERIFIED,frontend Incident Explorer; packages/protocol-sdk/src/client.ts; CLI audit export surface,scripts/test-sdk-product-truth.js; scripts/test-cli.js,external audit-export completeness review
+PRD-EXP-003,IMPLEMENTED / UNVERIFIED,frontend Incident Explorer; RecloseSDK getDecisionView/trackActionTrace,scripts/test-sdk-product-truth.js; scripts/test-frontend-product.js,real live parent/child trace once Studio-dev child routing succeeds
+PRD-EXP-004,IMPLEMENTED / UNVERIFIED,frontend/lib/domain.js escaped evidence rendering; Incident Explorer evidence band,scripts/test-frontend-product.js,real malicious-evidence browser render
+PRD-EXP-005,IMPLEMENTED / UNVERIFIED,RecloseSDK getAssuranceState activeRestrictions; target/incident surfaces,scripts/test-sdk-product-truth.js; Python multi-incident tests,real browser review
+PRD-EXP-006,IN PROGRESS,CLI audit export/read model; product audit surfaces,scripts/test-cli.js,explicit downloadable browser JSON control still requires external product review
+PRD-EXP-007,IMPLEMENTED / UNVERIFIED,frontend product actor/copy separation,scripts/test-frontend-product.js,representative human-override browser state
+PRD-EXP-008,IMPLEMENTED / UNVERIFIED,frontend target/policy/system detail surfaces; SDK policy/Judge reads,scripts/test-frontend-product.js; scripts/test-sdk-product-truth.js,real browser copyability check
+PRD-EXP-009,IN PROGRESS,FeeTransactionPreview model; fee/deposit product treatment,schemas/transaction/FeeTransactionPreview.schema.json; frontend tests,real SDK fee data and final fee-profile evidence
+PRD-DEV-001,VERIFIED,packages/protocol-sdk/src/,scripts/test-f1-parity.js; scripts/test-sdk-product-truth.js,none for source/API existence
+PRD-DEV-002,VERIFIED,packages/protocol-sdk/src/client.ts::getAssuranceState,scripts/test-sdk-product-truth.js,none for implemented read semantics
+PRD-DEV-003,VERIFIED,packages/protocol-sdk/src/client.ts::getEffectiveProviderStatus,compiled SDK parity and contract tests,none for implemented read semantics
+PRD-DEV-004,VERIFIED,packages/protocol-sdk/src/client.ts::getIncident/getDecision/getDecisionView,scripts/test-sdk-product-truth.js; lifecycle tests,none for implemented read semantics
+PRD-DEV-005,VERIFIED,packages/protocol-sdk canonical/hash/diff methods; packages/policy-compiler,scripts/test-canonical-hashing.js; scripts/test-policy-compiler.js; F1 parity,none for implemented helper semantics
+PRD-DEV-006,IMPLEMENTED / UNVERIFIED,packages/protocol-sdk buildIncidentReport/buildRecoveryReport; non-custodial transport boundary,F1 SDK parity; fee preview tests,live caller-wallet construction/submission evidence
+PRD-DEV-007,IN PROGRESS,packages/cli/,scripts/test-cli.js,CLI still requires final end-to-end validation of all PRD-listed operations such as recovery/Sentinel/benchmark execution where applicable
+PRD-DEV-008,VERIFIED,skill.md,scripts/test-agent-skill.js,none for artifact existence and bounded content guard
+PRD-DEV-009,VERIFIED,skill.md; ordinary RecloseSDK agent-facing surface,scripts/test-agent-skill.js; F1 SDK parity,none for source-level ordinary-agent authority boundary
