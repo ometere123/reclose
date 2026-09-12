@@ -1,4 +1,4 @@
-Current phase: **A3 PRODUCT & INTEGRATION CANDIDATE PREPARED / AWAITING EXTERNAL REVIEW.**
+Current phase: **A3 PRODUCT & INTEGRATION CANDIDATE FROZEN / AWAITING EXTERNAL REVIEW.**
 
 Independent A2 attempt-2 review was performed against immutable target
 `6dc88f9393a2c8f94deae37d5c53af8bbcf9e9f5` on `claude/a2-remediation-integration`.
@@ -22,11 +22,13 @@ D1, D2, D3, I1, I2 and D4 source work is present on `chatgpt/r1-product-release`
 - responsive/accessibility/reduced-motion foundations;
 - product-level distinction between provisional/final, CONFIRMED/REJECTED/UNDETERMINED,
   transaction finality, child execution and target post-state;
-- bounded R1 autonomous-agent `skill.md`.
+- bounded R1 autonomous-agent `skill.md`;
+- CLI incident/recovery preparation that delegates to the canonical non-custodial SDK builders.
 
 The product work has executable source-level checks under `scripts/test-frontend-product.js`,
-`scripts/test-sdk-product-truth.js` and `scripts/test-agent-skill.js`. Real browser evidence remains
-external and is explicitly indexed as NOT RUN rather than fabricated.
+`scripts/test-sdk-product-truth.js`, `scripts/test-agent-skill.js` and
+`scripts/test-cli-report-preparation.js`. Real browser evidence remains external and is explicitly
+indexed as NOT RUN rather than fabricated.
 
 ## A2 condition status
 
@@ -57,9 +59,18 @@ This does **not** mean every live benchmark scenario has passed.
 
 ## A3 status
 
-`docs/execution/audit-packets/A3/` is prepared as **AWAITING EXTERNAL REVIEW** and includes scope,
-requirements mapping, tests, security self-review, threat delta, compatibility findings, architecture
-deviation status, known limitations, open questions and a browser-evidence index.
+Substantive audit target:
+
+`264c14af8f83cbd2bcf0176c87d9950baf0b275a`
+
+Exact GitHub Actions run:
+
+`34682294856` - **SUCCESS**
+
+`docs/execution/audit-packets/A3/` is prepared as **AWAITING EXTERNAL REVIEW** and includes the
+immutable target record, scope, files changed, requirements mapping, tests, security self-review,
+threat delta, compatibility findings, architecture-deviation status, known limitations, open
+questions, evidence index and browser-evidence index.
 
 A3 is not self-certified. Browser screenshots/recordings, keyboard/accessibility evidence and any
 findings from that real review must be attached before an external reviewer can close the gate.
@@ -78,15 +89,14 @@ plus post-state. It must continue to fail until those real artifacts exist.
 
 ## Next evidence-dependent sequence
 
-1. freeze the final substantive A3 candidate after clean GitHub CI;
-2. capture real browser/accessibility evidence against that exact SHA;
-3. obtain an external A3 decision;
-4. complete the final live fee profile;
-5. resolve/retest the Judge -> Kernel child path;
-6. execute two clean E1 runs and pass `npm run e1:evidence:check`;
-7. reconcile canonical requirements/threat/gate ledgers;
-8. prepare A4 for independent review;
-9. close R1/S1 only on real evidence.
+1. capture real browser/accessibility evidence against A3 target `264c14af8f83cbd2bcf0176c87d9950baf0b275a`;
+2. obtain an external A3 decision;
+3. complete the final live fee profile and pass `npm run fee-profile:final-check`;
+4. resolve/retest the Judge -> Kernel child path;
+5. execute two clean E1 runs and pass `npm run e1:evidence:check`;
+6. reconcile canonical requirements/threat/gate ledgers;
+7. promote the pre-staged A4 packet to AWAITING EXTERNAL REVIEW only when its entry conditions are satisfied;
+8. close R1/S1 only on real evidence.
 
 `docs/execution/External Execution Handoff.md` is the exact operator handoff for steps requiring a
 browser, unlocked signer or live Studio-dev execution.
