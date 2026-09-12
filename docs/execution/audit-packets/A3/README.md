@@ -1,12 +1,26 @@
 # A3 External Product & Integration Audit Packet
 
 **Audit ID:** A3  
-**Audit status:** AWAITING EXTERNAL REVIEW  
+**Attempt:** 1  
+**Audit status:** **FAIL - independent review complete**  
 **Branch:** `chatgpt/r1-product-release`  
-**Audit target:** freeze the exact substantive branch SHA only after its GitHub Actions run is green; record it in `commit.txt` in a packet-only follow-up commit.  
-**Previous audit:** A2 attempt 2, target `6dc88f9393a2c8f94deae37d5c53af8bbcf9e9f5`, PASS WITH CONDITIONS.
+**Audited substantive target:** `264c14af8f83cbd2bcf0176c87d9950baf0b275a`  
+**Exact target CI:** GitHub Actions run `34682294856` - **SUCCESS**  
+**Previous audit:** A2 attempt 2, target `6dc88f9393a2c8f94deae37d5c53af8bbcf9e9f5`, PASS WITH CONDITIONS.  
+**Independent decision:** `AUDIT_DECISION.md`  
+**One-shot remediation:** `FINAL_REMEDIATION.md`
 
-## Scope
+## Decision
+
+A3 attempt 1 failed on source/integration correctness before browser evidence was considered.
+
+The critical finding is a broken review-to-sign boundary: report/recovery inputs are previewed, then the live submission path discards the reviewed object and calls the wallet writer with an empty payload. Additional findings cover presentation-only owner write flows, missing wallet-network enforcement at signing, incomplete live child/action trace reconstruction, browser evidence preparation not using the canonical EAP builder, shortened fee-estimation calldata, incomplete target/recovery/policy/audit surfaces, incomplete requirement mapping and fail-open rendering of unknown assurance state as `NORMAL`.
+
+See `AUDIT_DECISION.md` for findings `A3-H01` through `A3-H12` and gate consequences.
+
+See `FINAL_REMEDIATION.md` for the single consolidated implementation instruction for A3 attempt 2.
+
+## Scope reviewed
 
 D1, D2, D3, I1, I2 and D4 product work:
 
@@ -24,30 +38,38 @@ D1, D2, D3, I1, I2 and D4 product work:
 - bounded autonomous-agent `skill.md`;
 - product-linked H1 benchmark preparation.
 
-## What this packet does not claim
+## Positive controls accepted
 
-- no A3 PASS is self-issued;
-- no browser screenshot/recording, manual keyboard result, Lighthouse score or accessibility audit is fabricated;
-- no live hosted frontend deployment is claimed from GitHub source alone;
-- the unresolved Studio-dev Judge -> Kernel child `fee no_matching_allocation # internal` remains open and is rendered as downstream execution failure;
-- the final live fee profile is not claimed complete while dynamic arguments/output remain absent;
-- E1 is not complete;
-- BLOCKED_EXTERNAL/NOT_RUN benchmark cases are not counted as live passes.
+The exact-target CI success and these source controls remain valid evidence unless the remediation regresses them:
 
-## Review questions
+- fixture mode is visibly synthetic and refuses writes;
+- transaction IDs are persisted before polling;
+- polling failure does not cause blind resubmission;
+- evidence rendering uses escaping helpers;
+- the Incident Explorer structurally separates evidence, judgment, policy consequence, execution and recovery;
+- SDK assurance reads use real transport block height;
+- final REJECTED and final UNDETERMINED remain distinct;
+- required target post-state mismatch cannot be reported as SUCCESS;
+- the frozen 14-method SDK type boundary remains present;
+- bounded `skill.md` and benchmark preparation are useful source-side work.
 
-1. Does the product preserve raw GenLayer lifecycle, Reclose DecisionOutcome, DecisionStage, execution result and target state as separate concepts?
-2. Can any fixture/indexer/API value masquerade as protocol source-of-truth state?
-3. Are child execution failures visible without rewriting a successful semantic judgment into a failed judgment?
-4. Is policy authority expansion sufficiently explicit before signing?
-5. Is malicious evidence rendered only as escaped/inert text?
-6. Are pending transaction IDs persisted before polling, with no blind resubmission on timeout/error?
-7. Does the real SDK adapter avoid duplicating Judge/policy semantics in the frontend?
-8. Are accessibility, responsive and reduced-motion requirements adequately implemented after real browser inspection?
-9. What still prevents this product from being accurate, usable or safe enough to proceed to E1 once the external Studio-dev child blocker is resolved?
+## Browser evidence
+
+Browser screenshots/recordings, manual keyboard review, accessibility inspection and responsive evidence remain **NOT RUN** for attempt 1.
+
+Do not capture a full browser evidence set against this failed substantive target and reuse it for a different candidate. After all A3-H01..H12 remediation is complete, freeze one new substantive attempt-2 SHA and capture the complete browser evidence set against exactly that SHA.
+
+## External/live blockers that remain separate from A3 source remediation
+
+- Studio-dev Judge -> Kernel triggered child still fails with `fee no_matching_allocation # internal` on current evidence. This is A2-C01 and independently blocks E1/R1 closure.
+- The final live fee profile still requires real final-deployment arguments/output.
+- E1 still requires two clean successful 61997 canonical runs with real test GEN behaviour, successful child execution and target post-state evidence.
 
 ## Packet contents
 
+- `commit.txt` - immutable failed attempt-1 substantive target and exact CI run
+- `AUDIT_DECISION.md` - independent A3 attempt-1 decision and findings
+- `FINAL_REMEDIATION.md` - one-shot implementation instruction
 - `scope.md`
 - `files-changed.txt`
 - `requirements.csv`
@@ -60,10 +82,15 @@ D1, D2, D3, I1, I2 and D4 product work:
 - `open-questions.md`
 - `evidence-index.md`
 - `screenshots-recordings-index.md`
-- `commit.txt` after the substantive candidate is frozen on a green CI run
 
-## Gate boundary
+## Gate consequence
 
-A3 cannot be externally closed on source inspection alone because the Master Plan requires browser/product evidence. The screenshot/recording index deliberately records those checks as NOT RUN until an external browser-capable execution environment supplies them.
+**A3 ATTEMPT 1: FAIL**
 
-A successful A3 decision does not close E1. E1 separately requires two successful clean Studio-dev 61997 canonical runs and successful required child execution/post-state evidence.
+- Product/integration remediation is required before another A3 submission.
+- E1 is not authorised as a release-closing gate.
+- A4 is not ready for external review.
+- R1/S1 closure is not authorised.
+- A2-C01 remains independently open.
+
+The next submission should be one complete A3 attempt 2, not a sequence of piecemeal reviews. No ZIP is required; GitHub is the canonical audit surface.
