@@ -286,3 +286,26 @@ def test_submit_incident_normalizes_calldata_typed_reporter_and_policy_hash(judg
     decisions = [item for item in log if "decision_stage" in item]
     assert len(decisions) == 2
     assert all(item["outcome"] == 1 for item in decisions)
+
+
+def test_submit_incident_normalizes_calldata_coerced_empty_strings(judge_harness, direct_vm):
+    """Live Studio-dev deployment finding: the exact pinned genlayer CLI's calldata encoder
+    coerces an intentionally empty string (e.g. EAP.sources[0].snapshotRef) to the int 0 -
+    the same Number("")===0 quirk already documented for top-level str args, but nested inside
+    evidence_json this time. Simulates that coercion and confirms the Judge still accepts it."""
+    judge, gl, log, config = judge_harness
+    direct_vm.mock_web(EAP_URL, {"method": "GET", "status": 200, "body": "evidence body"})
+    direct_vm.mock_llm(".*", json.dumps({"condition_code": "CREDENTIAL_COMPROMISE"}))
+    eap = make_eap(gl, config)
+    eap_with_coerced_empty_strings = json.loads(canonical_json(eap))
+    eap_with_coerced_empty_strings["sources"][0]["snapshotRef"] = 0
+    eap_with_coerced_empty_strings["snapshotRefs"] = [0]
+
+    incident_id = judge.submit_incident(
+        "target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a",
+        eap["artifactHash"], eap_with_coerced_empty_strings, 0, "",
+    )
+    assert incident_id != ""
+    decisions = [item for item in log if "decision_stage" in item]
+    assert len(decisions) == 2
+    assert all(item["outcome"] == 1 for item in decisions)

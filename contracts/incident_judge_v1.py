@@ -212,16 +212,21 @@ def _int_to_hash_hex(value: int) -> str:
 
 def _sanitize_calldata_scalars(value, key=None):
     """The exact pinned genlayer CLI's calldata encoder auto-types any nested string that LOOKS
-    like a 0x-prefixed hex value as a real scalar, not a string - confirmed live on Studio-dev
-    (chain 61997) in TWO distinct forms: a 40-hex (20-byte) string such as an EAP's `reporter`
-    field becomes a real Address (json.dumps can't serialize it - TypeError: Object of type
-    Address is not JSON serializable), and a 64-hex (32-byte) string such as `policyHash`/
-    `contentHash`/`artifactHash` becomes a plain Python int (json.dumps happily serializes an int,
-    but then an EAP's policyHash field that should compare equal to the Kernel's hash STRING
-    compares unequal to an int - E_JDG_006 EAP policyHash mismatch - a silent semantic corruption,
-    not a crash). Both forms must be converted back to canonical hex strings, by key name for the
-    hash-shaped fields (there is no type tag at this layer to distinguish a hash-int from any
-    other numeric field) and by type for Address."""
+    like something other than a plain string - confirmed live on Studio-dev (chain 61997) in
+    THREE distinct forms, each a silent semantic corruption rather than a crash except the first:
+    (1) a 40-hex (20-byte) string such as an EAP's `reporter` field becomes a real Address
+    (json.dumps CAN'T serialize it - a visible crash); (2) a 64-hex (32-byte) string such as
+    `policyHash`/`contentHash`/`artifactHash` becomes a plain Python int (json.dumps serializes it
+    fine, but it then compares unequal to the Kernel's hash STRING - E_JDG_006 policyHash
+    mismatch); (3) an intentionally EMPTY string anywhere in the EAP (e.g. `snapshotRef`) becomes
+    int 0 (the same `Number("") === 0` JavaScript quirk already documented for top-level optional
+    string args in _normalize_str_arg, but here nested - E_JDG_EVIDENCE invalid snapshotRef).
+    (1) is fixed by type. (2) is fixed by key name, since there is no type tag at this layer to
+    otherwise distinguish a hash-int from any other numeric field. (3) is fixed WITHOUT an
+    allowlist: the canonical EAP schema (contracts/incident_judge_v1.py's _parse_and_validate_eap)
+    has no field that is legitimately the integer 0 anywhere - every leaf is a string, so any
+    leftover bare `0` after the hash-field pass is unambiguously a coerced empty string, for
+    `snapshotRef` or any other currently- or future-string field alike."""
     if isinstance(value, gl.Address):
         return value.as_hex
     if isinstance(value, dict):
@@ -232,6 +237,8 @@ def _sanitize_calldata_scalars(value, key=None):
         return [_sanitize_calldata_scalars(v) for v in value]
     if key in _HASH_FIELD_NAMES and isinstance(value, int):
         return _int_to_hash_hex(value)
+    if isinstance(value, int) and not isinstance(value, bool) and value == 0:
+        return ""
     return value
 
 
