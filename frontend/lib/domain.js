@@ -21,8 +21,11 @@ export function shortHash(value, head = 8, tail = 6) {
   return `${s.slice(0, head)}…${s.slice(-tail)}`;
 }
 
+/** A3-H10: an unrecognized/missing assurance state must NEVER be displayed as NORMAL (or any
+ * other known-good state) by default - that would make the interface MORE certain than the
+ * protocol actually is. Render an explicit UNKNOWN marker instead. */
 export function stateMarker(state) {
-  const safe = ASSURANCE_STATES.includes(state) ? state : "NORMAL";
+  const safe = ASSURANCE_STATES.includes(state) ? state : "UNKNOWN";
   return `<span class="state-marker" data-state="${safe}">${safe.replaceAll("_", " ")}</span>`;
 }
 
@@ -81,6 +84,32 @@ export function routeFromHash(hash = location.hash) {
 export function setLiveMessage(message) {
   const region = document.getElementById("live-region");
   if (region) region.textContent = message;
+}
+
+/**
+ * A3-H01 canonical prepared-write registry, kept pure/DOM-free so it is directly unit-testable.
+ * Exactly one active draft may exist per write `kind` at a time. The object returned by
+ * `getDraft` is always the EXACT object passed to `registerDraft` - never reconstructed - and
+ * `invalidateDraft` (called on any post-preview input edit) removes it so a stale draft can never
+ * be retrieved for signing.
+ */
+export function createDraftRegistry() {
+  const drafts = new Map();
+  return {
+    registerDraft(kind, draft) {
+      if (!draft || typeof draft !== "object") throw new Error("Cannot register a non-object draft");
+      drafts.set(kind, draft);
+    },
+    getDraft(kind) {
+      return drafts.get(kind) ?? null;
+    },
+    invalidateDraft(kind) {
+      drafts.delete(kind);
+    },
+    hasDraft(kind) {
+      return drafts.has(kind);
+    }
+  };
 }
 
 export function storageAvailable() {

@@ -330,6 +330,40 @@ export interface EvidenceSource {
 }
 
 // ---------------------------------------------------------------------------
+// PreparedRecloseWrite (A3-H01/A3-H06) - the one canonical bounded signing draft every write
+// flow produces. The object a caller previews MUST be exactly the object a writer signs: no
+// separate "submission payload" is ever constructed. `args`/`valueWei`/`functionName`/
+// `contractAddress` are the EXACT, complete arguments the real deployed method requires - never a
+// shortened/representative subset. `reviewHash` is a content hash of this exact draft (minus
+// feeEstimate, which can legitimately change between preview refreshes without altering WHAT is
+// being signed) - a caller re-hashes the draft immediately before signing and refuses to sign if
+// it no longer matches, so editing reviewed input after preview cannot silently carry through to
+// a stale signature.
+// ---------------------------------------------------------------------------
+
+export type PreparedWriteSemanticKind =
+  | "INCIDENT_REPORT"
+  | "REMEDIATION_REPORT"
+  | "RECOVERY_VALIDATION_REPORT"
+  | "TARGET_REGISTRATION"
+  | "POLICY_ACTIVATION";
+
+export interface PreparedRecloseWrite {
+  schemaVersion: "1.0.0";
+  chainId: number;
+  contractAddress: string;
+  functionName: string;
+  /** The exact, complete, ordered argument list for `functionName` - never shortened. */
+  args: unknown[];
+  valueWei: string;
+  feeEstimate: FeeTransactionPreview;
+  semanticKind: PreparedWriteSemanticKind;
+  /** Content hash of this draft (every field above except feeEstimate) - recomputed and compared
+   * immediately before signing; a mismatch means reviewed input changed and blocks the sign. */
+  reviewHash: `0x${string}`;
+}
+
+// ---------------------------------------------------------------------------
 // DecisionRecord / DecisionView (A0-003 / A0-R3 / A0-T3)
 // ---------------------------------------------------------------------------
 

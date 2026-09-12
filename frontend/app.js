@@ -1,6 +1,6 @@
 import {
-  escapeHtml, executionLabel, formatIso, incidentDisplayStatus, outcomeLabel, recordRows,
-  routeFromHash, setLiveMessage, shortHash, stateMarker, CHAIN_ID, NETWORK_NAME
+  createDraftRegistry, escapeHtml, executionLabel, formatIso, incidentDisplayStatus, outcomeLabel,
+  recordRows, routeFromHash, setLiveMessage, shortHash, stateMarker, CHAIN_ID, NETWORK_NAME
 } from "./lib/domain.js";
 import { selectProductAdapter } from "./lib/adapters.js";
 import { PendingTransactionStore, persistThenTrack } from "./lib/persistence.js";
@@ -21,6 +21,30 @@ const state = {
   pending: pendingStore.loadAll(),
   lastRender: null
 };
+
+/**
+ * A3-H01: the single canonical prepared-write registry (see domain.js::createDraftRegistry for
+ * the pure, unit-tested invalidation behaviour). The object passed to the writer at submit time
+ * is always exactly `draftRegistry.getDraft(kind)` - never a caller-reconstructed or empty object.
+ */
+const draftRegistry = createDraftRegistry();
+
+function invalidateDraft(kind) {
+  draftRegistry.invalidateDraft(kind);
+  const el = document.getElementById(kind === "incident" ? "incident-preview" : "recovery-preview");
+  if (el && !el.classList.contains("empty")) {
+    el.className = "empty";
+    el.innerHTML = "Reviewed input changed - preview again before signing.";
+  }
+}
+
+/** Wires one form so ANY change to its fields after a preview invalidates that preview's draft. */
+function invalidateDraftOnEdit(form, kind) {
+  if (!form || form.dataset.invalidateWired) return;
+  form.dataset.invalidateWired = "1";
+  form.addEventListener("input", () => invalidateDraft(kind));
+  form.addEventListener("change", () => invalidateDraft(kind));
+}
 
 function shell(content, currentRoute) {
   const nav = NAV.map(([id, label], index) => `
@@ -237,7 +261,7 @@ async function renderPolicyAuthor(parts) {
 
 async function renderPending() {
   state.pending = pendingStore.loadAll();
-  const body = state.pending.length ? `<div class="table-wrap"><table><thead><tr><th>Transaction</th><th>Kind</th><th>Persisted</th></tr></thead><tbody>${state.pending.map((p) => `<tr><td class="hash">${escapeHtml(p.txId)}</td><td>${escapeHtml(p.kind || "write")}</td><td>${formatIso(p.persistedAt)}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty">No pending transaction IDs are persisted in this browser.</div>';
+  const body = state.pending.length ? `<div class="table-wrap"><table><thead><tr><th>Transaction</th><th>Incident</th><th>Kind</th><th>Persisted</th></tr></thead><tbody>${state.pending.map((p) => `<tr><td class="hash">${escapeHtml(p.txId)}</td><td class="hash">${p.incidentId ? escapeHtml(p.incidentId) : '<span class="muted">not yet known</span>'}</td><td>${escapeHtml(p.kind || "write")}</td><td>${formatIso(p.persistedAt)}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty">No pending transaction IDs are persisted in this browser.</div>';
   return `${pageHead("transaction tracker", "Pending writes", "Transaction IDs are persisted immediately. Polling errors never trigger blind resubmission.")}${panel("Local resume queue", body)}`;
 }
 
@@ -298,7 +322,9 @@ function formError(id, messages) {
 
 async function handleIncidentSubmit(event) {
   event.preventDefault();
-  const data = new FormData(event.currentTarget);
+  invalidateDraft("incident");
+  const form = event.currentTarget;
+  const data = new FormData(form);
   const input = Object.fromEntries(data.entries());
   const errors = [];
   if (!input.targetId) errors.push("Target ID is required.");
@@ -308,14 +334,27 @@ async function handleIncidentSubmit(event) {
   const preview = await adapter.previewIncident({ targetId: input.targetId, ruleId: input.ruleId, resourceId: input.resourceId, evidenceSources: [{ sourceId: "user-source-1", url: input.url, sourceClass: input.sourceClass, fetchedAt: new Date().toISOString(), availability: "AVAILABLE" }] });
   const el = document.getElementById("incident-preview");
   el.className = "";
-  el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Reporter bond", `<span class="mono">${escapeHtml(preview.bondWei ?? "0")} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${preview.synthetic ? notice("Preview only", "Fixture mode will not sign or submit this report.", "warning") : '<button class="button primary" type="button" data-action="submit-incident">Sign & submit</button>'}`;
-  setLiveMessage("Incident fee and bond preview ready.");
+  // A3-H01: the draft registered here is EXACTLY `preview.draft` - the same object rendered
+  // below - and is the ONLY object submitLiveWrite will ever pass to the writer.
+  draftRegistry.registerDraft("incident", preview.draft);
+  invalidateDraftOnEdit(form, "incident");
+  const draftHtml = preview.draft?.reviewHash
+    ? recordRows([
+        ["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`],
+        ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`],
+        ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`],
+      ])
+    : "";
+  el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Reporter bond", `<span class="mono">${escapeHtml(preview.bondWei ?? "0")} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode will not sign or submit this report.", "warning") : '<button class="button primary" type="button" data-action="submit-incident">Sign & submit</button>'}`;
+  setLiveMessage("Incident fee and bond preview ready. The exact reviewed draft will be signed.");
   bindDynamicButtons();
 }
 
 async function handleRecoverySubmit(event) {
   event.preventDefault();
-  const data = new FormData(event.currentTarget);
+  invalidateDraft("recovery");
+  const form = event.currentTarget;
+  const data = new FormData(form);
   const input = Object.fromEntries(data.entries());
   const errors = [];
   if (!input.incidentId) errors.push("Parent incident is required.");
@@ -325,16 +364,37 @@ async function handleRecoverySubmit(event) {
   const preview = await adapter.previewRecovery({ incidentId: input.incidentId, evidenceSources: [{ sourceId: "recovery-source-1", url: input.url, sourceClass: input.sourceClass, fetchedAt: new Date().toISOString(), availability: "AVAILABLE" }] });
   const el = document.getElementById("recovery-preview");
   el.className = "";
-  el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate a recovery transaction.", "warning") : '<button class="button primary" type="button" data-action="submit-recovery">Sign & submit recovery</button>'}`;
-  setLiveMessage("Recovery transaction preview ready.");
+  draftRegistry.registerDraft("recovery", preview.draft);
+  invalidateDraftOnEdit(form, "recovery");
+  const draftHtml = preview.draft?.reviewHash
+    ? recordRows([
+        ["Contract", `<span class="hash">${escapeHtml(preview.draft.contractAddress)}</span>`],
+        ["Method", `<span class="mono">${escapeHtml(preview.draft.functionName)}</span>`],
+        ["Review hash", `<span class="hash">${escapeHtml(preview.draft.reviewHash)}</span>`],
+      ])
+    : "";
+  el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate a recovery transaction.", "warning") : '<button class="button primary" type="button" data-action="submit-recovery">Sign & submit recovery</button>'}`;
+  setLiveMessage("Recovery transaction preview ready. The exact reviewed draft will be signed.");
   bindDynamicButtons();
 }
 
 async function submitLiveWrite(kind) {
+  const draft = draftRegistry.getDraft(kind);
+  if (!draft) {
+    setLiveMessage("No reviewed draft is available. Preview the write again before signing.");
+    alert("No reviewed draft is available. Preview the write again before signing.");
+    return;
+  }
   try {
-    const result = await adapter.submitWrite(kind, {});
+    // A3-H01: pass EXACTLY the previewed/reviewed draft - never an empty or reconstructed object.
+    const result = await adapter.submitWrite(kind, draft);
     if (!result?.txId) throw new Error("Writer returned no transaction ID");
-    await persistThenTrack(pendingStore, { txId: result.txId, kind }, globalThis.__RECLOSE_PRODUCT_RUNTIME__?.trackTransaction, ({ phase }) => setLiveMessage(`Transaction ${phase}: ${shortHash(result.txId)}`));
+    // A3-H12: persist the transaction ID immediately, AND the associated incident identity the
+    // moment it is known (either deterministically derivable or returned by the writer) - a
+    // reload must never lose either identity or cause a resubmission.
+    const record = { txId: result.txId, kind, incidentId: result.incidentId ?? null };
+    draftRegistry.invalidateDraft(kind);
+    await persistThenTrack(pendingStore, record, globalThis.__RECLOSE_PRODUCT_RUNTIME__?.trackTransaction, ({ phase }) => setLiveMessage(`Transaction ${phase}: ${shortHash(result.txId)}`));
     state.pending = pendingStore.loadAll();
     location.hash = "#/pending";
   } catch (error) {

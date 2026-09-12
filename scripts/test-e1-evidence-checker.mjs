@@ -2,9 +2,13 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+// fileURLToPath (not raw .pathname) is required for correct Windows drive-letter handling -
+// path.resolve("/C:/...", "..") corrupts into "C:\C:\..." because path.resolve treats a leading
+// POSIX-style slash as relative to the current drive root and re-prepends it.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const checker = path.join(ROOT, "scripts", "check-e1-evidence.mjs");
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "reclose-e1-check-"));
 let failures = 0;

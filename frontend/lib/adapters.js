@@ -113,13 +113,45 @@ export class SdkProductAdapter {
     return Promise.all((await this.indexer.listIncidentIds()).map((id) => this.getIncident(id)));
   }
 
+  /**
+   * A3-H04: reconstructs as much of the causal trace as the injected index adapter actually
+   * proves, never unconditionally returning an empty trace in live mode. Any link the index
+   * cannot resolve is rendered as an explicit UNRESOLVED/NOT_YET_AVAILABLE entry rather than
+   * silently omitted (which would read as "no failures exist" instead of "unknown").
+   */
   async getIncident(incidentId) {
     const incident = await this.sdk.getIncident(incidentId);
     let finalDecision = null;
     try { finalDecision = await this.sdk.getDecision(`${incidentId}:FINAL`); } catch { /* not final */ }
     let decisionView = null;
     try { if (finalDecision) decisionView = await this.sdk.getDecisionView(`${incidentId}:FINAL`); } catch { /* index mapping may be unavailable */ }
-    return { ...incident, finalOutcome: finalDecision?.outcome ?? null, decisionStage: finalDecision?.decisionStage ?? null, judgmentTx: decisionView?.transaction ?? null, trace: [] };
+
+    const trace = [];
+    if (decisionView?.transaction) {
+      trace.push({
+        role: "Judge parent (report submission)",
+        txId: decisionView.record?.decisionId ?? "unavailable",
+        rawStatus: decisionView.transaction.rawStatus,
+        executionResult: decisionView.transaction.executionResult ?? null,
+        finalStatus: decisionView.transaction.executionResult === "FINISHED_WITH_ERROR" ? "FAILURE" : decisionView.transaction.derived?.isFinal ? "SUCCESS" : "UNKNOWN"
+      });
+      try {
+        const childReceipt = await this.sdk.trackActionTrace(incidentId);
+        trace.push({
+          role: "Judge -> Kernel child",
+          txId: childReceipt.childTx?.txId ?? "unavailable",
+          rawStatus: childReceipt.childTx?.lifecycle?.rawStatus ?? "UNKNOWN",
+          executionResult: childReceipt.executionResult ?? null,
+          finalStatus: childReceipt.finalStatus ?? "UNKNOWN",
+          error: childReceipt.finalStatus === "FAILURE" ? "Execution failed downstream of judgment - see known live limitation" : undefined
+        });
+      } catch {
+        // A3-H04: no fabricated child. The index/trace layer cannot currently resolve this
+        // incident's action ID to a child transaction - render that explicitly.
+        trace.push({ role: "Judge -> Kernel child", txId: "unavailable", rawStatus: "NOT_YET_AVAILABLE", executionResult: null, finalStatus: "UNKNOWN" });
+      }
+    }
+    return { ...incident, finalOutcome: finalDecision?.outcome ?? null, decisionStage: finalDecision?.decisionStage ?? null, judgmentTx: decisionView?.transaction ?? null, trace };
   }
 
   async getBenchmark() {
@@ -140,8 +172,25 @@ export class SdkProductAdapter {
     return { ...built.feePreview, draft: built.report, synthetic: false };
   }
 
+  /**
+   * A3-H01: `payload` MUST be the exact PreparedRecloseWrite draft the caller previewed and
+   * reviewed - never a caller-reconstructed or empty object. A3-H03: the connected writer's
+   * network is re-checked HERE, immediately before signing, not only at page load - a static
+   * "Studio-dev" label is never treated as a write guard. Fails closed if the writer cannot
+   * report its connected chain ID at all, since an unverifiable network is not a safe network.
+   */
   async submitWrite(kind, payload) {
     if (!this.writer) throw new Error("No wallet writer is connected. Reclose will not simulate a successful submission.");
+    if (!payload || typeof payload !== "object" || !payload.reviewHash || !Array.isArray(payload.args)) {
+      throw new Error("Refusing to sign: no valid reviewed draft was supplied. Preview the write again.");
+    }
+    if (typeof this.writer.getConnectedChainId !== "function") {
+      throw new Error("Refusing to sign: the connected writer cannot report its network. Network safety cannot be verified.");
+    }
+    const observedChainId = Number(await this.writer.getConnectedChainId());
+    if (observedChainId !== CHAIN_ID) {
+      throw new Error(`Wrong network: wallet is on chain ${observedChainId}, Reclose requires ${CHAIN_ID} (${"studio-dev"}). Switch networks and preview again.`);
+    }
     const method = {
       incident: "submitIncident",
       remediation: "submitRemediation",

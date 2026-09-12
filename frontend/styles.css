@@ -178,6 +178,8 @@ main { padding: 42px 34px 72px; max-width: 1500px; margin: 0 auto; }
 .state-marker[data-state="SAFE_MODE"]::before { height: 8px; border-width: 2px 0; }
 .state-marker[data-state="PAUSED"]::before { background: currentColor; }
 .state-marker[data-state="RECOVERY"]::before { border-radius: 50%; border-right-color: transparent; }
+.state-marker[data-state="UNKNOWN"] { color: var(--warn); }
+.state-marker[data-state="UNKNOWN"]::before { border-style: dashed; }
 
 .outcome { font: 600 11px var(--mono); letter-spacing: .05em; }
 .outcome[data-outcome="CONFIRMED"] { color: var(--ok); }

@@ -2,9 +2,12 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+// fileURLToPath (not raw .pathname) is required for correct Windows drive-letter handling - see
+// scripts/test-e1-evidence-checker.mjs for the full explanation of the corruption this avoids.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const checker = path.join(ROOT, "scripts", "check-final-fee-profile.mjs");
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "reclose-fee-check-"));
 let failures = 0;

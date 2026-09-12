@@ -19,6 +19,8 @@ import type {
   PolicyRule,
   PolicySecurityDiff,
   PolicySecurityDiffChange,
+  PreparedRecloseWrite,
+  PreparedWriteSemanticKind,
   RuleId,
   RuleKind,
   Target,
@@ -28,6 +30,14 @@ import type { RawGenLayerTransaction } from "./lifecycle";
 import { mapRawTransaction } from "./lifecycle";
 import { assertCanonicalChainId, RECLOSE_CANONICAL_CHAIN_ID } from "./networkGuard";
 import { canonicalKeccak256 } from "./canonical";
+import { buildEapObject } from "./evidence";
+
+/** A3-H01: the review-to-sign content hash covers every field of the draft that must not change
+ * between preview and signing - explicitly excluding feeEstimate, which may legitimately be
+ * refreshed without altering what is being signed. */
+function computeReviewHash(draft: Omit<PreparedRecloseWrite, "reviewHash" | "feeEstimate">): `0x${string}` {
+  return canonicalKeccak256(draft);
+}
 
 export interface RecloseAddresses {
   kernel: string;
@@ -205,6 +215,10 @@ export class DirectRecloseClient implements RecloseSDK {
   private async kernel(functionName: string, args: unknown[] = []): Promise<unknown> {
     await this.ensureNetwork();
     return this.transport.readContract({ address: this.addresses.kernel, functionName, args });
+  }
+  private async judgeRead(functionName: string, args: unknown[] = []): Promise<unknown> {
+    await this.ensureNetwork();
+    return this.transport.readContract({ address: this.addresses.judge, functionName, args });
   }
 
   async getTarget(targetId: string): Promise<Target> {
@@ -391,32 +405,131 @@ export class DirectRecloseClient implements RecloseSDK {
     return { network: "studio-dev", chainId: RECLOSE_CANONICAL_CHAIN_ID, estimatedFeeValueWei: String(estimate.feeValue ?? "0"), isEstimate: true, distributionSummary: null };
   }
 
-  async buildIncidentReport(input: { targetId: string; ruleId: string; resourceId: string; evidenceSources: EvidenceSource[] }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
+  /** Builds the canonical EAP for either submission kind, binding it to the reporter/policy/
+   * rule actually being submitted against - A3-H05: uses the ONE canonical EAP implementation
+   * (protocol-sdk/evidence.ts, re-exported verbatim by @reclose/evidence-builder), never a
+   * second simplified validator. */
+  private buildCanonicalEap(args: {
+    targetId: string;
+    policyHash: string;
+    ruleId: RuleId;
+    subject: string;
+    reporterAddress: string;
+    evidenceSources: Array<EvidenceSource & { extractedText?: string; snapshotRef?: string }>;
+  }) {
+    const now = new Date().toISOString();
+    return buildEapObject({
+      targetId: args.targetId,
+      policyHash: args.policyHash as `0x${string}`,
+      ruleId: args.ruleId,
+      subject: args.subject,
+      reporter: args.reporterAddress as `0x${string}`,
+      observedAt: now,
+      retrievedAt: now,
+      sources: args.evidenceSources.map((s) => ({
+        sourceId: s.sourceId,
+        url: s.url,
+        sourceClass: s.sourceClass,
+        extractedText: s.extractedText ?? "",
+        snapshotRef: s.snapshotRef ?? "",
+        retrievedAt: s.observedAt ?? s.fetchedAt,
+      })),
+    });
+  }
+
+  /** A3-H01/A3-H06: returns the exact, complete, bounded draft that will be signed - the SAME
+   * object the caller previews. `reporterAddress` is caller-supplied (the SDK is non-custodial
+   * and has no wallet access); `bondId` is caller-supplied when the rule's economics require a
+   * bond, otherwise "" (zero-bond path). Fee estimation runs over this exact 8-argument call,
+   * never a shortened placeholder. */
+  async buildIncidentReport(input: {
+    targetId: string;
+    ruleId: string;
+    resourceId: string;
+    evidenceSources: Array<EvidenceSource & { extractedText?: string; snapshotRef?: string }>;
+    reporterAddress?: string;
+    bondId?: string;
+    subject?: string;
+  }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
     const policy = await this.getActivePolicy(input.targetId);
     const rule = policy.rules.find((r) => r.ruleId === input.ruleId);
     if (!rule) throw new Error(`Rule ${input.ruleId} is not active for ${input.targetId}`);
-    const report = {
-      kind: "INCIDENT_REPORT_DRAFT",
+    if (!input.reporterAddress) throw new Error("reporterAddress is required to bind the EAP and derive the reporter nonce - Reclose never custodies a signing identity");
+    const reporterAddress = input.reporterAddress;
+    const bondId = input.bondId ?? "";
+    const ruleId = input.ruleId as RuleId;
+
+    const eap = this.buildCanonicalEap({
       targetId: input.targetId,
-      policyKey: policy.summary.policyKey,
       policyHash: policy.summary.manifestHash,
-      ruleId: input.ruleId,
-      resourceId: input.resourceId,
+      ruleId,
+      subject: input.subject ?? `${ruleId} report against ${input.resourceId || input.targetId}`,
+      reporterAddress,
       evidenceSources: input.evidenceSources,
-      reportBondWei: rule.reportBond,
-      note: "Reporter address, nonce, canonical EAP and bond ID bind at signing time",
+    });
+    const evidenceJson = JSON.stringify(eap);
+    const reporterNonce = num(await this.judgeRead("get_reporter_nonce", [reporterAddress]));
+
+    const args: unknown[] = [input.targetId, policy.summary.policyKey, ruleId, input.resourceId, eap.artifactHash, evidenceJson, reporterNonce, bondId];
+    const feeEstimate = await this.feePreview("submit_incident", args);
+    feeEstimate.bondWei = rule.reportBond;
+
+    const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
+      schemaVersion: "1.0.0",
+      chainId: RECLOSE_CANONICAL_CHAIN_ID,
+      contractAddress: this.addresses.judge,
+      functionName: "submit_incident",
+      args,
+      valueWei: "0",
+      feeEstimate,
+      semanticKind: "INCIDENT_REPORT" as PreparedWriteSemanticKind,
     };
-    const feePreview = await this.feePreview("submit_incident", [input.targetId, policy.summary.policyKey, input.ruleId, input.resourceId]);
-    feePreview.bondWei = rule.reportBond;
-    return { report, feePreview };
+    const { feeEstimate: _omitted, ...forHash } = draft;
+    const report: PreparedRecloseWrite = { ...draft, reviewHash: computeReviewHash(forHash) };
+    return { report, feePreview: feeEstimate };
   }
 
-  async buildRecoveryReport(input: { incidentId: string; evidenceSources: EvidenceSource[] }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
+  async buildRecoveryReport(input: {
+    incidentId: string;
+    evidenceSources: Array<EvidenceSource & { extractedText?: string; snapshotRef?: string }>;
+    reporterAddress?: string;
+    bondId?: string;
+    subject?: string;
+  }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
     const incident = await this.getIncident(input.incidentId);
     const policy = await this.getActivePolicy(incident.targetId);
-    const report = { kind: "RECOVERY_REPORT_DRAFT", parentIncidentId: input.incidentId, targetId: incident.targetId, policyKey: policy.summary.policyKey, evidenceSources: input.evidenceSources };
-    const feePreview = await this.feePreview("submit_recovery_validation", [input.incidentId, policy.summary.policyKey]);
-    return { report, feePreview };
+    if (!input.reporterAddress) throw new Error("reporterAddress is required to bind the EAP and derive the reporter nonce - Reclose never custodies a signing identity");
+    const reporterAddress = input.reporterAddress;
+    const bondId = input.bondId ?? "";
+    const ruleId: RuleId = "RECOVERY_VALIDATED_V1";
+
+    const eap = this.buildCanonicalEap({
+      targetId: incident.targetId,
+      policyHash: policy.summary.manifestHash,
+      ruleId,
+      subject: input.subject ?? `Recovery validation for ${input.incidentId}`,
+      reporterAddress,
+      evidenceSources: input.evidenceSources,
+    });
+    const evidenceJson = JSON.stringify(eap);
+    const reporterNonce = num(await this.judgeRead("get_reporter_nonce", [reporterAddress]));
+
+    const args: unknown[] = [input.incidentId, policy.summary.policyKey, eap.artifactHash, evidenceJson, reporterNonce, bondId];
+    const feeEstimate = await this.feePreview("submit_recovery_validation", args);
+
+    const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
+      schemaVersion: "1.0.0",
+      chainId: RECLOSE_CANONICAL_CHAIN_ID,
+      contractAddress: this.addresses.judge,
+      functionName: "submit_recovery_validation",
+      args,
+      valueWei: "0",
+      feeEstimate,
+      semanticKind: "RECOVERY_VALIDATION_REPORT" as PreparedWriteSemanticKind,
+    };
+    const { feeEstimate: _omitted, ...forHash } = draft;
+    const report: PreparedRecloseWrite = { ...draft, reviewHash: computeReviewHash(forHash) };
+    return { report, feePreview: feeEstimate };
   }
 
   async validateAPM(apm: unknown): Promise<{ valid: boolean; errors: string[] }> {
