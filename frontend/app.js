@@ -62,6 +62,115 @@ function invalidateDraftOnEdit(form, kind) {
   form.addEventListener("change", () => invalidateDraft(kind));
 }
 
+/**
+ * Marketing/hero entry point - shown only for an empty hash ("", "#" or "#/"), never replacing
+ * any existing app route. It renders outside the app shell (no rail/topbar) and exists purely to
+ * explain what Reclose is before a visitor enters the console; every fact stated here is drawn
+ * from the governed architecture (CLAUDE.md Section 6) and layer model (Section 8), not generic
+ * AI marketing copy. The single CTA is a plain hash link into the existing Overview screen, so no
+ * new routing/state is introduced.
+ */
+function renderLanding() {
+  const flowSteps = [
+    ["Reporter / Sentinel", "A human or an automated Sentinel observes a candidate condition and submits evidence. Neither one decides what happened."],
+    ["Evidence artifact package", "Evidence is bundled with provenance and source-class data and treated as hostile by default until validated."],
+    ["Judge module", "A versioned, immutable adjudicator runs deterministic prechecks before any nondeterministic reasoning, under GenLayer consensus."],
+    ["DecisionRecord", "A strict, structured outcome - CONFIRMED, REJECTED or UNDETERMINED - at either PROVISIONAL or FINAL stage."],
+    ["AssuranceKernel", "The deterministic root of trust. It enforces the active policy; it never invents authority the policy did not already grant."],
+    ["Bounded typed action", "One of a finite, pre-declared set of effects - never arbitrary AI-generated calldata."],
+    ["Target adapter / protected target", "The actual system under assurance, reached only through its own narrow, owner-acknowledged control interface."]
+  ];
+  const layers = [
+    ["Protocol layer", "GenLayer contracts, the Kernel, Judges, policies and target adapters.", "Source of truth and enforcement.", ["Immutable constitutional Kernel", "Versioned, auditable Judge modules", "Finite, typed action effects"]],
+    ["Infrastructure layer", "SDK, CLI, transaction tracker, policy compiler, evidence builder, Sentinel and an optional indexer.", "Machine usability and liveness.", ["Protocol truth without a hosted frontend", "An autonomous agent can act without a browser", "Hosted API is convenience, never authority"]],
+    ["Product layer", "Dashboard, targets, policies, incidents, report, recovery, benchmark and about.", "Human understanding and control.", ["Causal Incident Explorer, not one status field", "Explicit authority-expansion warnings", "Recovery shown as evidence, not a timer"]]
+  ];
+  const principles = [
+    ["No hidden authority", "Every action the Kernel can take traces back to an explicit, versioned, currently-active policy - never an improvised response to a judgment."],
+    ["Judgment ≠ consequence", "GenLayer determines what happened. The policy determines what that means. The Kernel is the only thing that enforces the boundary between them."],
+    ["Provisional ≠ final", "Accepted, reversible, non-value-moving actions may happen early. Irreversible or value-moving consequences wait for finality - always."],
+    ["Recovery is evidence, not time", "Restoring authority after an incident requires remediation evidence and a recovery judgment. A timer alone is never treated as proof of safety."]
+  ];
+  const flowHtml = flowSteps.map(([title, body], i) => `
+    <div class="flow-step">
+      <div class="flow-step-index">0${i + 1}</div>
+      <div class="flow-step-body"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></div>
+    </div>`).join("");
+  const layerHtml = layers.map(([title, body, role, points]) => `
+    <div class="layer-card">
+      <span class="eyebrow">${escapeHtml(role)}</span>
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(body)}</p>
+      <ul>${points.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}</ul>
+    </div>`).join("");
+  const principleHtml = principles.map(([title, body], i) => `
+    <div class="principle-card">
+      <span class="glyph">0${i + 1}</span>
+      <div><strong>${escapeHtml(title)}</strong><p><span>${escapeHtml(body)}</span></p></div>
+    </div>`).join("");
+  return `
+    <div class="landing" id="main" tabindex="-1">
+      <nav class="landing-nav" aria-label="Marketing">
+        <a class="brand" href="#/"><strong>Reclose</strong><small>Protocol assurance</small></a>
+        <ul class="landing-nav-links">
+          <li><a href="#how-it-works">How it works</a></li>
+          <li><a href="#layers">Architecture</a></li>
+          <li><a href="#principles">Principles</a></li>
+          <li><a class="button" href="#/overview">Open console</a></li>
+        </ul>
+      </nav>
+      <header class="hero">
+        <span class="eyebrow">Runtime assurance for autonomous economic systems</span>
+        <h1>Let your agents act fast. Let <em>policy</em> decide what they're allowed to do.</h1>
+        <p class="hero-sub">Reclose sits between an autonomous agent and the systems it controls. GenLayer consensus judges what happened. A versioned, explicit policy decides what that judgment is allowed to change. A deterministic Kernel is the only thing that ever touches the target - bounded, typed, and never improvised.</p>
+        <div class="hero-cta">
+          <a class="button primary" href="#/overview">Open the console</a>
+          <a class="button" href="#/report">Report an incident</a>
+        </div>
+        <p class="hero-principle">"GenLayer determines the judgment. Policy determines the consequence. The Kernel enforces the boundary."</p>
+      </header>
+
+      <section class="landing-section" id="how-it-works">
+        <div class="landing-section-head">
+          <span class="eyebrow">Causal trace</span>
+          <h2>One incident, seven checkpoints, no shortcuts</h2>
+          <p>Every incident Reclose handles passes through the same seven stages, in order. The interface keeps them visibly separate so a reviewer can always tell what was claimed from what GenLayer actually decided, and what actually executed.</p>
+        </div>
+        <div class="flow-diagram">${flowHtml}</div>
+      </section>
+
+      <section class="landing-section" id="layers">
+        <div class="landing-section-head">
+          <span class="eyebrow">Three layers, one system</span>
+          <h2>The console is the control room, not the enforcement engine</h2>
+          <p>Protocol, infrastructure and product stay separate on purpose. The web app can go offline without the protocol losing its meaning - and an agent never needs a browser to use Reclose correctly.</p>
+        </div>
+        <div class="layer-grid">${layerHtml}</div>
+      </section>
+
+      <section class="landing-section" id="principles">
+        <div class="landing-section-head">
+          <span class="eyebrow">What Reclose will not do</span>
+          <h2>Calm, bounded, and honest about uncertainty</h2>
+          <p>These are the invariants the Kernel and the interface are both built to protect.</p>
+        </div>
+        <div class="principle-grid">${principleHtml}</div>
+      </section>
+
+      <section class="landing-cta">
+        <span class="eyebrow">Canonical network · studio-dev · chain ${CHAIN_ID}</span>
+        <h2>See the current assurance posture of every governed target</h2>
+        <p>Targets, active policies, open incidents and execution truth - read directly from protocol state, not from a synthetic success screen.</p>
+        <a class="button primary" href="#/overview">Open the console</a>
+      </section>
+
+      <footer class="landing-footer">
+        <span>Reclose · GenLayer judgment, deterministic consequence.</span>
+        <span>Accepted ≠ final · Finalized ≠ execution success</span>
+      </footer>
+    </div>`;
+}
+
 function shell(content, currentRoute) {
   const nav = NAV.map(([id, label], index) => `
     <a href="#/${id}" ${id === currentRoute ? 'aria-current="page"' : ""}>
@@ -69,7 +178,7 @@ function shell(content, currentRoute) {
     </a>`).join("");
   return `
     <aside class="rail" aria-label="Primary" data-open="${state.navOpen}">
-      <a class="brand" href="#/overview"><strong>reclose</strong><small>protocol assurance</small></a>
+      <a class="brand" href="#/overview"><strong>Reclose</strong><small>Protocol assurance</small></a>
       <nav class="nav">${nav}</nav>
       <div class="rail-foot">
         <span class="eyebrow">canonical network</span>
@@ -609,7 +718,20 @@ function currentRouteForNav(route) {
   return route;
 }
 
+/** True only for a genuinely empty hash ("", "#" or "#/") - any explicit route (including
+ * "#/overview") is unaffected and renders exactly as before. */
+function isLandingHash() {
+  const raw = location.hash.split("?")[0];
+  return raw === "" || raw === "#" || raw === "#/";
+}
+
 async function render() {
+  if (isLandingHash()) {
+    app.innerHTML = renderLanding();
+    document.title = "Reclose · Runtime assurance for autonomous systems";
+    requestAnimationFrame(() => document.getElementById("main")?.focus({ preventScroll: true }));
+    return;
+  }
   const { route, parts } = routeFromHash();
   state.loading = true;
   state.error = null;
@@ -923,5 +1045,4 @@ function bindEvents() {
 }
 
 window.addEventListener("hashchange", () => { state.navOpen = false; render(); });
-if (!location.hash) location.hash = "#/overview";
-else render();
+render();
