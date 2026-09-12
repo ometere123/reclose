@@ -1,0 +1,12 @@
+A3 AUDIT TARGET
+
+branch: chatgpt/r1-product-release
+audited substantive commit: 264c14af8f83cbd2bcf0176c87d9950baf0b275a
+GitHub Actions workflow: Reclose CI
+run id: 34682294856
+result: SUCCESS
+
+This immutable target contains the D1-D4 / I1-I2 product implementation, SDK product-truth hardening,
+agent-skill guard, CLI incident/recovery preparation wrappers, benchmark gate and normal root verification wiring.
+
+Commits after this target on the same branch are packet/release documentation only unless a later A3 attempt explicitly freezes a newer substantive target.
