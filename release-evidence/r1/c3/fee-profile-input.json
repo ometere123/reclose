@@ -2,102 +2,102 @@
   {
     "id": "kernel-deploy",
     "name": "AssuranceKernel deploy",
-    "notes": "PLACEHOLDER - deploy estimates are profiled via scripts/fee-profile.mjs's deploy-estimation path (genlayer estimate-fees --json, bare baseline), not a write simulation. Filled in with the real estimate captured during the fresh Studio-dev deployment."
+    "notes": "REQUIRES LIVE RE-RUN - deploy estimates use scripts/fee-profile.mjs/genlayer deployment estimation against Studio-dev. Do not reuse a historical deployment fee as the final profile."
   },
   {
     "id": "judge-deploy",
     "name": "IncidentJudgeV1 deploy",
-    "notes": "PLACEHOLDER - same deploy-estimation path as kernel-deploy."
+    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final Judge source."
   },
   {
     "id": "vault-deploy",
     "name": "IncentiveVault deploy",
-    "notes": "PLACEHOLDER - same deploy-estimation path as kernel-deploy."
+    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final Vault source."
   },
   {
     "id": "target-deploy",
     "name": "ReferenceAgentProtocol deploy",
-    "notes": "PLACEHOLDER - same deploy-estimation path as kernel-deploy."
+    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final target source."
   },
   {
     "id": "judge-report-no-provisional",
     "name": "IncidentJudgeV1.submit_incident (REMEDIATION_CONFIRMED_V1 - provisional_allowed=false)",
-    "address": "PLACEHOLDER_JUDGE_ADDRESS",
+    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
     "functionName": "submit_incident",
     "args": [],
     "value": "0",
-    "notes": "PLACEHOLDER args/address - filled in after fresh deployment, once a remediation-kind incident exists to submit against."
+    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED: construct a valid current remediation-kind report against policy-r1-004; empty args intentionally make this profile incomplete rather than fabricating a call."
   },
   {
     "id": "judge-report-with-provisional",
     "name": "IncidentJudgeV1.submit_incident (PROVIDER_COMPROMISE_V1 - provisional_allowed=true)",
-    "address": "PLACEHOLDER_JUDGE_ADDRESS",
+    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
     "functionName": "submit_incident",
     "args": [],
     "value": "0",
-    "notes": "PLACEHOLDER args - filled in after fresh deployment."
+    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED from a fresh canonical compromise report; do not copy stale nonce/evidence arguments."
   },
   {
     "id": "judge-to-kernel",
     "name": "IncidentJudgeV1.submit_incident (Judge -> Kernel cross-contract dispatch branch)",
-    "address": "PLACEHOLDER_JUDGE_ADDRESS",
+    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
     "functionName": "submit_incident",
     "args": [],
     "value": "0",
-    "notes": "PLACEHOLDER args - same branch as judge-report-with-provisional; kept as a distinct coverage ID because CLAUDE.md Section 34 calls out Judge->Kernel->Target profiling explicitly, and because it is the branch with the currently-open live-dispatch finding."
+    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED. This is the branch carrying the open `fee no_matching_allocation # internal` Studio-dev finding and must be profiled honestly even if estimation/execution fails."
   },
   {
     "id": "kernel-to-target-one-effect",
-    "name": "AssuranceKernel -> ReferenceAgentProtocol dispatch, single effect (e.g. RESTRICT provider_a)",
-    "address": "PLACEHOLDER_KERNEL_ADDRESS",
+    "name": "AssuranceKernel -> ReferenceAgentProtocol dispatch, single effect",
+    "address": "0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621",
     "functionName": "redispatch_final_action",
     "args": [],
     "value": "0",
-    "notes": "PLACEHOLDER args - filled in with a real action_id from the fresh deployment's live incident flow."
+    "notes": "FINAL R1 Kernel address. LIVE ARGS REQUIRED from a real current action ID produced by a fresh run."
   },
   {
     "id": "kernel-to-target-two-effects",
-    "name": "AssuranceKernel -> ReferenceAgentProtocol dispatch, two effects on one decision (e.g. RESTRICT + ENTER_SAFE_MODE)",
-    "address": "PLACEHOLDER_KERNEL_ADDRESS",
+    "name": "AssuranceKernel -> ReferenceAgentProtocol dispatch, two effects on one decision",
+    "address": "0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621",
     "functionName": "redispatch_final_action",
     "args": [],
     "value": "0",
-    "notes": "PLACEHOLDER args - filled in with a real action_id."
+    "notes": "FINAL R1 Kernel address. LIVE ARGS REQUIRED from a real current multi-effect action."
   },
   {
     "id": "remediation",
     "name": "IncidentJudgeV1.submit_remediation",
-    "address": "PLACEHOLDER_JUDGE_ADDRESS",
+    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
     "functionName": "submit_remediation",
     "args": [],
     "value": "0",
-    "notes": "PLACEHOLDER args - filled in after a CONFIRMED incident exists to remediate."
+    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED after a real CONFIRMED incident exists."
   },
   {
     "id": "recovery-validation",
     "name": "IncidentJudgeV1.submit_recovery_validation",
-    "address": "PLACEHOLDER_JUDGE_ADDRESS",
+    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
     "functionName": "submit_recovery_validation",
     "args": [],
     "value": "0",
-    "notes": "PLACEHOLDER args - filled in after remediation is confirmed and the incident reaches RECOVERY."
+    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED after remediation is confirmed and the incident reaches RECOVERY."
   },
   {
     "id": "vault-payout",
     "name": "IncentiveVault.claim",
-    "address": "PLACEHOLDER_VAULT_ADDRESS",
+    "address": "0xB3476a8881e8866a6d92c8252a840a08004d02c3",
     "functionName": "claim",
     "args": [],
     "value": "0",
-    "notes": "PLACEHOLDER args - filled in after a bond is opened and settled."
+    "notes": "FINAL R1 Vault address. LIVE ARGS REQUIRED after a non-zero bond/bounty path creates a claimable settlement."
   },
   {
     "id": "reference-agent-provider-payment",
     "name": "ReferenceAgentProtocol.purchase_service (provider payment branch)",
-    "address": "PLACEHOLDER_TARGET_ADDRESS",
+    "address": "0x7B423D9787aeACC303467dE82A2D193D77155f0f",
     "functionName": "purchase_service",
     "args": [],
     "value": "0",
-    "notes": "PLACEHOLDER args - filled in after the fresh deployment's treasury is funded."
+    "notes": "FINAL R1 ReferenceAgentProtocol address. LIVE ARGS/VALUE REQUIRED from the clean E1 run after the target treasury is funded."
   }
 ]
