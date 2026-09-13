@@ -1,8 +1,11 @@
 """A2 hardened IncidentJudgeV1 tests."""
 
 import json
+import sys
 import pytest
 from eth_utils import keccak
+
+from conftest import FakeKernelVaultProxy
 
 EAP_URL = "https://status.example.com/incident"
 SOURCE_ID = "status-source"
@@ -65,8 +68,9 @@ def test_module_identity(judge_harness):
 
 def test_registry_is_immutable_and_queryable(judge_harness):
     judge, _gl, _log, _config = judge_harness
-    origin, source_class, rule_ids, enabled = judge.get_source_authority(SOURCE_ID)
+    origin, path_prefix, source_class, rule_ids, enabled = judge.get_source_authority(SOURCE_ID)
     assert origin == "https://status.example.com"
+    assert path_prefix == ""
     assert source_class == SOURCE_CLASS
     assert "PROVIDER_COMPROMISE_V1" in rule_ids
     assert enabled is True
@@ -368,3 +372,292 @@ def test_submit_incident_normalizes_calldata_coerced_empty_strings(judge_harness
     decisions = [item for item in log if "decision_stage" in item]
     assert len(decisions) == 2
     assert all(item["outcome"] == 1 for item in decisions)
+
+
+# --- Evidence-authority hardening: narrow path binding + independent snapshot fetch/verify +
+# duplicate/correlation rejection (owner-directed remediation, real gap identified by owner) -------
+
+SNAPSHOT_ORIGIN = "https://raw.githubusercontent.com"
+SNAPSHOT_PATH_PREFIX = "/genlayerlabs/genlayer-project-boilerplate/main/"
+SNAPSHOT_GOOD_URL = SNAPSHOT_ORIGIN + SNAPSHOT_PATH_PREFIX + "README.md"
+SNAPSHOT_SECOND_URL = SNAPSHOT_ORIGIN + SNAPSHOT_PATH_PREFIX + "LICENSE"
+SNAPSHOT_SOURCE_ID = "snapshot-source"
+SNAPSHOT_SECOND_SOURCE_ID = "snapshot-source-2"
+
+
+def make_snapshot_registry(extra_source_id=None, extra_url=None, extra_path_prefix=None):
+    sources = [{
+        "sourceId": SNAPSHOT_SOURCE_ID,
+        "canonicalOrigin": SNAPSHOT_ORIGIN,
+        "canonicalPathPrefix": SNAPSHOT_PATH_PREFIX,
+        "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+        "ruleIds": ["PROVIDER_COMPROMISE_V1", "SERVICE_FAILURE_V1", "REMEDIATION_CONFIRMED_V1", "RECOVERY_VALIDATED_V1"],
+        "enabled": True,
+    }]
+    if extra_source_id:
+        sources.append({
+            "sourceId": extra_source_id,
+            "canonicalOrigin": SNAPSHOT_ORIGIN,
+            "canonicalPathPrefix": extra_path_prefix or SNAPSHOT_PATH_PREFIX,
+            "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+            "ruleIds": ["PROVIDER_COMPROMISE_V1", "SERVICE_FAILURE_V1", "REMEDIATION_CONFIRMED_V1", "RECOVERY_VALIDATED_V1"],
+            "enabled": True,
+        })
+    registry = {"schema": "reclose-source-registry-v1", "sources": sources}
+    return registry, hash_obj(registry)
+
+
+def make_snapshot_eap(gl, config, text="fallback text", url=SNAPSHOT_GOOD_URL, snapshot_ref=None,
+                       source_id=SNAPSHOT_SOURCE_ID, rule_id="PROVIDER_COMPROMISE_V1", extra_sources=None):
+    content_hash = "0x" + keccak(text=text).hex()
+    source = {
+        "sourceId": source_id,
+        "url": url,
+        "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+        "extractedText": text,
+        "contentHash": content_hash,
+        "snapshotRef": SNAPSHOT_GOOD_URL if snapshot_ref is None else snapshot_ref,
+        "retrievedAt": "2026-09-11T20:01:00.000Z",
+    }
+    sources = [source] + (extra_sources or [])
+    eap = {
+        "schema": "reclose-eap-v1",
+        "targetId": "target-001",
+        "policyHash": config["policy_hash"],
+        "ruleId": rule_id,
+        "subject": "provider incident",
+        "reporter": gl.message.sender_address.as_hex,
+        "observedAt": "2026-09-11T20:00:00.000Z",
+        "sources": sources,
+        "sourceClasses": [s["sourceClass"] for s in sources],
+        "retrievedAt": "2026-09-11T20:01:00.000Z",
+        "contentHashes": [s["contentHash"] for s in sources],
+        "snapshotRefs": [s["snapshotRef"] for s in sources],
+    }
+    eap["artifactHash"] = hash_obj(eap)
+    return eap
+
+
+@pytest.fixture
+def snapshot_judge_harness(direct_deploy, direct_owner, direct_alice):
+    registry, registry_hash = make_snapshot_registry()
+    judge = direct_deploy("incident_judge_v1.py", direct_alice, 1, registry_hash, canonical_json(registry))
+    mod = sys.modules[type(judge).__module__]
+    gl = mod.gl
+    judge.set_vault(direct_owner)
+
+    decision_log = []
+    config = {
+        "policy_key": "policy-1",
+        "policy_version": 1,
+        "policy_hash": "0x" + "1" * 64,
+        "rule_kind": 1,
+        "judge_version": 1,
+        "provisional_allowed": True,
+        "resources": {"provider_a", "provider_b"},
+        "report_bond": 0,
+        "confirmed_bounty": 0,
+        "bond_valid": True,
+    }
+    proxy = FakeKernelVaultProxy(config, judge.address, decision_log)
+    original = gl.contract.get_at
+    gl.contract.get_at = lambda _addr: proxy
+    yield judge, gl, decision_log, config
+    gl.contract.get_at = original
+
+
+def test_registry_narrows_binding_below_hostname(snapshot_judge_harness):
+    """Proves the new canonicalPathPrefix is actually enforced, not merely stored: the registry
+    entry above binds sourceId=SNAPSHOT_SOURCE_ID to the exact repo path
+    /genlayerlabs/genlayer-project-boilerplate/main/, so get_source_authority must report that
+    prefix back (round-trip proof the constructor parsed and persisted it), and a reporter
+    query view confirms the narrower binding is live before any submission is attempted."""
+    judge, _gl, _log, _config = snapshot_judge_harness
+    origin, path_prefix, source_class, _rule_ids, enabled = judge.get_source_authority(SNAPSHOT_SOURCE_ID)
+    assert origin == SNAPSHOT_ORIGIN
+    assert path_prefix == SNAPSHOT_PATH_PREFIX
+    assert source_class == "CONTENT_ADDRESSED_SNAPSHOT"
+    assert enabled is True
+
+
+def test_attacker_controlled_repo_same_hostname_rejected(snapshot_judge_harness):
+    """A Reporter cannot manufacture "independent" evidence from an attacker-controlled repo that
+    merely shares the registered hostname (raw.githubusercontent.com is shared, multi-tenant
+    infrastructure). The registry binds SNAPSHOT_SOURCE_ID to
+    /genlayerlabs/genlayer-project-boilerplate/main/ specifically - a URL with the RIGHT hostname
+    but a WRONG path (an attacker's own repo) must be rejected under the new narrower binding,
+    even though the old hostname-only check would have accepted it."""
+    judge, gl, _log, config = snapshot_judge_harness
+    attacker_url = SNAPSHOT_ORIGIN + "/attacker/malicious-repo/main/FAKE_EVIDENCE.md"
+    eap = make_snapshot_eap(gl, config, url=attacker_url, snapshot_ref=attacker_url)
+    with pytest.raises(Exception):
+        judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
+
+
+def test_snapshot_ref_outside_authority_path_rejected_even_with_good_url(snapshot_judge_harness):
+    """The `url` field alone matching the registered path is not sufficient - snapshotRef (the
+    value actually independently fetched and hash-verified) must ALSO fall under the registered
+    path prefix. A Reporter supplying a legitimate `url` but pointing snapshotRef at an
+    attacker-controlled path under the same hostname must be rejected."""
+    judge, gl, _log, config = snapshot_judge_harness
+    attacker_snapshot = SNAPSHOT_ORIGIN + "/attacker/malicious-repo/main/FAKE_EVIDENCE.md"
+    eap = make_snapshot_eap(gl, config, url=SNAPSHOT_GOOD_URL, snapshot_ref=attacker_snapshot)
+    with pytest.raises(Exception):
+        judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
+
+
+def test_content_addressed_snapshot_requires_nonempty_snapshot_ref(snapshot_judge_harness):
+    """A CONTENT_ADDRESSED_SNAPSHOT source with an empty snapshotRef must be rejected outright -
+    there is nothing to independently fetch/verify against."""
+    judge, gl, _log, config = snapshot_judge_harness
+    eap = make_snapshot_eap(gl, config, snapshot_ref="")
+    with pytest.raises(Exception):
+        judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
+
+
+def test_invented_snapshot_text_rejected_when_independent_fetch_disagrees(snapshot_judge_harness, direct_vm):
+    """Core hardening: a Reporter cannot invent snapshot text merely by hashing it correctly
+    against their own extractedText. Here the deterministic precheck's contentHash check passes
+    (content_hash == keccak(extractedText)), but the INDEPENDENTLY FETCHED content at snapshotRef
+    is genuinely different text - the fetch-and-verify step inside _evaluate_once must detect the
+    hash mismatch and contribute nothing, so the submission resolves to UNDETERMINED
+    (INSUFFICIENT_EVIDENCE) rather than the CONFIRMED code the mocked LLM would otherwise return."""
+    judge, gl, log, config = snapshot_judge_harness
+    claimed_text = "Confirmed active credential compromise, invented by the reporter."
+    eap = make_snapshot_eap(gl, config, text=claimed_text)
+    # The independently-fetched content at snapshotRef does NOT match claimed_text/contentHash.
+    direct_vm.mock_web(SNAPSHOT_GOOD_URL, {"method": "GET", "status": 200, "body": "completely different real content"})
+    direct_vm.mock_llm(".*", json.dumps({"condition_code": "CREDENTIAL_COMPROMISE"}))
+    judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
+    decisions = [item for item in log if "decision_stage" in item]
+    assert decisions[-1]["outcome"] == 3  # UNDETERMINED, never coerced to the Reporter's claimed CONFIRMED code
+    assert decisions[-1]["condition_code"] == "INSUFFICIENT_EVIDENCE"
+
+
+def test_snapshot_content_matching_hash_is_used_and_can_confirm(snapshot_judge_harness, direct_vm):
+    """Sanity/positive-path counterpart: when the independently-fetched content DOES match the
+    claimed contentHash, it is used for judgment and a CONFIRMED outcome is reachable - proving
+    the hardening does not simply always reject CONTENT_ADDRESSED_SNAPSHOT sources."""
+    judge, gl, log, config = snapshot_judge_harness
+    real_text = "Confirmed active credential compromise, not a rumor."
+    eap = make_snapshot_eap(gl, config, text=real_text)
+    direct_vm.mock_web(SNAPSHOT_GOOD_URL, {"method": "GET", "status": 200, "body": real_text})
+    direct_vm.mock_llm(".*", json.dumps({"condition_code": "CREDENTIAL_COMPROMISE"}))
+    judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
+    decisions = [item for item in log if "decision_stage" in item]
+    assert decisions[-1]["outcome"] == 1  # CONFIRMED
+
+
+def test_snapshot_fetch_outage_never_falls_back_to_reporter_text(snapshot_judge_harness, direct_vm):
+    """A live-source outage (non-200) for a CONTENT_ADDRESSED_SNAPSHOT source must contribute
+    nothing, exactly like every other fetchable source class - it must NEVER silently fall back to
+    trusting the Reporter-supplied extractedText, even though that text is already content-hash
+    bound. Confirms the outcome degrades to UNDETERMINED rather than adopting the Reporter's
+    claimed CONFIRMED code."""
+    judge, gl, log, config = snapshot_judge_harness
+    claimed_text = "Confirmed active credential compromise, not a rumor."
+    eap = make_snapshot_eap(gl, config, text=claimed_text)
+    direct_vm.mock_web(SNAPSHOT_GOOD_URL, {"method": "GET", "status": 404, "body": ""})
+    direct_vm.mock_llm(".*", json.dumps({"condition_code": "CREDENTIAL_COMPROMISE"}))
+    judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
+    decisions = [item for item in log if "decision_stage" in item]
+    assert decisions[-1]["outcome"] == 3
+    assert decisions[-1]["condition_code"] == "INSUFFICIENT_EVIDENCE"
+
+
+def test_duplicate_source_id_rejected(snapshot_judge_harness):
+    judge, gl, _log, config = snapshot_judge_harness
+    duplicate = {
+        "sourceId": SNAPSHOT_SOURCE_ID,  # same sourceId as the primary source below
+        "url": SNAPSHOT_SECOND_URL,
+        "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+        "extractedText": "second text",
+        "contentHash": "0x" + keccak(text="second text").hex(),
+        "snapshotRef": SNAPSHOT_SECOND_URL,
+        "retrievedAt": "2026-09-11T20:01:00.000Z",
+    }
+    eap = make_snapshot_eap(gl, config, extra_sources=[duplicate])
+    with pytest.raises(Exception):
+        judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
+
+
+def test_duplicate_url_across_distinct_source_authorities_rejected(direct_deploy, direct_owner, direct_alice):
+    registry, registry_hash = make_snapshot_registry(extra_source_id=SNAPSHOT_SECOND_SOURCE_ID)
+    judge = direct_deploy("incident_judge_v1.py", direct_alice, 1, registry_hash, canonical_json(registry))
+    mod = sys.modules[type(judge).__module__]
+    gl = mod.gl
+    judge.set_vault(direct_owner)
+    decision_log = []
+    config = {
+        "policy_key": "policy-1", "policy_version": 1, "policy_hash": "0x" + "1" * 64,
+        "rule_kind": 1, "judge_version": 1, "provisional_allowed": True,
+        "resources": {"provider_a", "provider_b"}, "report_bond": 0, "confirmed_bounty": 0, "bond_valid": True,
+    }
+    proxy = FakeKernelVaultProxy(config, judge.address, decision_log)
+    original = gl.contract.get_at
+    gl.contract.get_at = lambda _addr: proxy
+    try:
+        second_source = {
+            "sourceId": SNAPSHOT_SECOND_SOURCE_ID,
+            "url": SNAPSHOT_GOOD_URL,  # SAME url as the primary source - fake corroboration
+            "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+            "extractedText": "different text, same url",
+            "contentHash": "0x" + keccak(text="different text, same url").hex(),
+            "snapshotRef": SNAPSHOT_GOOD_URL,
+            "retrievedAt": "2026-09-11T20:01:00.000Z",
+        }
+        eap = make_snapshot_eap(gl, config, extra_sources=[second_source])
+        with pytest.raises(Exception):
+            judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
+    finally:
+        gl.contract.get_at = original
+
+
+def test_duplicate_content_hash_rejected_as_fake_corroboration(direct_deploy, direct_owner, direct_alice):
+    """Two distinct, correctly-registered sources submitting the SAME contentHash (i.e. byte-
+    identical evidence text) cannot be treated as two independent corroborating sources."""
+    registry, registry_hash = make_snapshot_registry(extra_source_id=SNAPSHOT_SECOND_SOURCE_ID)
+    judge = direct_deploy("incident_judge_v1.py", direct_alice, 1, registry_hash, canonical_json(registry))
+    mod = sys.modules[type(judge).__module__]
+    gl = mod.gl
+    judge.set_vault(direct_owner)
+    decision_log = []
+    config = {
+        "policy_key": "policy-1", "policy_version": 1, "policy_hash": "0x" + "1" * 64,
+        "rule_kind": 1, "judge_version": 1, "provisional_allowed": True,
+        "resources": {"provider_a", "provider_b"}, "report_bond": 0, "confirmed_bounty": 0, "bond_valid": True,
+    }
+    proxy = FakeKernelVaultProxy(config, judge.address, decision_log)
+    original = gl.contract.get_at
+    gl.contract.get_at = lambda _addr: proxy
+    try:
+        shared_text = "identical evidence text reused across two sourceIds"
+        primary = make_snapshot_eap(gl, config, text=shared_text)
+        second_source = {
+            "sourceId": SNAPSHOT_SECOND_SOURCE_ID,
+            "url": SNAPSHOT_SECOND_URL,  # different URL, but...
+            "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+            "extractedText": shared_text,  # ...the SAME contentHash as the primary source
+            "contentHash": primary["sources"][0]["contentHash"],
+            "snapshotRef": SNAPSHOT_SECOND_URL,
+            "retrievedAt": "2026-09-11T20:01:00.000Z",
+        }
+        eap = make_snapshot_eap(gl, config, text=shared_text, extra_sources=[second_source])
+        with pytest.raises(Exception):
+            judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
+    finally:
+        gl.contract.get_at = original
+
+
+def test_source_class_cannot_self_upgrade_still_enforced_after_hardening(judge_harness):
+    """Re-verifies test_source_class_cannot_self_upgrade's guarantee still holds unchanged after
+    this session's registry/evaluation hardening: a Reporter claiming a stronger sourceClass than
+    the immutable registry record must still be rejected."""
+    judge, gl, _log, config = judge_harness
+    eap = make_eap(gl, config)
+    eap["sources"][0]["sourceClass"] = "AUTHORITATIVE_SIGNED"
+    eap["sourceClasses"] = ["AUTHORITATIVE_SIGNED"]
+    eap.pop("artifactHash")
+    eap["artifactHash"] = hash_obj(eap)
+    with pytest.raises(Exception):
+        judge.submit_incident("target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a", eap["artifactHash"], canonical_json(eap), 0, "")
