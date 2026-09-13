@@ -59,19 +59,44 @@ export function walletProviderAvailable() {
 /**
  * Requests the connected wallet switch to Studio-dev (chain 61997) via the standard EIP-3326
  * `wallet_switchEthereumChain` request - the supported browser-wallet network-switching mechanism
- * underneath genlayer-js's own chain verification (`assertChainMatch`), not an invented flow. Re-
- * throws with an actionable message if the wallet rejects the request or has no Studio-dev chain
- * registered (error code 4902), since Reclose cannot register a chain on the user's behalf
- * without their explicit `wallet_addEthereumChain` approval - that remains the wallet's own UX.
+ * underneath genlayer-js's own chain verification (`assertChainMatch`), not an invented flow. If
+ * the wallet has no Studio-dev chain registered (error code 4902 - MetaMask and most EIP-1193
+ * wallets signal this exact code, regardless of the human-readable message text they attach to
+ * it), fall back to the standard EIP-3085 `wallet_addEthereumChain` request, built entirely from
+ * genlayer-js's own pinned `studioDevnet` chain descriptor (`genlayer-js/chains`) - never
+ * hand-typed chain metadata - then retries the switch once the chain is registered.
  */
-export async function switchToStudioDev(provider) {
+export async function switchToStudioDev(provider, studioDevnetChain) {
   if (!provider) throw new Error("No wallet provider is connected.");
+  const target = { method: "wallet_switchEthereumChain", params: [{ chainId: "0xF22D" }] };
   try {
-    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0xF22D" }] });
+    await provider.request(target);
+    return;
   } catch (error) {
-    if (error?.code === 4902) {
-      throw new Error("The connected wallet has no Studio-dev (chain 61997) network registered. Add it in your wallet, then try again.");
+    if (error?.code !== 4902) {
+      throw new Error(`Network switch was not completed: ${error?.message ?? String(error)}`);
     }
-    throw new Error(`Network switch was not completed: ${error?.message ?? String(error)}`);
+  }
+  if (!studioDevnetChain) {
+    throw new Error("The connected wallet has no Studio-dev (chain 61997) network registered, and no chain descriptor was supplied to register it automatically. Add it in your wallet, then try again.");
+  }
+  const rpcUrl = studioDevnetChain.rpcUrls?.default?.http?.[0];
+  try {
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [{
+        chainId: "0xF22D",
+        chainName: studioDevnetChain.name,
+        rpcUrls: rpcUrl ? [rpcUrl] : [],
+        nativeCurrency: studioDevnetChain.nativeCurrency,
+      }],
+    });
+  } catch (error) {
+    throw new Error(`Network switch was not completed: the wallet rejected adding Studio-dev automatically (${error?.message ?? String(error)}). Add chain 61997 manually, then try again.`);
+  }
+  try {
+    await provider.request(target);
+  } catch (error) {
+    throw new Error(`Studio-dev was added but the wallet did not switch to it: ${error?.message ?? String(error)}`);
   }
 }

@@ -5,6 +5,7 @@ import {
 import { selectProductAdapter } from "./lib/adapters.js";
 import { PendingTransactionStore, persistThenTrack } from "./lib/persistence.js";
 import { connectBrowserWallet, switchToStudioDev, walletProviderAvailable } from "./lib/wallet.js";
+import { studioDevnet } from "./vendor/genlayer-client.js";
 import { createGenLayerWriter } from "./lib/genlayerWriter.js";
 
 const app = document.getElementById("app");
@@ -718,19 +719,30 @@ function currentRouteForNav(route) {
   return route;
 }
 
-/** True only for a genuinely empty hash ("", "#" or "#/") - any explicit route (including
- * "#/overview") is unaffected and renders exactly as before. */
+/** In-page section ids the landing nav links to with a bare "#id" anchor - these must stay on
+ * the landing page and scroll to the section, never be treated as an app route. */
+const LANDING_ANCHOR_IDS = new Set(["how-it-works", "layers", "principles"]);
+
+/** True for a genuinely empty hash ("", "#" or "#/") or a landing in-page anchor - any other
+ * explicit route (including "#/overview") is unaffected and renders exactly as before. */
 function isLandingHash() {
   const raw = location.hash.split("?")[0];
-  return raw === "" || raw === "#" || raw === "#/";
+  if (raw === "" || raw === "#" || raw === "#/") return true;
+  return raw.startsWith("#") && LANDING_ANCHOR_IDS.has(raw.slice(1));
 }
 
 async function render() {
   if (isLandingHash()) {
+    const raw = location.hash.split("?")[0];
+    const anchorId = raw.startsWith("#") ? raw.slice(1) : "";
     app.className = "landing-root";
     app.innerHTML = renderLanding();
     document.title = "Reclose · Runtime assurance for autonomous systems";
-    requestAnimationFrame(() => document.getElementById("main")?.focus({ preventScroll: true }));
+    if (anchorId && LANDING_ANCHOR_IDS.has(anchorId)) {
+      requestAnimationFrame(() => document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    } else {
+      requestAnimationFrame(() => document.getElementById("main")?.focus({ preventScroll: true }));
+    }
     return;
   }
   app.className = "app-shell";
@@ -1021,7 +1033,7 @@ function bindShellEvents() {
   document.querySelector('[data-action="connect-wallet"]')?.addEventListener("click", handleConnectWallet);
   document.querySelector('[data-action="switch-network"]')?.addEventListener("click", async () => {
     try {
-      await switchToStudioDev(state.wallet?.provider);
+      await switchToStudioDev(state.wallet?.provider, studioDevnet);
       setLiveMessage("Network switch requested. Reconnect once your wallet confirms Studio-dev.");
     } catch (error) {
       setLiveMessage(`Network switch failed: ${error.message}`);
