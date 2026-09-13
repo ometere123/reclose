@@ -4,6 +4,7 @@
     {
       "sourceId": "genlayer-project-boilerplate",
       "canonicalOrigin": "https://raw.githubusercontent.com",
+      "canonicalPathPrefix": "/genlayerlabs/genlayer-project-boilerplate/main/",
       "sourceClass": "INDEPENDENT_PUBLIC",
       "ruleIds": [
         "PROVIDER_COMPROMISE_V1",
@@ -16,6 +17,7 @@
     {
       "sourceId": "reclose-reference-evidence",
       "canonicalOrigin": "https://raw.githubusercontent.com",
+      "canonicalPathPrefix": "/genlayerlabs/genlayer-project-boilerplate/main/",
       "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
       "ruleIds": [
         "PROVIDER_COMPROMISE_V1",

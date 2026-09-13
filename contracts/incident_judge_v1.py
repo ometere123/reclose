@@ -141,6 +141,31 @@ def _extract_origin(url: str) -> str:
     return "https://" + authority.lower()
 
 
+def _extract_origin_and_path(url: str) -> tuple:
+    # Same strict parser as _extract_origin, additionally returning the URL's path component
+    # (leading "/" guaranteed) so authority binding can be narrowed below hostname granularity -
+    # a registered hostname alone (e.g. raw.githubusercontent.com) is shared infrastructure that
+    # hosts arbitrary attacker-controlled repositories, so origin-only binding would let a Reporter
+    # manufacture "independent" evidence from their own repo on the same host.
+    rest = url[len("https://"):]
+    parts = rest.split("/", 1)
+    authority = parts[0]
+    path = "/" + parts[1] if len(parts) > 1 else "/"
+    return ("https://" + authority.lower(), path)
+
+
+def _url_matches_authority(url: str, rec: "SourceAuthorityRecord") -> bool:
+    origin, path = _extract_origin_and_path(url)
+    if origin != rec.canonical_origin:
+        return False
+    prefix = rec.canonical_path_prefix
+    if prefix == "":
+        # Registry entries created before path-prefix binding existed remain origin-only; new/
+        # updated entries (config/source-registry-r1.json) are expected to set a real prefix.
+        return True
+    return path.startswith(prefix)
+
+
 def _valid_source_url(url: str) -> bool:
     if not isinstance(url, str) or len(url) == 0 or len(url) > MAX_SOURCE_URL_CHARS:
         return False
@@ -362,6 +387,7 @@ class IncidentRecordLocal:
 class SourceAuthorityRecord:
     source_id: str
     canonical_origin: str
+    canonical_path_prefix: str
     source_class: str
     rule_ids_csv: str
     enabled: bool
@@ -419,6 +445,7 @@ class IncidentJudgeV1(gl.contract.Contract):
             self._require(isinstance(src, dict), "E_JDG_000: malformed source authority")
             source_id = src.get("sourceId", "")
             origin = src.get("canonicalOrigin", "")
+            path_prefix = src.get("canonicalPathPrefix", "")
             source_class = src.get("sourceClass", "")
             rule_ids = src.get("ruleIds", [])
             enabled = src.get("enabled", True)
@@ -429,9 +456,18 @@ class IncidentJudgeV1(gl.contract.Contract):
             self._require(_extract_origin(origin + "/") == origin.lower().rstrip("/"), "E_JDG_000: canonicalOrigin must be origin only")
             self._require(source_class in SOURCE_CLASSES, "E_JDG_000: invalid sourceClass")
             self._require(isinstance(rule_ids, list) and len(rule_ids) > 0 and all(r in SUPPORTED_RULE_IDS for r in rule_ids), "E_JDG_000: invalid source ruleIds")
+            # Path-prefix binding narrows an origin (shared, multi-tenant infrastructure such as
+            # raw.githubusercontent.com) down to a specific governed repository/path. Optional for
+            # backward compatibility with any pre-existing origin-only entry, but when present it
+            # MUST be a real path prefix ("/" delimited on both ends) - a bare substring prefix
+            # like "/repo" would also match the attacker-controlled "/repo-evil/..." path.
+            self._require(isinstance(path_prefix, str) and len(path_prefix) <= 512, "E_JDG_000: invalid canonicalPathPrefix")
+            if path_prefix != "":
+                self._require(path_prefix.startswith("/") and path_prefix.endswith("/"), "E_JDG_000: canonicalPathPrefix must be a full path segment prefix")
             rec = SourceAuthorityRecord()
             rec.source_id = source_id
             rec.canonical_origin = origin.lower().rstrip("/")
+            rec.canonical_path_prefix = path_prefix
             rec.source_class = source_class
             rec.rule_ids_csv = ",".join(sorted(rule_ids))
             rec.enabled = bool(enabled)
@@ -471,9 +507,9 @@ class IncidentJudgeV1(gl.contract.Contract):
     @gl.public.view
     def get_source_authority(self, source_id: str) -> tuple:
         if source_id not in self.source_authorities:
-            return ("", "", "", False)
+            return ("", "", "", "", False)
         rec = self.source_authorities[source_id]
-        return (rec.canonical_origin, rec.source_class, rec.rule_ids_csv, rec.enabled)
+        return (rec.canonical_origin, rec.canonical_path_prefix, rec.source_class, rec.rule_ids_csv, rec.enabled)
 
     def _derive_incident_id(self, target_id: str, reporter: gl.Address, nonce: gl.u64) -> str:
         incident_id = f"{target_id}:{reporter.as_hex}:{int(nonce)}"
@@ -491,7 +527,7 @@ class IncidentJudgeV1(gl.contract.Contract):
         rec = self.source_authorities[source_id]
         self._require(rec.enabled, "E_JDG_SOURCE: source authority disabled")
         self._require(claimed_class == rec.source_class, "E_JDG_SOURCE: sourceClass does not match immutable registry")
-        self._require(_extract_origin(url) == rec.canonical_origin, "E_JDG_SOURCE: source origin does not match immutable registry")
+        self._require(_url_matches_authority(url, rec), "E_JDG_SOURCE: source origin/path does not match immutable registry")
         admissible = rec.rule_ids_csv.split(",")
         self._require(rule_id in admissible, "E_JDG_SOURCE: source is not admissible for this rule")
         return rec
@@ -529,6 +565,9 @@ class IncidentJudgeV1(gl.contract.Contract):
         actual_classes = []
         content_hashes = []
         snapshot_refs = []
+        seen_source_ids = set()
+        seen_urls = set()
+        seen_content_hashes = set()
         for src in sources:
             self._require(isinstance(src, dict), "E_JDG_SOURCE: each source must be an object")
             source_id = src.get("sourceId", "")
@@ -539,11 +578,30 @@ class IncidentJudgeV1(gl.contract.Contract):
             snapshot_ref = src.get("snapshotRef", "")
             self._require(_valid_identifier(source_id, 64), "E_JDG_SOURCE: invalid sourceId")
             self._require(_valid_source_url(url), "E_JDG_SOURCE: unsafe source URL")
-            self._authority_for_source(source_id, url, claimed_class, rule_id)
+            # A Reporter repeating the same source, URL, or content hash across multiple entries
+            # is not independent corroboration - it is one piece of evidence dressed up as several.
+            self._require(source_id not in seen_source_ids, "E_JDG_SOURCE: duplicate sourceId in one EAP")
+            seen_source_ids.add(source_id)
+            self._require(url.lower() not in seen_urls, "E_JDG_SOURCE: duplicate URL claimed as independent corroboration")
+            seen_urls.add(url.lower())
+            rec = self._authority_for_source(source_id, url, claimed_class, rule_id)
             self._require(isinstance(text, str) and len(text) <= MAX_SOURCE_TEXT_CHARS, "E_JDG_EVIDENCE: extractedText too large")
             self._require(_valid_hash(content_hash), "E_JDG_EVIDENCE: invalid contentHash")
             self._require(content_hash == _keccak256(text.encode("utf-8")), "E_JDG_EVIDENCE: contentHash does not bind extractedText")
+            self._require(content_hash.lower() not in seen_content_hashes, "E_JDG_SOURCE: duplicate contentHash claimed as independent corroboration")
+            seen_content_hashes.add(content_hash.lower())
             self._require(isinstance(snapshot_ref, str) and len(snapshot_ref) <= 2048, "E_JDG_EVIDENCE: invalid snapshotRef")
+            if claimed_class == "CONTENT_ADDRESSED_SNAPSHOT":
+                # The content-hash check above only proves the Reporter hashed their own submitted
+                # text correctly - it says nothing about whether that text genuinely exists at any
+                # trusted, independently-checkable location. snapshotRef is required to be the
+                # immutable, independently-fetchable identifier (a commit-pinned raw URL bound to
+                # the SAME registered origin/path authority as `url`); real fetch-and-verify happens
+                # in _evaluate_once against this exact value, never against Reporter-supplied
+                # extractedText directly.
+                self._require(snapshot_ref != "", "E_JDG_EVIDENCE: CONTENT_ADDRESSED_SNAPSHOT requires a non-empty snapshotRef")
+                self._require(_valid_source_url(snapshot_ref), "E_JDG_EVIDENCE: unsafe snapshotRef URL")
+                self._require(_url_matches_authority(snapshot_ref, rec), "E_JDG_SOURCE: snapshotRef origin/path does not match immutable registry")
             actual_classes.append(claimed_class)
             content_hashes.append(content_hash)
             snapshot_refs.append(snapshot_ref)
@@ -577,18 +635,37 @@ class IncidentJudgeV1(gl.contract.Contract):
             url = src.get("url", "")
             # sourceClass on `src` has already been verified (in the deterministic precheck) to
             # match the immutable registry entry for this sourceId - it cannot be Reporter-
-            # upgraded, so it is trustworthy to branch on here. CONTENT_ADDRESSED_SNAPSHOT is the
-            # ONLY class whose evidentiary content is the Reporter-supplied extractedText itself
-            # (already bound by a verified content-hash in the deterministic precheck) - for every
-            # other (live-fetchable, public-origin) class, a failed/non-200 independent fetch must
-            # contribute UNCERTAINTY, never silently fall back to Reporter-supplied text standing
-            # in for the independent source. This closes the gap where a Reporter could force a
-            # judgment off of their own claimed text merely by having the live source unavailable.
+            # upgraded, so it is trustworthy to branch on here. For EVERY class, including
+            # CONTENT_ADDRESSED_SNAPSHOT, a failed/non-200 independent fetch must contribute
+            # UNCERTAINTY, never silently fall back to Reporter-claimed text standing in for the
+            # independent source. This closes the gap where a Reporter could force a judgment off
+            # of their own claimed text merely by having the live source unavailable, and (for
+            # CONTENT_ADDRESSED_SNAPSHOT specifically) closes the gap where a content-hash check
+            # against Reporter-supplied text alone proved nothing about the text's genuine
+            # existence at a trusted location.
             source_class = src.get("sourceClass", "")
             if source_class == "CONTENT_ADDRESSED_SNAPSHOT":
-                snapshot_text = src.get("extractedText", "")
-                if isinstance(snapshot_text, str) and snapshot_text:
-                    chunks.append(snapshot_text[:MAX_SOURCE_TEXT_CHARS])
+                # _parse_and_validate_eap already required a non-empty snapshotRef bound to the
+                # same registered origin/path authority as `url`, and validated the Reporter's
+                # claimed contentHash against their own extractedText. That alone is insufficient:
+                # independently fetch snapshotRef itself and require the REAL fetched content's
+                # hash to equal the claimed contentHash before using the REAL fetched content (never
+                # extractedText) for judgment.
+                snapshot_ref = src.get("snapshotRef", "")
+                claimed_content_hash = src.get("contentHash", "")
+                try:
+                    resp = gl.nondet.web.get(snapshot_ref)
+                    if resp.status == 200 and resp.body is not None:
+                        fetched_bytes = resp.body
+                        if _keccak256(fetched_bytes) == claimed_content_hash:
+                            chunks.append(fetched_bytes.decode("utf-8", errors="replace")[:MAX_SOURCE_TEXT_CHARS])
+                        # A hash mismatch means the independently-fetched content does not match
+                        # what was claimed - contribute nothing rather than trusting either side.
+                    # A non-200 response contributes nothing - evidence of unavailability, not a
+                    # license to fall back to Reporter-claimed extractedText.
+                except Exception:
+                    # Fetch failure contributes nothing either, for the same reason.
+                    pass
                 continue
             try:
                 resp = gl.nondet.web.get(url)
