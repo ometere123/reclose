@@ -415,17 +415,37 @@
     "policyWritesRequireFinalizedExecutionAndReadback": true
   },
   "e1RunA": {
-    "status": "not-started-awaiting-payable-treasury-funding",
+    "status": "funded-awaiting-owner-signed-initial-purchase",
     "preflightReadbacks": {
       "referenceAgentState": 0,
       "effectiveProvider": 1,
-      "treasuryBalanceWei": "0",
+      "treasuryBalanceWei": "200000000000000000",
       "controller": "0x3bd24b04ae7d8090f22752b9e489a5398e271d4f",
       "targetId": "reclose-target-006"
     },
     "requiredFundingWei": "200000000000000000",
     "fundingMethod": "payable fund_treasury() via injected wallet; pinned CLI write has no caller-value option",
-    "fundingTxHash": null,
+    "fundingTxHash": "0x89f42b16fea6f065607c25b9d68c7663a955a4f56f4878d891fa4e9aeb04dc62",
+    "fundingVerification": {
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "sender": "0x755BA2BD3B11aaa29aa0f6a042e43e36566A6472",
+      "recipient": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+      "valueWei": "200000000000000000",
+      "treasuryBalanceReadbackWei": "200000000000000000"
+    },
+    "initialPurchase": {
+      "status": "prepared-not-submitted",
+      "function": "purchase_service",
+      "args": [
+        "e1-r1-final-run-a-initial-purchase-001",
+        "50000000000000000"
+      ],
+      "callerValueWei": "0",
+      "expectedProvider": "Provider A",
+      "expectedProviderAddress": "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
+      "reasonNotSubmitted": "The owner CLI signer is installed but unavailable to this restricted execution process."
+    },
     "reporterNonce": null,
     "incidentId": null
   }

@@ -116,15 +116,24 @@ The live Judge source authority for `reclose-reference-evidence` returned `/genl
 
 Closure evidence: corrected Judge deployed with the new hash; `get_source_registry_hash` and `get_source_authority` match; synthetic fixtures independently fetch with byte-identical content hashes; a new policy bound to that Judge is activated after its actual timelock.
 
-## OB-010 - E1 Run A ReferenceAgent treasury is unfunded [OPEN / HUMAN WALLET ACTION]
+## OB-010 - E1 Run A ReferenceAgent treasury is unfunded [CLOSED]
 
 **Opened:** 2026-09-13
 **Phase:** E1 Run A
 **Network:** Studio-dev / chain 61997
 **Contract:** ReferenceAgentProtocol 0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2
 
-The fresh active-policy generation reads NORMAL with Provider A selected, but its treasury is 0 GEN. The pinned GenLayer CLI write command exposes --fee-value for transaction fees and has no payable call-value option. Do not submit a purchase until real treasury value is present.
+Closed by the real user-authorized payable transfer. Transaction `0x89f42b16fea6f065607c25b9d68c7663a955a4f56f4878d891fa4e9aeb04dc62` is FINALIZED / FINISHED_WITH_RETURN; Explorer and SDK readback show `200000000000000000` wei (0.20 GEN) in the ReferenceAgent treasury.
 
-**Exact user action:** use the injected wallet to call payable fund_treasury() on the contract above with 0.20 GEN on Studio-dev / chain 61997; return the transaction hash.
+## OB-011 - E1 Run A initial purchase needs the registered owner signer [OPEN / HUMAN CLI ACTION]
 
-**Resume:** verify get_treasury_balance() >= 0.15 GEN, then execute/read back the canonical initial Provider A purchase. No incident or Reporter nonce has yet been created.
+**Opened:** 2026-09-13  
+**Phase:** E1 Run A  
+**Network:** Studio-dev / chain 61997  
+**Target:** `0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2`
+
+The funding sender `0x755BA2BD3B11aaa29aa0f6a042e43e36566A6472` is not the target owner. `purchase_service` enforces owner/authorized-agent identity; `reclose-deployer` is the registered owner `0x24fAe7cD031Ed702Be63BDeA8912141805B996bd`. The current task sandbox cannot launch the installed Windows GenLayer CLI shim, so no purchase was submitted.
+
+**Exact user action:** from the repository in the configured PowerShell, run `./scripts/studio-dev-run-a-initial-purchase.ps1` once and return its transaction ID. The helper checks chain 61997 and owner identity, estimates the exact call, and submits `purchase_service("e1-r1-final-run-a-initial-purchase-001", 50000000000000000)` with caller value zero.
+
+**Closure evidence required:** FINALIZED + FINISHED_WITH_RETURN; read back Provider A selection, the fulfilled request reference, the 0.05 GEN provider balance delta, and treasury state. No Reporter nonce or incident has yet been created.
