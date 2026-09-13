@@ -1,7 +1,7 @@
 {
   "schema": "reclose-deployment-generation-manifest-v1",
   "generation": "r1-final-working",
-  "status": "contracts-deployed-wiring-verified-policy-pending",
+  "status": "superseded-before-activation-source-authority-incompatible",
   "network": "studio-dev",
   "chainId": 61997,
   "rpc": "https://studio-dev.genlayer.com/api",
@@ -160,7 +160,7 @@
     "providerBOwner": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd"
   },
   "policy": {
-    "status": "compiled-not-on-chain",
+    "status": "sealed-inactive-superseded-before-activation",
     "policyKey": "policy-r1-007",
     "version": 1,
     "targetId": "reclose-target-006",
@@ -168,9 +168,9 @@
     "manifestHash": "0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c",
     "apmSource": "deployment/61997/apm-r1-final.json",
     "compiledCalls": "deployment/61997/apm-r1-final-compiled.json",
-    "activation": "pending",
+    "activation": "NOT_ACTIVATED",
     "executionState": {
-      "status": "BLOCKED_ON_SIGNER_CREDENTIAL",
+      "status": "SUPERSEDED_BY_IMMUTABLE_SNAPSHOT_AUTHORITY_FAILURE",
       "blockedAt": "begin_policy",
       "accountAlias": "reclose-deployer",
       "accountAddress": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
@@ -182,6 +182,531 @@
         "result": "Invalid password; no transaction hash returned; no begin_policy transaction submitted"
       },
       "nextOperation": "Unlock reclose-deployer in the pinned CLI or provide its keystore password; re-estimate begin_policy, submit, require FINALIZED plus FINISHED_WITH_RETURN, then read back the pending policy before continuing."
+    },
+    "transactions": [
+      {
+        "functionName": "begin_policy",
+        "args": [
+          "reclose-target-006",
+          "policy-r1-007",
+          "0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c"
+        ],
+        "txHash": "0x52fe8d06de476c7ed84bc09c529d94e8a5a75312931de1ca41e57d5361db1ae2",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "readbacks": {
+          "lifecycle": [
+            "reclose-target-006",
+            1,
+            "0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c",
+            1789303848,
+            0,
+            0,
+            0,
+            false,
+            false,
+            false
+          ],
+          "header": [
+            1,
+            "0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c",
+            false,
+            false,
+            true
+          ],
+          "counts": [
+            0,
+            0,
+            0
+          ],
+          "targetActiveIdentity": [
+            "",
+            0,
+            ""
+          ]
+        }
+      },
+      {
+        "functionName": "add_policy_resource",
+        "args": [
+          "policy-r1-007",
+          "provider_a"
+        ],
+        "txHash": "0xf88f767e40bdf3b4ad480a34a105c360cce2446d61e14137346e0e27c52a304e",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613828800010352",
+        "readbacks": [
+          {
+            "functionName": "get_policy_resource_at",
+            "args": [
+              "policy-r1-007",
+              0
+            ],
+            "value": "provider_a"
+          },
+          {
+            "functionName": "get_policy_counts",
+            "args": [
+              "policy-r1-007"
+            ],
+            "value": [
+              "0",
+              "1",
+              "0"
+            ]
+          }
+        ]
+      },
+      {
+        "functionName": "add_policy_resource",
+        "args": [
+          "policy-r1-007",
+          "provider_b"
+        ],
+        "txHash": "0xbbaa550399625c1ebb687c5b9202a6a5f981648008a09271d0479cc912092e27",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613830000010352",
+        "readbacks": [
+          {
+            "functionName": "get_policy_resource_at",
+            "args": [
+              "policy-r1-007",
+              1
+            ],
+            "value": "provider_b"
+          },
+          {
+            "functionName": "get_policy_counts",
+            "args": [
+              "policy-r1-007"
+            ],
+            "value": [
+              "0",
+              "2",
+              "0"
+            ]
+          }
+        ]
+      },
+      {
+        "functionName": "add_policy_rule",
+        "args": [
+          "policy-r1-007",
+          "PROVIDER_COMPROMISE_V1",
+          "0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6",
+          1,
+          1,
+          true,
+          "0",
+          "0"
+        ],
+        "txHash": "0x08a2a1dee1db5d2128961e4e64c0e6d091ea4cd1a784054f2b16445f9047496e",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613832400010352",
+        "readbacks": [
+          {
+            "functionName": "get_policy_rule_id_at",
+            "args": [
+              "policy-r1-007",
+              0
+            ],
+            "value": "PROVIDER_COMPROMISE_V1"
+          },
+          {
+            "functionName": "get_policy_rule",
+            "args": [
+              "policy-r1-007",
+              "PROVIDER_COMPROMISE_V1"
+            ],
+            "value": [
+              "0xd96ebef28ebdab25a70ba7bcd2f4a5fa7eff56a6",
+              "1",
+              "1",
+              true,
+              true
+            ]
+          },
+          {
+            "functionName": "get_policy_rule_economics",
+            "args": [
+              "policy-r1-007",
+              "PROVIDER_COMPROMISE_V1"
+            ],
+            "value": [
+              "0",
+              "0"
+            ]
+          },
+          {
+            "functionName": "get_policy_counts",
+            "args": [
+              "policy-r1-007"
+            ],
+            "value": [
+              "1",
+              "2",
+              "0"
+            ]
+          }
+        ]
+      },
+      {
+        "functionName": "add_policy_rule",
+        "args": [
+          "policy-r1-007",
+          "REMEDIATION_CONFIRMED_V1",
+          "0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6",
+          1,
+          2,
+          false,
+          "0",
+          "0"
+        ],
+        "txHash": "0x94700bc337364e54aa56715e47e927147b26368569994a12673558db899a149c",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613832400010352",
+        "readbacks": [
+          {
+            "functionName": "get_policy_rule_id_at",
+            "args": [
+              "policy-r1-007",
+              1
+            ],
+            "value": "REMEDIATION_CONFIRMED_V1"
+          },
+          {
+            "functionName": "get_policy_rule",
+            "args": [
+              "policy-r1-007",
+              "REMEDIATION_CONFIRMED_V1"
+            ],
+            "value": [
+              "0xd96ebef28ebdab25a70ba7bcd2f4a5fa7eff56a6",
+              "1",
+              "2",
+              false,
+              true
+            ]
+          },
+          {
+            "functionName": "get_policy_rule_economics",
+            "args": [
+              "policy-r1-007",
+              "REMEDIATION_CONFIRMED_V1"
+            ],
+            "value": [
+              "0",
+              "0"
+            ]
+          },
+          {
+            "functionName": "get_policy_counts",
+            "args": [
+              "policy-r1-007"
+            ],
+            "value": [
+              "2",
+              "2",
+              "0"
+            ]
+          }
+        ]
+      },
+      {
+        "functionName": "add_policy_rule",
+        "args": [
+          "policy-r1-007",
+          "RECOVERY_VALIDATED_V1",
+          "0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6",
+          1,
+          3,
+          false,
+          "0",
+          "0"
+        ],
+        "txHash": "0xfd0fe15b414d7a76d6467cd0397a129b5cfdff2c485cfbcff3da07391839b5f3",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613834800010352",
+        "readbacks": [
+          {
+            "functionName": "get_policy_rule_id_at",
+            "args": [
+              "policy-r1-007",
+              2
+            ],
+            "value": "RECOVERY_VALIDATED_V1"
+          },
+          {
+            "functionName": "get_policy_rule",
+            "args": [
+              "policy-r1-007",
+              "RECOVERY_VALIDATED_V1"
+            ],
+            "value": [
+              "0xd96ebef28ebdab25a70ba7bcd2f4a5fa7eff56a6",
+              "1",
+              "3",
+              false,
+              true
+            ]
+          },
+          {
+            "functionName": "get_policy_rule_economics",
+            "args": [
+              "policy-r1-007",
+              "RECOVERY_VALIDATED_V1"
+            ],
+            "value": [
+              "0",
+              "0"
+            ]
+          },
+          {
+            "functionName": "get_policy_counts",
+            "args": [
+              "policy-r1-007"
+            ],
+            "value": [
+              "3",
+              "2",
+              "0"
+            ]
+          }
+        ]
+      },
+      {
+        "functionName": "add_policy_effect",
+        "args": [
+          "policy-r1-007",
+          "PROVIDER_COMPROMISE_V1",
+          3,
+          "provider_a",
+          "0",
+          "",
+          1
+        ],
+        "txHash": "0x493543148005de1830fb74d024fde6f17f7b91e8edcc7994c531d76b0c65a4a5",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613832400010352",
+        "readbacks": [
+          {
+            "functionName": "get_policy_effect_at",
+            "args": [
+              "policy-r1-007",
+              0
+            ],
+            "value": [
+              "PROVIDER_COMPROMISE_V1",
+              "3",
+              "provider_a",
+              "0",
+              "",
+              "1",
+              true
+            ]
+          },
+          {
+            "functionName": "get_policy_counts",
+            "args": [
+              "policy-r1-007"
+            ],
+            "value": [
+              "3",
+              "2",
+              "1"
+            ]
+          }
+        ]
+      },
+      {
+        "functionName": "add_policy_effect",
+        "args": [
+          "policy-r1-007",
+          "PROVIDER_COMPROMISE_V1",
+          7,
+          "",
+          "0",
+          "",
+          1
+        ],
+        "txHash": "0x7f34211ceb22fea683a2a4a447a72edf75a497bcf52cb8bfdde84a55b4817aed",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613831200010352",
+        "readbacks": [
+          {
+            "functionName": "get_policy_effect_at",
+            "args": [
+              "policy-r1-007",
+              1
+            ],
+            "value": [
+              "PROVIDER_COMPROMISE_V1",
+              "7",
+              "",
+              "0",
+              "",
+              "1",
+              true
+            ]
+          },
+          {
+            "functionName": "get_policy_counts",
+            "args": [
+              "policy-r1-007"
+            ],
+            "value": [
+              "3",
+              "2",
+              "2"
+            ]
+          }
+        ]
+      },
+      {
+        "functionName": "add_policy_effect",
+        "args": [
+          "policy-r1-007",
+          "REMEDIATION_CONFIRMED_V1",
+          9,
+          "",
+          "0",
+          "",
+          1
+        ],
+        "txHash": "0xc18513be3aa6867978ba43f6ec01163f238b6ad7616c2dfdccbcd5e73fb4936f",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613833600010352",
+        "readbacks": [
+          {
+            "functionName": "get_policy_effect_at",
+            "args": [
+              "policy-r1-007",
+              2
+            ],
+            "value": [
+              "REMEDIATION_CONFIRMED_V1",
+              "9",
+              "",
+              "0",
+              "",
+              "1",
+              true
+            ]
+          },
+          {
+            "functionName": "get_policy_counts",
+            "args": [
+              "policy-r1-007"
+            ],
+            "value": [
+              "3",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      },
+      {
+        "functionName": "add_policy_effect",
+        "args": [
+          "policy-r1-007",
+          "RECOVERY_VALIDATED_V1",
+          10,
+          "",
+          "0",
+          "",
+          2
+        ],
+        "txHash": "0x69bd29b10c111bed08924a15dcb0328ba48c8d0dc1c36431cf2c79570fd0556a",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613832400010352",
+        "readbacks": [
+          {
+            "functionName": "get_policy_effect_at",
+            "args": [
+              "policy-r1-007",
+              3
+            ],
+            "value": [
+              "RECOVERY_VALIDATED_V1",
+              "10",
+              "",
+              "0",
+              "",
+              "2",
+              true
+            ]
+          },
+          {
+            "functionName": "get_policy_counts",
+            "args": [
+              "policy-r1-007"
+            ],
+            "value": [
+              "3",
+              "2",
+              "4"
+            ]
+          }
+        ]
+      },
+      {
+        "functionName": "seal_policy",
+        "args": [
+          "policy-r1-007"
+        ],
+        "txHash": "0x9ab9c14c80ea9912a0cc6feed7e2142802dd1f3589a89423c7a5521bce3889b9",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "feeValueWei": "613831200010352",
+        "readbacks": {
+          "lifecycle": [
+            "reclose-target-006",
+            1,
+            "0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c",
+            1789303848,
+            1789305423,
+            1789305483,
+            0,
+            true,
+            false,
+            false
+          ],
+          "header": [
+            1,
+            "0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c",
+            true,
+            false,
+            true
+          ],
+          "counts": [
+            3,
+            2,
+            4
+          ]
+        }
+      }
+    ],
+    "resourceCountReadback": 2,
+    "ruleCountReadback": 3,
+    "effectCountReadback": 4,
+    "activationNotBefore": 1789305483,
+    "sealedAt": 1789305423,
+    "sourceAuthorityFailure": {
+      "sourceId": "reclose-reference-evidence",
+      "liveCanonicalPathPrefix": "/genlayerlabs/genlayer-project-boilerplate/main/",
+      "requiredSnapshotPathPrefix": "/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/",
+      "verifiedAt": "2026-09-13",
+      "reason": "Live prefix cannot admit the required commit-pinned snapshots. Fetched boilerplate README is unrelated to the synthetic R1 scenario; never use Reporter-supplied text to substitute."
     }
   },
   "evidence": {
@@ -190,6 +715,26 @@
     "executionResult": "FINISHED_WITH_RETURN",
     "contractViewsSuccessfullyRead": true,
     "policyWriteAttemptSubmitted": false,
-    "signerCredentialRequired": true
+    "signerCredentialRequired": true,
+    "immutableSyntheticFixtures": [
+      {
+        "name": "provider-a-compromise",
+        "url": "https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-compromise.md",
+        "contentHash": "0x6fe9230519c51a0d2db7ca95ea82251e97e7294a8c0e6a61dbcb5f8ede8c7f04",
+        "fetchVerified": true
+      },
+      {
+        "name": "provider-a-remediation",
+        "url": "https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md",
+        "contentHash": "0x2ad13ff8a80da7b24495ea9a3708ddc2ce62a9afb2f63b77d62ecb6e621af9b1",
+        "fetchVerified": true
+      },
+      {
+        "name": "provider-a-recovery-validation",
+        "url": "https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-recovery-validation.md",
+        "contentHash": "0xf37f4bc98a998a4da36c970ea4583b3c3560e601f2dc5ca22cd62014735daf52",
+        "fetchVerified": true
+      }
+    ]
   }
 }

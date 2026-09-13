@@ -76,3 +76,11 @@
 - Checks: frontend product 10/10; frontend remediation 66/66; policy compiler passed; evidence builder passed; canonical `pytest tests/` 218/218 passed. Broad `pytest -q` also collected one archival fixture outside `tests/` referencing absent root `smoke_contract.py`; it is excluded by `scripts/py-verify.sh`.
 - Reporter nonce: not read; incident/report work not started. Last successful transaction: `register_target`, `0x5a866beff086e721ae54d09d134d97c96abf1b398a8b9a8832165c5f801bd6ae`. Last attempted policy operation: signer failure on `begin_policy`, no tx hash.
 - Pre-existing untracked `.claude/settings.local.json` was present initially and is preserved, not committed.
+
+## Correction: cached deployer works; old policy superseded for snapshot authority
+
+`genlayer account unlock` returned an incorrect-password error, but this did not mean the alias was locked: the CLI subsequently reported account `reclose-deployer` as `status: unlocked`, and signing succeeded from the existing OS keychain. Do not ask for or expose the password again unless the CLI actually reports locked.
+
+Policy `policy-r1-007` was constructed with 11 successful writes (begin, 2 resources, 3 rules, 4 effects, seal), each finalized with `FINISHED_WITH_RETURN` and verified by live readback. It remains sealed and inactive. Do not activate it: the Judge’s live content-snapshot authority still points to mutable boilerplate `main`, and that fetched README is not evidence for the synthetic demo. The immutable snapshot fixture files were committed and pushed at `ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6`; all three exact raw URLs fetched independently (HTTP 200, matching byte content and Keccak hash). Registry updated to the commit-pinned fixture prefix with hash `0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386`.
+
+**Exact current resume:** deploy a corrected `IncidentJudgeV1` with that registry/hash; deploy a fresh Vault wired to the new Judge; keep Kernel `0x3bD24B04ae7d8090F22752B9e489A5398E271D4f`, Protocol/target `0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2` / `reclose-target-006`, and providers. Compile and execute new policy `policy-r1-008` (prior unactivated policy makes its on-chain version 2); verify each write, seal and activate after its genuine timelock. Then start E1 Run A. No E1 incident submission or Reporter nonce exists yet.

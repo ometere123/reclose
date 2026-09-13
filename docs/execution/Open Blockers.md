@@ -107,3 +107,11 @@ Pinned CLI 0.40.0-rc.3 is configured for Studio-dev; active `reclose-deployer` m
 **Exact next operation:** re-run the canonical `begin_policy` fee estimate, submit through the pinned CLI, require transaction `FINALIZED` and execution `FINISHED_WITH_RETURN`, then read back the pending policy before the next compiled call. Continue per-item readback, seal, genuine timelock, fresh activation, and live verification.
 
 This does not reopen A2-C01 or the old missing-`snapshotRef` investigation.
+
+OB-008 closure: the CLI account query reported `reclose-deployer` unlocked from the existing OS keychain despite the explicit `unlock` password-decryption error. `begin_policy` subsequently signed and finalized successfully; no further human credential action is required.
+
+## OB-009 - Deployed Judge snapshot authority does not admit immutable synthetic evidence [IN PROGRESS / SOURCE VERIFICATION]
+
+The live Judge source authority for `reclose-reference-evidence` returned `/genlayerlabs/genlayer-project-boilerplate/main/`, while the required synthetic E1 evidence must use immutable commit-pinned URLs. The fetched boilerplate README is unrelated to the demo. Policy `policy-r1-007` is sealed but deliberately left inactive. The corrected registry now constrains the snapshot source to the immutable fixture commit path and has hash `0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386`.
+
+Closure evidence: corrected Judge deployed with the new hash; `get_source_registry_hash` and `get_source_authority` match; synthetic fixtures independently fetch with byte-identical content hashes; a new policy bound to that Judge is activated after its actual timelock.

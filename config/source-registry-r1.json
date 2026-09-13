@@ -17,7 +17,7 @@
     {
       "sourceId": "reclose-reference-evidence",
       "canonicalOrigin": "https://raw.githubusercontent.com",
-      "canonicalPathPrefix": "/genlayerlabs/genlayer-project-boilerplate/main/",
+      "canonicalPathPrefix": "/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/",
       "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
       "ruleIds": [
         "PROVIDER_COMPROMISE_V1",
