@@ -37,6 +37,29 @@
 - Network: `studio-dev`, chain 61997, RPC `https://studio-dev.genlayer.com/api`. Never substitute stable 61999.
 - No `.env`/secrets were created or touched. All signing went through the CLI's own keystore.
 
+## Addendum (2026-09-13, later same day): pytest unblocked on Windows; multi-source crash root-caused
+- **`pytest tests/` now runs and fully passes (218/218) on this Windows machine** - a new
+  repository-root `conftest.py` monkeypatches around a pre-existing Windows-only bug in the
+  installed `gltest` package (`_inject_message_to_fd0` unlinks a temp file while it is still
+  dup'd onto fd 0 and never restored - Windows refuses to delete an open file; POSIX doesn't care).
+  This is local-only, not shipped, and does not touch Reclose's own contracts. Use
+  `.venv-c1/Scripts/python.exe -m pytest tests/` going forward instead of assuming it's blocked.
+- **A concurrent session landed real fixes for the evidence-authority gap in parallel with this
+  task** (commits `6fb4404`, `43a597c`, `0ce9049`, `298a970`): `CONTENT_ADDRESSED_SNAPSHOT` sources
+  now require an independently-fetched, hash-verified `snapshotRef`, not just Reporter-claimed
+  `extractedText`. This is CODE-COMPLETE/TESTED but NOT YET DEPLOYED to any live Judge.
+- **This task's own contribution**: `tests/judge/test_content_snapshot_diagnostic.py` independently
+  reproduces, in Direct Mode, the exact `scripts/r1r-fresh-incident-retest2.mjs` crash - that
+  script's `CONTENT_ADDRESSED_SNAPSHOT` source never set `snapshotRef`, which the hardened contract
+  unconditionally rejects with a clear `UserError` before any LLM call, identically regardless of
+  evidence text/length/position. Fixed the script to set `snapshotRef`. Also confirmed directly
+  from `gltest`'s source that Direct Mode's `exec_prompt` is always mocked/content-blind, so it
+  cannot rule out a *separate*, real-LLM-response-dependent failure mode - only a live retest
+  against a freshly redeployed Judge (carrying the concurrent session's hardening) can close that
+  out. No further contract change was made beyond what the concurrent session already committed;
+  no deployment was performed (out of scope for this task). See
+  `docs/execution/Current Phase.md`'s final section for full detail.
+
 ## Governing constraints (unchanged, still binding)
 - CLAUDE.md's full ruleset applies (never fabricate evidence, never self-author an audit PASS, additive-only contract changes preferred, real transaction evidence required for any "done" claim).
 - Current audit-status label to preserve: `AWAITING EXTERNAL REVIEW — OWNER EXECUTION OVERRIDE` — never write PASS anywhere.

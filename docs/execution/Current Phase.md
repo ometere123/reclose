@@ -515,3 +515,99 @@ LIVE-VERIFIED.
 - Full construction/wiring tx hashes captured in shell history this session; a formal manifest
   file (`deployment/61997/r1r2-manifest.json`) was NOT written before the token budget ran out -
   this is an honest documentation gap for the next session to close using the tx hashes above.
+
+## Windows local-pytest blocker fixed; multi-source crash root-caused via Direct Mode (2026-09-13, later same day)
+
+This pass was asked to root-cause the `submit_incident` multi-source `exit_code 1` crash from
+scratch, following the owner-specified diagnostic ladder (deterministic precheck -> prompt
+construction -> raw exec_prompt -> JSON-mode exec_prompt -> full leader/validator path). While
+building the Direct Mode harness, this pass discovered that a **concurrent session was working the
+same finding in parallel on this same branch/working tree** (commits `6fb4404`, `43a597c`,
+`0ce9049`, `298a970` landed mid-session - see the "Judge evidence-authority hardening" section
+directly above, which that session wrote). This section records what THIS pass independently
+found/verified, most of which corroborates that section rather than duplicating it.
+
+**1. The Windows `gltest` `PermissionError: [WinError 32]` blocker is now fixed, locally, for
+everyone working in this checkout.** Root cause (read directly from
+`.venv-c1/Lib/site-packages/gltest/direct/loader.py::_inject_message_to_fd0`): the function
+`tempfile.mkstemp()`s a temp file, `os.dup2`s it onto fd 0 for the GenVM subprocess to read, then
+immediately `os.unlink()`s the path in a `finally` block. On POSIX this is safe (unlink-while-open
+is the standard idiom). On Windows, `os.unlink` fails while any handle to the file remains open,
+and the dup'd fd 0 handle is **never closed/restored anywhere in the installed package** (searched
+the whole `gltest/direct/` module for `_original_stdin_fd` - it is only ever assigned, never read
+back), so a retry-with-backoff around the unlink would never succeed either. Fix: a new
+**repository-root `conftest.py`** (new file, not shipped/installed - it only monkeypatches this
+already-installed local venv's `os.unlink` in-process, for the life of the pytest run) that
+swallows `PermissionError` specifically when `winerror == 32`, leaving a harmless orphaned temp
+file instead of crashing the test collection. Any other `PermissionError` still propagates
+unchanged. Verified: `pytest tests/` now passes **218/218** locally on this Windows machine in
+~138s (previously: 0 tests could even run). This is a pre-existing bug in the third-party `gltest`
+package, not in Reclose's own code, and this workaround does not change any shipped artifact.
+
+**2. Direct Mode confirms the deterministic precheck is content-agnostic (rules it OUT as a
+length/content-dependent trigger) and reproduces the exact `scripts/r1r-fresh-incident-retest2.mjs`
+failure exactly.** New file `tests/judge/test_content_snapshot_diagnostic.py` (6 tests, all
+passing) builds a Direct Mode registry mirroring `config/source-registry-r1.json`'s real
+`reclose-reference-evidence` `CONTENT_ADDRESSED_SNAPSHOT` source and drives `submit_incident` with
+the owner's four specified content variants (A: trivial ~100-char repeat; B: the 53-char realistic
+sentence; C: a ~330-char realistic security-bulletin paragraph; D: the exact two-source shape from
+`scripts/r1r-fresh-incident-retest2.mjs`). Findings:
+   - With a correctly-populated `snapshotRef` (and a mocked independent fetch returning matching
+     content), **variants A, B, C, and D all pass `_parse_and_validate_eap` and reach a real judged
+     outcome identically** - i.e. the deterministic precheck (hash/authority/registry validation)
+     does not discriminate on evidence text content or length at all. This rules out
+     `_parse_and_validate_eap`/`_authority_for_source`/prompt-construction as a
+     content-dependent crash source.
+   - **Root cause for the specific `scripts/r1r-fresh-incident-retest2.mjs` reproduction, confirmed
+     directly**: that script's `CONTENT_ADDRESSED_SNAPSHOT` source (`sourceId:
+     "reclose-reference-evidence"`) never set a `snapshotRef` field at all (grep the script before
+     this session's fix - confirmed absent). The hardened `_parse_and_validate_eap` (already present
+     on HEAD via the concurrent session's `6fb4404`) unconditionally requires a non-empty
+     `snapshotRef` for that source class and raises `gl.vm.UserError("E_JDG_EVIDENCE:
+     CONTENT_ADDRESSED_SNAPSHOT requires a non-empty snapshotRef")` - deterministically, before any
+     nondet/LLM call, identical for every content variant and every source position. Test
+     `test_snapshot_ref_missing_reproduces_the_exact_live_crash` reproduces this exact failure
+     byte-for-byte in Direct Mode. Fixed the script itself (small, safe, additive:
+     `scripts/r1r-fresh-incident-retest2.mjs` now sets `snapshotRef` to the same URL it already
+     used as `url` for that source, mirroring `packages/sentinel/src/candidateEap.ts`'s already-
+     fixed pattern) so it no longer builds a structurally-invalid EAP if re-run.
+   - **This explains "no error message" as a CLI/tooling display gap, not a genuine unhandled
+     crash**: `gl.vm.UserError` DOES carry a message; the most likely explanation for prior reports
+     of a bare `exit_code 1` with nothing decoded is that manual, hand-crafted `genlayer
+     estimate-fees ... --args ...` invocations (bypassing `packages/protocol-sdk/src/evidence.ts`'s
+     `buildEap`, which already independently validates and would have thrown a clear local error
+     for a missing `snapshotRef` before ever touching the chain - confirmed by reading
+     `validateEap`) do not surface the VM's structured revert reason the way `buildEap`'s own
+     client-side validation would have.
+   - **Honest limitation, confirmed directly by reading the installed package**:
+     `.venv-c1/Lib/site-packages/gltest/direct/wasi_mock.py::_handle_llm_request` intercepts
+     `gl.nondet.exec_prompt` unconditionally in Direct Mode and returns whatever the test itself
+     registered via `mock_llm(pattern, response)` - it never makes a real network call and never
+     depends on real model behaviour. Direct Mode is therefore structurally **incapable** of
+     reproducing a crash whose root cause lives inside the real pinned LLM's real response to real
+     prompt content (stage 3/4 of the owner's diagnostic ladder). `test_direct_mode_llm_mock_ignores_prompt_content`
+     pins this down explicitly so a future session does not re-discover it. **This means: if a
+     single-source, snapshotRef-correct EAP still crashes live with realistic prose content (not
+     yet re-tested live this session, since this session deliberately avoided further live
+     writes/estimate-fees calls per the owner's cost-consciousness instruction and the concurrent
+     session's fix is not yet deployed), that residual failure mode - a real Stage 3/4,
+     model-response-dependent bug - would NOT be visible in Direct Mode at all and can only be
+     confirmed or ruled out by a live retest against a freshly redeployed Judge carrying commit
+     `6fb4404`/`43a597c`'s hardening.**
+
+**3. No further contract-level bug was found or fixed in `contracts/incident_judge_v1.py` by this
+pass beyond what the concurrent session already committed** (`6fb4404`/`43a597c`/`0ce9049`). This
+pass's own read of `_evaluate_once`, `_parse_and_validate_eap`, `_authority_for_source`, and
+`_run_judgment` (post-hardening) found the CONTENT_ADDRESSED_SNAPSHOT independent-fetch-and-verify
+logic, the path-prefix authority binding, and the duplicate-source rejection to be correctly
+implemented and already covered by that session's `test_incident_judge_v1.py` additions. Per
+CLAUDE.md's honesty requirements, this pass did not invent an additional contract change merely to
+satisfy a "must edit the contract" expectation once no further contract defect was found.
+
+**Practical state after this pass**: local Direct Mode testing is fully unblocked on Windows
+(218/218 passing, `conftest.py` fix), the specific `retest2.mjs` reproduction is root-caused and
+fixed at the script level, and the hardening needed to fix it in the actual protocol was already
+implemented (by the concurrent session) but **still requires a fresh live Judge deployment and a
+real live retest before the multi-source crash can be marked LIVE-VERIFIED CLOSED** - this pass did
+not deploy anything (out of scope for this task) and did not spend further live GEN/time on
+speculative live retests, per the owner's explicit cost-consciousness instruction for this task.

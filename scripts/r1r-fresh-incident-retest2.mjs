@@ -69,6 +69,19 @@ async function main() {
           sourceClass: "CONTENT_ADDRESSED_SNAPSHOT",
           extractedText:
             "Independent corroboration: ProviderStubA's operator has publicly acknowledged unauthorized third-party control of its private key resulted in unauthorized fulfill() calls being submitted on its behalf. This is confirmed, active credential compromise with unauthorized control of the provider account, not a rumor or unverified report.",
+          // ROOT-CAUSE FIX (see docs/execution/Current Phase.md, root-cause diagnostic session):
+          // this field was previously ABSENT here. contracts/incident_judge_v1.py's
+          // `_parse_and_validate_eap` unconditionally requires a non-empty, registry-bound
+          // `snapshotRef` for every CONTENT_ADDRESSED_SNAPSHOT source (independently re-fetched
+          // and hash-verified in `_evaluate_once` before it is ever used for judgment) - an EAP
+          // missing it is deterministically rejected with `gl.vm.UserError("E_JDG_EVIDENCE:
+          // CONTENT_ADDRESSED_SNAPSHOT requires a non-empty snapshotRef")` before any nondet/LLM
+          // call is ever made, regardless of `extractedText` content, length, or source position.
+          // `packages/protocol-sdk/src/evidence.ts::validateEap` already enforces this identical
+          // rule client-side (and `buildEap` already throws on it) - this script had simply gone
+          // stale relative to that hardening. Reusing `url` as `snapshotRef` here mirrors this
+          // repository's own test fixtures (tests/judge/test_content_snapshot_diagnostic.py).
+          snapshotRef: "https://raw.githubusercontent.com/genlayerlabs/genlayer-project-boilerplate/main/LICENSE",
           retrievedAt: observedAt,
         },
       ],
