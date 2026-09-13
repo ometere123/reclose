@@ -679,3 +679,23 @@ The earlier handoff prerequisite saying the deployer password was required is su
 The current policy `policy-r1-007` was fully constructed and sealed, but remains inactive and is superseded before activation. A live `get_source_authority('reclose-reference-evidence')` read returned the mutable `/genlayerlabs/genlayer-project-boilerplate/main/` path. That cannot admit the required immutable, commit-pinned synthetic fixtures; fetching its README confirmed it is unrelated boilerplate. The three synthetic fixture files are committed at immutable source commit `ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6`; independent HTTP fetches returned 200 and byte-identical Keccak hashes. The registry now points its snapshot authority at that exact commit path with hash `0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386`.
 
 **Next:** deploy a corrected Judge and matching Vault only; retain the already-valid Kernel, Protocol/target and providers. Build a new APM/policy (the old policy is immutable and must not be activated), then seal, wait its actual timelock plus buffer, activate, and verify. No E1 report has been submitted; no Reporter nonce has been read.
+
+## 2026-09-13 continuation: corrected deployment and active policy
+
+The earlier statement that account unlock failing meant no signer was available was incorrect. The CLI reports reclose-deployer as unlocked, and policy writes signed successfully. The unlock subcommand independently failed to decrypt the local keystore; no password action is needed unless signing later fails.
+
+Corrected Judge 0x05f9E58B5ce635FCEd8076c9dAA714b19c287028 deployed in 0xf43911a88f3854f631b764c3e513ce804797b1e7e5ef49182219101efaf16664. Live get_source_registry_hash equals current recomputed hash 0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386; get_source_authority('reclose-reference-evidence') returns origin https://raw.githubusercontent.com, commit-pinned fixture path /ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/, class CONTENT_ADDRESSED_SNAPSHOT, and enabled=true.
+
+Fresh Vault 0x67d6a5642dfa7E14D7ffCce819C1cc01F7E73461 deployed in 0xb8121b9983a1fe131cc071eeada2860293aef70d4410b3b9f9653a291d5555fb; Judge-to-Vault wiring 0x223fd720c943ee3701cf2ebe1fab7d85230b5503f7c5044eaa341cfbb7143c2b is finalized. Constructor and two-sided wiring reads match the new Kernel/Judge.
+
+New canonical APM deployment/61997/apm-r1-final-evidence-v2.json compiles and validates with RFC8785/JCS + Keccak-256 hash 0x6c1c74ecf17d4812bb36b45ca8c162c87a3da893d675caba3f33ff4bc97d1881; all three rules reference the corrected Judge. Policy policy-r1-008, version 2, was written item-by-item; all 11 policy writes finalized with FINISHED_WITH_RETURN and were read back. Seal tx 0x35590509274d645da069afe693b2ed957eb3c011d7034f7ecee74d3223811d3d recorded counts [3,2,4] and activation-not-before 1789309116. After the genuine timelock plus a buffer, activation tx 0x587ebecce63c1405f5332cd43293ec660dd248c00cfecb7e977ced77c1943b83 finalized successfully. Live Kernel reads show active policy policy-r1-008, version 2, the expected hash, active=true, target generation 1, and the compromise rule bound to Judge version 1.
+
+Current final deployment state is recorded in deployment/61997/r1-final-manifest.json and deployment/61997/r1-final-evidence-v2-working-manifest.json. The prior policy-r1-007 remains sealed/inactive and superseded.
+
+### E1 Run A funding handoff
+
+Run A has not started. Live ReferenceAgent reads show get_state() = 0 (NORMAL), effective provider 1 (Provider A), target/controller bindings correct, and get_treasury_balance() = 0. The pinned CLI write command has no payable-call value option (only --fee-value, which pays transaction fees). A payable wallet call is required before the first real purchase.
+
+Exact action: on Studio-dev / chain 61997, use the injected wallet to call fund_treasury() on ReferenceAgent 0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2 with 0.20 GEN; then provide the transaction hash. This covers three canonical 0.05-GEN purchases (including the SAFE_MODE fallback, whose per-purchase ceiling is 0.10 GEN). Resume by verifying get_treasury_balance() >= 0.15 GEN, then execute and read back the first Provider A purchase.
+
+No Reporter nonce has been read; no incident/report has been submitted. Run B, H1, A3/A4, requirements/threat reconciliations, release packaging, and final candidate verification remain outstanding.

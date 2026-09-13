@@ -1,0 +1,432 @@
+{
+  "schema": "reclose-deployment-generation-manifest-v1",
+  "generation": "r1-final-evidence-v2",
+  "status": "policy-active-awaiting-run-a-funding",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "rpc": "https://studio-dev.genlayer.com/api",
+  "deployer": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+  "sourceCommit": "58684955a15292f9afcdfecf8470c74c6511c65a",
+  "runtime": {
+    "genlayerJs": "2.0.0-rc.1",
+    "genlayerCli": "0.40.0-rc.3",
+    "sourceRegistryFile": "config/source-registry-r1.json",
+    "sourceRegistryHash": "0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386",
+    "sourceRegistryHashRecomputed": true,
+    "judgeHashReadbackMatches": true,
+    "contentAddressedAuthority": {
+      "sourceId": "reclose-reference-evidence",
+      "canonicalOrigin": "https://raw.githubusercontent.com",
+      "canonicalPathPrefix": "/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/",
+      "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+      "enabled": true
+    }
+  },
+  "contracts": {
+    "AssuranceKernel": {
+      "address": "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+      "txHash": "0xe3b5132225c6dfae49ec14fea04e95ea4cb3266ac44b9d56b4f3bd84e3b8b6c9",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "reusedFrom": "r1-final-working",
+      "constructorArgs": [
+        1,
+        60
+      ]
+    },
+    "ReferenceAgentProtocol": {
+      "address": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+      "txHash": "0x7b5c15322c243677a1b8455a4f6d8c903242c02002d14bd62b548a822c1f8a11",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "targetId": "reclose-target-006",
+      "reusedFrom": "r1-final-working"
+    },
+    "IncidentJudgeV1": {
+      "address": "0x05f9E58B5ce635FCEd8076c9dAA714b19c287028",
+      "txHash": "0xf43911a88f3854f631b764c3e513ce804797b1e7e5ef49182219101efaf16664",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "constructorArgs": [
+        "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+        1,
+        "0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386"
+      ],
+      "moduleVersion": 1
+    },
+    "IncentiveVault": {
+      "address": "0x67d6a5642dfa7E14D7ffCce819C1cc01F7E73461",
+      "txHash": "0xb8121b9983a1fe131cc071eeada2860293aef70d4410b3b9f9653a291d5555fb",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "feeValueWei": "100000000000010352",
+      "constructorArgs": [
+        "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+        "0x05f9E58B5ce635FCEd8076c9dAA714b19c287028",
+        1
+      ]
+    },
+    "ProviderStubA": {
+      "address": "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
+      "deploymentTxHash": "0xabbec8f684bc645a26dca64b1acdec37d3b55bd26abfb6e950104f734527409c",
+      "reusedFrom": "r1r",
+      "liveOwnerReadback": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd"
+    },
+    "ProviderStubB": {
+      "address": "0x4CD612D701902355836bC3C182eac724B1487A4f",
+      "deploymentTxHash": "0x3edb38626fb5f50dbd8f3c66fe7aab15e90c78eae66d9cb773f6bf876003cbe9",
+      "reusedFrom": "r1r",
+      "liveOwnerReadback": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd"
+    }
+  },
+  "wiring": {
+    "IncidentJudgeV1.set_vault": {
+      "txHash": "0x223fd720c943ee3701cf2ebe1fab7d85230b5503f7c5044eaa341cfbb7143c2b",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "args": [
+        "0x67d6a5642dfa7E14D7ffCce819C1cc01F7E73461"
+      ],
+      "readback": {
+        "judgeVault": "0x67d6a5642dfa7e14d7ffcce819c1cc01f7e73461",
+        "vaultJudge": "0x05f9e58b5ce635fced8076c9daa714b19c287028"
+      }
+    },
+    "ReferenceAgentProtocol.set_assurance_controller": {
+      "txHash": "0xc7dffa0cddf03e7a65972f831ab96d012da8043ad1e8cf23c0fe4674de7fc7b9",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "reusedFrom": "r1-final-working"
+    },
+    "AssuranceKernel.register_target": {
+      "txHash": "0x5a866beff086e721ae54d09d134d97c96abf1b398a8b9a8832165c5f801bd6ae",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "reusedFrom": "r1-final-working",
+      "readback": {
+        "targetAddress": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+        "targetOwner": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+        "targetId": "reclose-target-006",
+        "activePolicyKey": "",
+        "policyGeneration": 0
+      }
+    }
+  },
+  "liveReadbacks": {
+    "judgeKernel": "0x3bd24b04ae7d8090f22752b9e489a5398e271d4f",
+    "judgeVault": "0x67d6a5642dfa7e14d7ffcce819c1cc01f7e73461",
+    "judgeModuleVersion": 1,
+    "judgeSourceRegistryHash": "0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386",
+    "vaultKernel": "0x3bd24b04ae7d8090f22752b9e489a5398e271d4f",
+    "vaultJudge": "0x05f9e58b5ce635fced8076c9daa714b19c287028",
+    "targetOwner": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+    "targetController": "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+    "targetId": "reclose-target-006",
+    "targetAddress": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+    "targetActivePolicyKey": "policy-r1-008",
+    "targetActivePolicyIdentity": [
+      "policy-r1-008",
+      2,
+      "0x6c1c74ecf17d4812bb36b45ca8c162c87a3da893d675caba3f33ff4bc97d1881"
+    ],
+    "providerA": "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
+    "providerB": "0x4CD612D701902355836bC3C182eac724B1487A4f",
+    "targetPolicyGeneration": 1
+  },
+  "failedAttempts": [
+    {
+      "hash": "0xa9c83af58be6994c526120649f8f04ec131c364dea77a19d79f667b2edb5f3eb",
+      "action": "IncentiveVault deployment with zero fee deposit",
+      "reportedError": "FeeValueMustBeNonZero(1)",
+      "evmReceipt": {
+        "status": "reverted",
+        "blockNumber": 0,
+        "gasUsed": "0",
+        "contractAddress": null
+      }
+    },
+    {
+      "hash": "0xb5f2993c2c05114b8e5fd3d64e8b0a5dfc051eb0ce0f383511ae707c6bae0d2b",
+      "action": "IncentiveVault deployment without fee distribution",
+      "reportedError": "FeeValueMustBeNonZero(1)",
+      "evmReceipt": {
+        "status": "reverted",
+        "blockNumber": 0,
+        "gasUsed": "0",
+        "contractAddress": null
+      }
+    }
+  ],
+  "policy": {
+    "status": "active",
+    "policyKey": "policy-r1-008",
+    "version": 2,
+    "targetId": "reclose-target-006",
+    "judgeAddress": "0x05f9E58B5ce635FCEd8076c9dAA714b19c287028",
+    "judgeVersion": 1,
+    "manifestHash": "0x6c1c74ecf17d4812bb36b45ca8c162c87a3da893d675caba3f33ff4bc97d1881",
+    "apmSource": "deployment/61997/apm-r1-final-evidence-v2.json",
+    "compiledCalls": "deployment/61997/apm-r1-final-evidence-v2-compiled.json",
+    "activation": "ACTIVATED",
+    "beginTransaction": {
+      "txHash": "0x82dceae737af10699ce23a88aa735bdb64600b3482ec4fbfa775bcc76199da86",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "feeValueWei": "613837200010352"
+    },
+    "resourceTransactions": [
+      {
+        "txHash": "0x9a2d6963de83ea521610feb003d426bec50e8e0925ec0cfed083e2e87c07cbdd",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "resource": "provider_a",
+        "counts": [
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "txHash": "0x34541384a6e50bea3e54d8f4647d978a754be8951d61ab44e695363dcfaf110d",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "resource": "provider_b",
+        "counts": [
+          0,
+          2,
+          0
+        ]
+      }
+    ],
+    "ruleTransactions": [
+      {
+        "txHash": "0xfd51f71e5e08e1733d209d8b83ab48a0d2624ccc496d538668b430b947b6e23a",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "ruleId": "PROVIDER_COMPROMISE_V1",
+        "judge": "0x05f9E58B5ce635FCEd8076c9dAA714b19c287028",
+        "judgeVersion": 1,
+        "ruleKind": 1,
+        "provisionalAllowed": true,
+        "economics": [
+          "0",
+          "0"
+        ],
+        "counts": [
+          1,
+          2,
+          0
+        ]
+      },
+      {
+        "txHash": "0x470753c7ea20f7df4a1ea55a860efc132956b664b04ae495c091eb120e535e96",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "ruleId": "REMEDIATION_CONFIRMED_V1",
+        "judge": "0x05f9E58B5ce635FCEd8076c9dAA714b19c287028",
+        "judgeVersion": 1,
+        "ruleKind": 2,
+        "provisionalAllowed": false,
+        "economics": [
+          "0",
+          "0"
+        ],
+        "counts": [
+          2,
+          2,
+          0
+        ]
+      },
+      {
+        "txHash": "0xc7699791c7db70dc47e12ebde869a45fed28d81b9659b4dec24d3d24d798c225",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "ruleId": "RECOVERY_VALIDATED_V1",
+        "judge": "0x05f9E58B5ce635FCEd8076c9dAA714b19c287028",
+        "judgeVersion": 1,
+        "ruleKind": 3,
+        "provisionalAllowed": false,
+        "economics": [
+          "0",
+          "0"
+        ],
+        "counts": [
+          3,
+          2,
+          0
+        ]
+      }
+    ],
+    "effectTransactions": [
+      {
+        "txHash": "0xe9ee7fe00afc8aae63425f745e96bcb9cd63bd9b4a0f70a22c9a209f404e219a",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "effect": [
+          "PROVIDER_COMPROMISE_V1",
+          3,
+          "provider_a",
+          "0",
+          "",
+          1,
+          true
+        ],
+        "counts": [
+          3,
+          2,
+          1
+        ]
+      },
+      {
+        "txHash": "0xd0643e67d07263dab7f58c074da9da0ddc0f03b5901a5097767896e2d8d632db",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "effect": [
+          "PROVIDER_COMPROMISE_V1",
+          7,
+          "",
+          "0",
+          "",
+          1,
+          true
+        ],
+        "counts": [
+          3,
+          2,
+          2
+        ]
+      },
+      {
+        "txHash": "0xe4974828c33ae8b03db0525998d0f8ff01fde01cd4cf281ad43971905a7781ea",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "effect": [
+          "REMEDIATION_CONFIRMED_V1",
+          9,
+          "",
+          "0",
+          "",
+          1,
+          true
+        ],
+        "counts": [
+          3,
+          2,
+          3
+        ]
+      },
+      {
+        "txHash": "0x8feb8a0232337f92d898f571a0fd21afc08ed7adcbf845328045aa5c22cdaebc",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "effect": [
+          "RECOVERY_VALIDATED_V1",
+          10,
+          "",
+          "0",
+          "",
+          2,
+          true
+        ],
+        "counts": [
+          3,
+          2,
+          4
+        ]
+      }
+    ],
+    "sealTransaction": {
+      "txHash": "0x35590509274d645da069afe693b2ed957eb3c011d7034f7ecee74d3223811d3d",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "feeValueWei": "613833600010352",
+      "lifecycle": [
+        "reclose-target-006",
+        2,
+        "0x6c1c74ecf17d4812bb36b45ca8c162c87a3da893d675caba3f33ff4bc97d1881",
+        1789308238,
+        1789309056,
+        1789309116,
+        0,
+        true,
+        false,
+        false
+      ],
+      "header": [
+        2,
+        "0x6c1c74ecf17d4812bb36b45ca8c162c87a3da893d675caba3f33ff4bc97d1881",
+        true,
+        false,
+        true
+      ],
+      "counts": [
+        3,
+        2,
+        4
+      ],
+      "sealedAt": 1789309056,
+      "activationNotBefore": 1789309116
+    },
+    "activationTransaction": {
+      "functionName": "activate_policy",
+      "args": [
+        "policy-r1-008"
+      ],
+      "txHash": "0x587ebecce63c1405f5332cd43293ec660dd248c00cfecb7e977ced77c1943b83",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "feeValueWei": "100000000000010352",
+      "feeSource": "fresh baseline estimate after activationNotBefore plus 180-second buffer",
+      "readbacks": {
+        "lifecycle": [
+          "reclose-target-006",
+          2,
+          "0x6c1c74ecf17d4812bb36b45ca8c162c87a3da893d675caba3f33ff4bc97d1881",
+          1789308238,
+          1789309056,
+          1789309116,
+          1789309576,
+          true,
+          true,
+          false
+        ],
+        "activePolicyKey": "policy-r1-008",
+        "targetPolicyIdentity": [
+          "policy-r1-008",
+          2,
+          "0x6c1c74ecf17d4812bb36b45ca8c162c87a3da893d675caba3f33ff4bc97d1881"
+        ],
+        "targetGeneration": 1,
+        "compromiseRule": [
+          "0x05f9e58b5ce635fced8076c9daa714b19c287028",
+          1,
+          1,
+          true,
+          true
+        ]
+      }
+    }
+  },
+  "evidence": {
+    "immutableSyntheticFixturesCommit": "ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6",
+    "fixturesFetchVerified": true,
+    "allFixtureSnapshotRefsUseCommitPinnedUrls": true,
+    "sourceAuthorityPathPinned": true,
+    "policyWritesRequireFinalizedExecutionAndReadback": true
+  },
+  "e1RunA": {
+    "status": "not-started-awaiting-payable-treasury-funding",
+    "preflightReadbacks": {
+      "referenceAgentState": 0,
+      "effectiveProvider": 1,
+      "treasuryBalanceWei": "0",
+      "controller": "0x3bd24b04ae7d8090f22752b9e489a5398e271d4f",
+      "targetId": "reclose-target-006"
+    },
+    "requiredFundingWei": "200000000000000000",
+    "fundingMethod": "payable fund_treasury() via injected wallet; pinned CLI write has no caller-value option",
+    "fundingTxHash": null,
+    "reporterNonce": null,
+    "incidentId": null
+  }
+}

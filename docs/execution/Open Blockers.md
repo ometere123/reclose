@@ -110,8 +110,21 @@ This does not reopen A2-C01 or the old missing-`snapshotRef` investigation.
 
 OB-008 closure: the CLI account query reported `reclose-deployer` unlocked from the existing OS keychain despite the explicit `unlock` password-decryption error. `begin_policy` subsequently signed and finalized successfully; no further human credential action is required.
 
-## OB-009 - Deployed Judge snapshot authority does not admit immutable synthetic evidence [IN PROGRESS / SOURCE VERIFICATION]
+## OB-009 - Deployed Judge snapshot authority does not admit immutable synthetic evidence [CLOSED]
 
 The live Judge source authority for `reclose-reference-evidence` returned `/genlayerlabs/genlayer-project-boilerplate/main/`, while the required synthetic E1 evidence must use immutable commit-pinned URLs. The fetched boilerplate README is unrelated to the demo. Policy `policy-r1-007` is sealed but deliberately left inactive. The corrected registry now constrains the snapshot source to the immutable fixture commit path and has hash `0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386`.
 
 Closure evidence: corrected Judge deployed with the new hash; `get_source_registry_hash` and `get_source_authority` match; synthetic fixtures independently fetch with byte-identical content hashes; a new policy bound to that Judge is activated after its actual timelock.
+
+## OB-010 - E1 Run A ReferenceAgent treasury is unfunded [OPEN / HUMAN WALLET ACTION]
+
+**Opened:** 2026-09-13
+**Phase:** E1 Run A
+**Network:** Studio-dev / chain 61997
+**Contract:** ReferenceAgentProtocol 0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2
+
+The fresh active-policy generation reads NORMAL with Provider A selected, but its treasury is 0 GEN. The pinned GenLayer CLI write command exposes --fee-value for transaction fees and has no payable call-value option. Do not submit a purchase until real treasury value is present.
+
+**Exact user action:** use the injected wallet to call payable fund_treasury() on the contract above with 0.20 GEN on Studio-dev / chain 61997; return the transaction hash.
+
+**Resume:** verify get_treasury_balance() >= 0.15 GEN, then execute/read back the canonical initial Provider A purchase. No incident or Reporter nonce has yet been created.
