@@ -26,6 +26,19 @@ export function createGenLayerWriter({ account, provider }) {
   if (!provider) throw new Error("createGenLayerWriter requires an injected provider");
   const client = createClient({ chain: studioDevnet, account, provider });
 
+  // Item 1 (owner-directed remediation pass): `fullFeeDetail` carries the COMPLETE fee data the
+  // estimator produced (distribution + the full messageAllocations tree, including any
+  // buildNestedMessageAllocationTree composition) with every bigint normalized to a decimal string
+  // for JSON/hash safety - converted back to the real bigint shape writeContract's own `fees`
+  // argument expects immediately before submission. Never re-estimated here.
+  function restoreAllocationNode(node) {
+    return {
+      ...node,
+      parentIndex: node.parentIndex !== undefined ? BigInt(node.parentIndex) : undefined,
+      budget: node.budget !== undefined ? BigInt(node.budget) : undefined,
+    };
+  }
+
   async function writePreparedDraft(draft) {
     if (!draft || typeof draft !== "object" || !draft.contractAddress || !draft.functionName || !Array.isArray(draft.args)) {
       throw new Error("writePreparedDraft requires a complete PreparedRecloseWrite draft (contractAddress/functionName/args)");
@@ -33,9 +46,19 @@ export function createGenLayerWriter({ account, provider }) {
     // Fee estimation and the actual write MUST refer to the exact same account/contract/method/
     // args/value - the draft's own feeEstimate (produced by the SDK's estimateTransactionFeesForWrite
     // over this exact call) is passed straight through rather than re-estimated or hand-bisected.
-    const fees = draft.feeEstimate?.distributionSummary
-      ? { distribution: draft.feeEstimate.distributionSummary }
-      : undefined;
+    // Prefer the COMPLETE fullFeeDetail (distribution + messageAllocations) when present; fall back
+    // to the lossy distributionSummary-only shape only for a draft built before this remediation.
+    const fullFeeDetail = draft.feeEstimate?.fullFeeDetail;
+    const fees = fullFeeDetail
+      ? {
+          distribution: fullFeeDetail.distribution ?? undefined,
+          ...(Array.isArray(fullFeeDetail.messageAllocations)
+            ? { messageAllocations: fullFeeDetail.messageAllocations.map(restoreAllocationNode) }
+            : {}),
+        }
+      : draft.feeEstimate?.distributionSummary
+        ? { distribution: draft.feeEstimate.distributionSummary }
+        : undefined;
     const txHash = await client.writeContract({
       account,
       address: draft.contractAddress,

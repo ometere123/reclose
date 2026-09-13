@@ -99,6 +99,12 @@ export class MockProductAdapter {
   async submitWrite() {
     throw new Error("Fixture mode never submits transactions. Switch to a host-provided live Reclose SDK writer.");
   }
+  /** Item 5 (owner-directed remediation pass): fixture mode has no live protocol read to derive a
+   * real tri-state from - honestly reports UNKNOWN rather than fabricating AVAILABLE/UNAVAILABLE. */
+  async getProviderAvailabilityTriState(_targetId, resourceId) {
+    await delay();
+    return { resourceId, status: "UNKNOWN", reason: { code: "UNKNOWN", message: "Fixture mode cannot read live protocol restriction state." } };
+  }
 }
 
 /**
@@ -354,9 +360,20 @@ export class SdkProductAdapter {
 
   /** Builds exactly ONE compiled call into a real, fee-estimated, review-hashed
    * PreparedRecloseWrite - called on demand, one step at a time, by the sequential state machine. */
-  async buildPolicyConstructionStep(call) {
-    const built = await this.sdk.buildPreparedWriteForCall(call, { semanticKind: "POLICY_CONSTRUCTION_STEP" });
+  async buildPolicyConstructionStep(call, targetId) {
+    // Item 3 (owner-directed remediation pass): bind this step's expectedSigner to the target's
+    // CURRENT, live-read owner - forwarded through to the SDK, which performs the actual live read.
+    const built = await this.sdk.buildPreparedWriteForCall(call, { semanticKind: "POLICY_CONSTRUCTION_STEP", targetId });
     return { description: call.description, draft: built.report, feePreview: built.feePreview, synthetic: false };
+  }
+
+  /** Item 5 (owner-directed remediation pass), ADDITIVE: exposes the real tri-state provider
+   * availability helper when the connected SDK supports it - never recomputed independently here. */
+  async getProviderAvailabilityTriState(targetId, resourceId) {
+    if (typeof this.sdk.getProviderAvailabilityTriState !== "function") {
+      return { resourceId, status: "UNKNOWN", reason: { code: "UNKNOWN", message: "Connected SDK does not support tri-state provider availability." } };
+    }
+    return this.sdk.getProviderAvailabilityTriState(targetId, resourceId);
   }
 
   /** The final step, built only once the caller has confirmed seal_policy succeeded - never

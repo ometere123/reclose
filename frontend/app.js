@@ -612,7 +612,7 @@ async function renderPolicyJourneyStep() {
     return;
   }
   try {
-    const step = await adapter.buildPolicyConstructionStep(j.calls[j.currentIndex]);
+    const step = await adapter.buildPolicyConstructionStep(j.calls[j.currentIndex], j.targetId);
     draftRegistry.registerDraft(`policyStep:${j.currentIndex}`, step.draft);
     el.innerHTML = `${renderPolicyJourneyPlan()}<div class="notice" style="margin-top:10px"><strong>Step ${j.currentIndex + 1} of ${j.calls.length}: ${escapeHtml(step.description)}</strong>${renderPreparedWriteFields(step.draft)}<button class="button primary" type="button" data-action="submit-policyStep:${j.currentIndex}">Sign & submit step ${j.currentIndex + 1}</button></div>`;
     document.querySelector(`[data-action="submit-policyStep:${j.currentIndex}"]`)?.addEventListener("click", () => submitPolicyJourneyStep());
@@ -779,6 +779,14 @@ function renderPreparedWriteFields(draft) {
   const argsHtml = Array.isArray(draft.args)
     ? `<ol class="trace" style="margin-top:4px">${draft.args.map((a, i) => `<li><span class="mono">arg[${i}]</span>: <span class="hash">${escapeHtml(typeof a === "object" ? JSON.stringify(a) : String(a))}</span></li>`).join("")}</ol>`
     : '<span class="muted">no args</span>';
+  // Item 1 (owner-directed remediation pass): surface the COMPLETE fee data (not just a display
+  // summary) next to the rest of the signing boundary - the node count and feeConfigHash let a
+  // reviewer confirm a multi-hop composed allocation tree (buildNestedMessageAllocationTree) is
+  // actually present before signing, not silently collapsed to the flat distributionSummary.
+  const fullFeeDetail = draft.feeEstimate?.fullFeeDetail;
+  const feeSummaryRow = fullFeeDetail
+    ? [["Fee detail", `<span class="mono">feeValue ${escapeHtml(fullFeeDetail.feeValue ?? "0")} wei · ${Array.isArray(fullFeeDetail.messageAllocations) ? fullFeeDetail.messageAllocations.length : 0} allocation node(s)</span> <span class="hash">${escapeHtml(draft.feeEstimate?.feeConfigHash || "")}</span>`]]
+    : [];
   return recordRows([
     ["Chain ID", `<span class="mono">${escapeHtml(draft.chainId)}</span>`],
     ["Contract", `<span class="hash">${escapeHtml(draft.contractAddress)}</span>`],
@@ -786,6 +794,7 @@ function renderPreparedWriteFields(draft) {
     ["Semantic kind", `<span class="mono">${escapeHtml(draft.semanticKind || "unknown")}</span>`],
     ["Value (wei)", `<span class="mono">${escapeHtml(draft.valueWei ?? "0")}</span>`],
     ["Full call arguments", argsHtml],
+    ...feeSummaryRow,
     ["Review hash", `<span class="hash">${escapeHtml(draft.reviewHash)}</span>`],
     ...(draft.predictedIncidentId ? [["Predicted incident ID", `<span class="hash">${escapeHtml(draft.predictedIncidentId.incidentId)}</span>`]] : []),
   ]);
@@ -994,6 +1003,13 @@ function wireWalletEvents(provider) {
     draftRegistry.clearAll();
     state.wallet = null;
     adapter.writer = adapter.mode === "mock" ? adapter.writer : null;
+    // Item 3 (owner-directed remediation pass): an in-progress policy construction/activation
+    // journey is bound to the identity that was connected when it started - draftRegistry.clearAll()
+    // alone invalidated each individual step's draft, but left state.policyJourney's plan/progress
+    // intact, which could re-render as if the sequence were still trustworthy under the NEW
+    // identity. The whole journey must restart, not just its most recent draft.
+    state.policyJourney = null;
+    state.openedBond = null;
     setLiveMessage(`Wallet ${label} changed - every prepared draft was invalidated. Reconnect and preview again.`);
     render();
   };
