@@ -323,3 +323,53 @@ repo's own established pattern.
 `npm run verify:js` passes in full on this state. No contract source was modified in this
 deployment pass (deploy-only). Full transaction-by-transaction evidence is in
 `deployment/61997/r1r-manifest.json`.
+
+## Real bug found: unguarded exception in IncidentJudgeV1._run_judgment's leader path (2026-09-13)
+
+While attempting the full E1 canonical demo's CONFIRMED-outcome step (needed for
+restriction/remediation/recovery), certain realistic evidence text reproducibly crashes
+`submit_incident` with an unhandled exception (`exit_code 1`, no error message, no controlled
+`UserError`) rather than resolving cleanly to a judged outcome. Root-caused and isolated via
+direct testing against the fresh `r1r` deployment using the plain `genlayer estimate-fees` CLI
+(no custom script involved, ruling out a tooling artifact):
+
+- A 100-character string of repeated `"a"` characters as CONTENT_ADDRESSED_SNAPSHOT evidence
+  succeeds cleanly.
+- A 13-character trivial string succeeds cleanly.
+- A 53-character realistic sentence ("Confirmed active credential compromise, not a rumor.")
+  FAILS with exit_code 1.
+- A ~330-character realistic security-bulletin-style paragraph FAILS identically, both as the
+  sole source and alongside a second source, regardless of position in the sources array.
+
+This rules out source count, text length, and source-class-combination as the trigger - the
+common factor across all failing cases is realistic, evidence-like prose content, and the common
+factor across all succeeding cases is trivial/repetitive content, suggesting whatever underlying
+`gl.nondet.exec_prompt` call `_evaluate_once` makes fails unpredictably for certain real inputs
+(most plausibly a non-strict-JSON response from the pinned LLM triggering a raw parse exception
+inside GenVM's prompt-execution path, though the exact GenVM-internal failure was not
+directly observable from the receipt - `genvm_result.stderr` was empty even though this is
+clearly an uncaught exception, meaning the traceback is not being surfaced to the caller either).
+
+**Likely root cause** (contracts/incident_judge_v1.py::_run_judgment): `leader_fn` calls
+`self._evaluate_once(rule_id, eap)` with NO exception handling, while the sibling `validator_fn`
+wraps its own re-evaluation in `try/except Exception: return False`. This asymmetry means any
+exception during the LEADER's real-LLM evaluation propagates uncaught and crashes the whole
+transaction, instead of failing gracefully. This should be fixed (wrap `leader_fn`'s body in a
+try/except that falls back to `{"condition_code": "INSUFFICIENT_EVIDENCE", "outcome":
+int(DECISION_OUTCOME_UNDETERMINED)}` on any exception, matching `_evaluate_once`'s own existing
+graceful-degradation philosophy for fetch failures) and redeployed before the full E1 canonical
+demo's CONFIRMED/remediation/recovery steps can be completed live.
+
+**Not fixed in this session** - this is a contract-source change requiring its own careful
+review, Python test coverage, and a fresh redeployment, which is out of scope for the current
+live-deployment/demo session. Filed here as an honest, real, reproducible finding rather than
+worked around by further evidence-content iteration (which would risk the benchmark-tuning
+CLAUDE.md Section 37 prohibits, and in any case a fix belongs in source, not in evidence wording).
+
+**E1 canonical demo status:** DEPLOY_VERIFY/REGISTER_TARGET/ACTIVATE_POLICY/FUND_REFERENCE_AGENT/
+PURCHASE_PROVIDER_A are complete with real evidence (treasury funded to 5 GEN by the repository
+owner directly, since the pinned `genlayer` CLI v0.40.0-rc.3 hardcodes `value: 0n` on every
+write/deploy call - confirmed by reading its actual source - so it cannot itself send a payable
+value; first purchase tx `0x2a324292ce0ed5f92a2d3d70f1a2fec66379e9458e15e8d429a97cb6ff8121f9`,
+FINISHED_WITH_RETURN). The remaining steps (CONFIRMED incident onward) are blocked by the bug
+above, not by funding or tooling.
