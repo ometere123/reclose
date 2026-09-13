@@ -269,6 +269,15 @@ async function renderTargetDetail(targetId) {
   const assurance = await adapter.getAssuranceState(targetId);
   let policy = null;
   try { policy = await adapter.getPolicy(targetId); } catch {}
+  // Item 17: provider truth is tri-state (AVAILABLE/UNAVAILABLE/UNKNOWN), read live from protocol
+  // restriction state per resource - never inferred from a UI badge alone (CLAUDE.md Section 20).
+  const providerResourceIds = ["provider_a", "provider_b"];
+  let providerStatuses = [];
+  try {
+    providerStatuses = await Promise.all(providerResourceIds.map((r) => adapter.getProviderAvailabilityTriState(targetId, r)));
+  } catch { providerStatuses = providerResourceIds.map((r) => ({ resourceId: r, status: "UNKNOWN", reason: { code: "UNKNOWN", message: "Provider availability could not be read." } })); }
+  const providerStatusBadge = (s) => s === "AVAILABLE" ? '<span class="mono" style="color:var(--success,#1a7f37)">AVAILABLE</span>' : s === "UNAVAILABLE" ? '<span class="mono" style="color:var(--danger,#b3261e)">UNAVAILABLE</span>' : '<span class="mono muted">UNKNOWN</span>';
+  const providerPanel = recordRows(providerStatuses.map((p) => [p.resourceId, `${providerStatusBadge(p.status)}${p.reason ? ` · <span class="muted">${escapeHtml(p.reason.message)}</span>` : ""}`]));
   const restrictions = (assurance.activeRestrictions || target.restrictions || []).map((r) => `<li><a class="hash" href="#/incidents/${encodeURIComponent(r.incidentId)}">${escapeHtml(shortHash(r.incidentId, 15, 8))}</a> · <span class="mono">${escapeHtml(r.actionType)}</span>${r.resourceId ? ` · ${escapeHtml(r.resourceId)}` : ""}</li>`).join("");
   const details = recordRows([
     ["Target address", `<span class="hash">${escapeHtml(target.targetAddress)}</span>`],
@@ -300,6 +309,7 @@ async function renderTargetDetail(targetId) {
   return `${pageHead("target", targetId, "Effective authority and restrictions are derived from protocol state, not from a frontend policy engine.", `<a class="button" href="#/report?target=${encodeURIComponent(targetId)}">Report incident</a><a class="button" href="#/policies/${encodeURIComponent(targetId)}">Policy</a>`)}
     <div class="metric-strip"><div class="metric"><span class="label">assurance state</span><span class="value" style="font-size:16px">${stateMarker(target.assuranceState ?? assurance.state)}</span></div><div class="metric"><span class="label">active restrictions</span><span class="value">${assurance.activeRestrictions?.length ?? 0}</span></div><div class="metric"><span class="label">effective capabilities</span><span class="value">${assurance.effectiveCapabilities?.length ?? 0}</span></div><div class="metric"><span class="label">policy version</span><span class="value">${policy?.summary?.version ?? "—"}</span></div></div>
     <div class="grid">${panel("Identity & authority", details, "span-6")}${panel("Active reasons", restrictions ? `<ul class="trace">${restrictions}</ul>` : '<div class="empty">No active restrictions.</div>', "span-6")}
+    ${panel("Provider availability (tri-state)", providerPanel, "span-6")}
     ${panel("Owner bounded controls", ownerControls, "span-12")}</div>`;
 }
 
