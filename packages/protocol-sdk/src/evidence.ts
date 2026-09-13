@@ -141,6 +141,19 @@ export function validateEap(eap: EapInput): EapValidationError[] {
     if (src.snapshotRef !== undefined && (typeof src.snapshotRef !== "string" || src.snapshotRef.length > 2048)) {
       errors.push({ field: `sources[${i}].snapshotRef`, message: "snapshotRef must be <=2048 characters" });
     }
+    if (src.sourceClass === "CONTENT_ADDRESSED_SNAPSHOT") {
+      // Contract-side hardening: the Judge now independently fetches snapshotRef and verifies its
+      // real content against the claimed contentHash, rather than trusting Reporter-supplied
+      // extractedText directly. A CONTENT_ADDRESSED_SNAPSHOT source is therefore no longer valid
+      // with an empty/absent snapshotRef - it must be a real, independently-fetchable, immutable
+      // content-addressed URL (e.g. a commit-pinned raw URL), bound to the same registered
+      // origin/path authority as `url`.
+      if (typeof src.snapshotRef !== "string" || src.snapshotRef.length === 0) {
+        errors.push({ field: `sources[${i}].snapshotRef`, message: "CONTENT_ADDRESSED_SNAPSHOT requires a non-empty, independently-fetchable snapshotRef" });
+      } else if (!isValidSourceUrl(src.snapshotRef)) {
+        errors.push({ field: `sources[${i}].snapshotRef`, message: "snapshotRef must be a safe/supported HTTPS URL for CONTENT_ADDRESSED_SNAPSHOT" });
+      }
+    }
     if (!validTimestamp(src.retrievedAt)) errors.push({ field: `sources[${i}].retrievedAt`, message: "invalid retrievedAt timestamp" });
   });
   return errors;

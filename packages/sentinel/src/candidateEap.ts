@@ -37,7 +37,11 @@ export function buildCandidateReport(context: CandidateReportContext, results: S
       url: source.url,
       sourceClass: source.sourceClass,
       extractedText: source.extractedText,
-      snapshotRef: "",
+      // CONTENT_ADDRESSED_SNAPSHOT sources are now independently fetched and hash-verified by the
+      // Judge against snapshotRef, not trusted from extractedText alone - Sentinel already fetched
+      // this exact URL to produce extractedText, so it is the correct independently-fetchable
+      // identifier to supply. Every other source class leaves snapshotRef empty as before.
+      snapshotRef: source.sourceClass === "CONTENT_ADDRESSED_SNAPSHOT" ? source.url : "",
       retrievedAt: source.fetchedAt,
     })),
   };
