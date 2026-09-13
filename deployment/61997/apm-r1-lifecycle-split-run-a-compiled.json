@@ -1,0 +1,131 @@
+{
+  "manifestHash": "0xb5ac60c955e3bc052531e07b9c351738e7c27d80fb286b702f1f6e2e8ee83953",
+  "calls": [
+    {
+      "functionName": "begin_policy",
+      "args": [
+        "reclose-target-007",
+        "policy-r1-009",
+        "0xb5ac60c955e3bc052531e07b9c351738e7c27d80fb286b702f1f6e2e8ee83953"
+      ],
+      "description": "Begin policy \"policy-r1-009\" for target \"reclose-target-007\""
+    },
+    {
+      "functionName": "add_policy_resource",
+      "args": [
+        "policy-r1-009",
+        "provider_a"
+      ],
+      "description": "Register resource \"provider_a\""
+    },
+    {
+      "functionName": "add_policy_resource",
+      "args": [
+        "policy-r1-009",
+        "provider_b"
+      ],
+      "description": "Register resource \"provider_b\""
+    },
+    {
+      "functionName": "add_policy_rule",
+      "args": [
+        "policy-r1-009",
+        "PROVIDER_COMPROMISE_V1",
+        "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
+        1,
+        1,
+        true,
+        "0",
+        "0"
+      ],
+      "description": "Register rule \"PROVIDER_COMPROMISE_V1\" (INCIDENT, judge 0x43c6061FEde8372a3e4c3AB513D32abcfA956e89)"
+    },
+    {
+      "functionName": "add_policy_rule",
+      "args": [
+        "policy-r1-009",
+        "REMEDIATION_CONFIRMED_V1",
+        "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
+        1,
+        2,
+        false,
+        "0",
+        "0"
+      ],
+      "description": "Register rule \"REMEDIATION_CONFIRMED_V1\" (REMEDIATION, judge 0x43c6061FEde8372a3e4c3AB513D32abcfA956e89)"
+    },
+    {
+      "functionName": "add_policy_rule",
+      "args": [
+        "policy-r1-009",
+        "RECOVERY_VALIDATED_V1",
+        "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
+        1,
+        3,
+        false,
+        "0",
+        "0"
+      ],
+      "description": "Register rule \"RECOVERY_VALIDATED_V1\" (RECOVERY_VALIDATION, judge 0x43c6061FEde8372a3e4c3AB513D32abcfA956e89)"
+    },
+    {
+      "functionName": "add_policy_effect",
+      "args": [
+        "policy-r1-009",
+        "PROVIDER_COMPROMISE_V1",
+        3,
+        "provider_a",
+        "0",
+        "",
+        1
+      ],
+      "description": "Register effect: rule \"PROVIDER_COMPROMISE_V1\" -> RESTRICT on \"provider_a\" (release at REMEDIATION_CONFIRMED)"
+    },
+    {
+      "functionName": "add_policy_effect",
+      "args": [
+        "policy-r1-009",
+        "PROVIDER_COMPROMISE_V1",
+        7,
+        "",
+        "0",
+        "",
+        1
+      ],
+      "description": "Register effect: rule \"PROVIDER_COMPROMISE_V1\" -> ENTER_SAFE_MODE (release at REMEDIATION_CONFIRMED)"
+    },
+    {
+      "functionName": "add_policy_effect",
+      "args": [
+        "policy-r1-009",
+        "REMEDIATION_CONFIRMED_V1",
+        9,
+        "",
+        "0",
+        "",
+        1
+      ],
+      "description": "Register effect: rule \"REMEDIATION_CONFIRMED_V1\" -> ENTER_RECOVERY (release at REMEDIATION_CONFIRMED)"
+    },
+    {
+      "functionName": "add_policy_effect",
+      "args": [
+        "policy-r1-009",
+        "RECOVERY_VALIDATED_V1",
+        10,
+        "",
+        "0",
+        "",
+        2
+      ],
+      "description": "Register effect: rule \"RECOVERY_VALIDATED_V1\" -> RESTORE (release at RECOVERY_VALIDATED)"
+    },
+    {
+      "functionName": "seal_policy",
+      "args": [
+        "policy-r1-009"
+      ],
+      "description": "Seal policy \"policy-r1-009\""
+    }
+  ]
+}

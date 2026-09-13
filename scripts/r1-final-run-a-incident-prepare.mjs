@@ -20,16 +20,18 @@ import { installStudioDevRpcThrottle } from "./studio-dev-rpc-throttle.mjs";
 import { composeJudgeKernelTargetBranches, estimateRepeatedTargetAllocation } from "./studio-dev-fee-allocation.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const MANIFEST_RELATIVE = process.argv[2] ?? "deployment/61997/r1-lifecycle-split-run-a-working-manifest.json";
+const MANIFEST = JSON.parse(await fs.readFile(path.resolve(ROOT, MANIFEST_RELATIVE), "utf8"));
 const CHAIN_ID = 61997;
 const RPC = "https://studio-dev.genlayer.com/api";
-const KERNEL = "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f";
-const JUDGE = "0x05f9E58B5ce635FCEd8076c9dAA714b19c287028";
-const TARGET = "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2";
-const OWNER = "0x24fAe7CD031Ed702Be63BDeA8912141805B996bd";
-const TARGET_ID = "reclose-target-006";
-const POLICY_KEY = "policy-r1-008";
-const POLICY_VERSION = 2;
-const POLICY_HASH = "0x6c1c74ecf17d4812bb36b45ca8c162c87a3da893d675caba3f33ff4bc97d1881";
+const KERNEL = MANIFEST.contracts.AssuranceKernel.address;
+const JUDGE = MANIFEST.contracts.IncidentJudgeV1.address;
+const TARGET = MANIFEST.contracts.ReferenceAgentProtocol.address;
+const OWNER = MANIFEST.deployer;
+const TARGET_ID = MANIFEST.targetId;
+const POLICY_KEY = MANIFEST.policy.policyKey;
+const POLICY_VERSION = Number(MANIFEST.policy.version);
+const POLICY_HASH = MANIFEST.policy.manifestHash;
 const RULE_ID = "PROVIDER_COMPROMISE_V1";
 const RESOURCE_ID = "provider_a";
 const SOURCE_ID = "reclose-reference-evidence";
@@ -86,6 +88,9 @@ function compactFailure(error) {
 }
 
 async function main() {
+  if (!KERNEL || !JUDGE || !TARGET || !OWNER || !TARGET_ID || !POLICY_KEY || !POLICY_HASH || MANIFEST.policy.status !== "active") {
+    fail(`Deployment manifest is incomplete or policy is not marked active: ${MANIFEST_RELATIVE}`);
+  }
   const chain = { ...chains.studioDevnet, id: CHAIN_ID, rpcUrls: { default: { http: [RPC] } } };
   const client = createClient({ chain });
   const reportedChainId = Number(await client.getChainId());

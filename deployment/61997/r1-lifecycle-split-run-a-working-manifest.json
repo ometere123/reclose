@@ -1,7 +1,7 @@
 {
   "schema": "reclose-deployment-generation-manifest-v1",
   "generation": "r1-lifecycle-split-run-a",
-  "status": "policy-active-run-a-target-awaiting-treasury-funding",
+  "status": "policy-active-awaiting-run-a-target-funding",
   "network": "studio-dev",
   "chainId": 61997,
   "rpc": "https://studio-dev.genlayer.com/api",
@@ -1341,7 +1341,6 @@
       "timestamp": "2026-09-13T22:33:39.401Z"
     }
   ],
-  "finalManifestNote": "Corrected lifecycle-specific Kernel/Judge generation. This is the active Run A deployment; Run B will have an independent generation and deployment manifest.",
   "e1RunA": {
     "status": "awaiting-fresh-target-treasury-funding",
     "initialReadbacks": {

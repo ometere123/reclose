@@ -1,0 +1,25 @@
+{
+  "observedAt": "2026-09-13T22:37:09.652Z",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "target": {
+    "targetId": "reclose-target-007",
+    "owner": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+    "controller": "0x5a271cb03b4833aa485ff13035844ba500c4e536",
+    "state": 0,
+    "effectiveProvider": 1,
+    "treasuryBalanceWei": "0"
+  },
+  "providers": {
+    "providerA": {
+      "address": "0x02Be7242eb5ef13984590F86662B139384E20B70",
+      "owner": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+      "totalReceivedWei": "0"
+    },
+    "providerB": {
+      "address": "0x1f12906AF34143C804f5AeeeF0AcDF408e816d0a",
+      "owner": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+      "totalReceivedWei": "0"
+    }
+  }
+}

@@ -1,10 +1,22 @@
-param()
+param(
+    [string]$ManifestPath = 'deployment/61997/r1-lifecycle-split-run-a-working-manifest.json'
+)
 
 $ErrorActionPreference = 'Stop'
 $expectedChainId = '61997'
-$expectedOwner = '0x24fAe7CD031Ed702Be63BDeA8912141805B996bd'
-$judge = '0x05f9E58B5ce635FCEd8076c9dAA714b19c287028'
-$targetId = 'reclose-target-006'
+$repoRoot = Split-Path $PSScriptRoot -Parent
+$manifestFullPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $ManifestPath))
+$manifest = Get-Content -LiteralPath $manifestFullPath -Raw | ConvertFrom-Json
+$expectedOwner = [string]$manifest.deployer
+$judge = [string]$manifest.contracts.IncidentJudgeV1.address
+$kernel = [string]$manifest.contracts.AssuranceKernel.address
+$target = [string]$manifest.contracts.ReferenceAgentProtocol.address
+$targetId = [string]$manifest.targetId
+if ($manifest.policy.status -ne 'active' -or [string]::IsNullOrWhiteSpace($expectedOwner) -or
+    [string]::IsNullOrWhiteSpace($judge) -or [string]::IsNullOrWhiteSpace($kernel) -or
+    [string]::IsNullOrWhiteSpace($target) -or [string]::IsNullOrWhiteSpace($targetId)) {
+    throw "Refusing to prepare an incident from an incomplete or inactive deployment manifest: $ManifestPath"
+}
 $script:LastStudioDevCommandStart = [DateTimeOffset]::MinValue
 $rpcThrottlePath = Join-Path $PSScriptRoot 'studio-dev-rpc-throttle.mjs'
 $rpcThrottleUrl = ([System.Uri]$rpcThrottlePath).AbsoluteUri
@@ -61,7 +73,7 @@ if ($deployerResult.ExitCode -ne 0 -or $deployerInfo -notmatch [regex]::Escape($
 # The Node preparer is read-only: it checks live deployment/policy/registry/target state, fetches
 # the immutable fixture, reads the nonce, builds the EAP, and asks the pinned SDK for the nested
 # fee allocations. Do not proceed if any check or simulation fails.
-$preparedResult = Invoke-StudioDevCommand -Executable 'node' -Arguments @((Join-Path $PSScriptRoot 'r1-final-run-a-incident-prepare.mjs'))
+$preparedResult = Invoke-StudioDevCommand -Executable 'node' -Arguments @((Join-Path $PSScriptRoot 'r1-final-run-a-incident-prepare.mjs'), $ManifestPath)
 $preparedLines = $preparedResult.Output
 if ($preparedResult.ExitCode -ne 0) {
     throw "Incident preparation or fee estimation failed; no report was submitted."
@@ -72,7 +84,9 @@ try { $prepared = $preparedJson | ConvertFrom-Json } catch {
 }
 if ($prepared.schema -ne 'reclose-e1-run-a-incident-prepared-v1' -or
     $prepared.network.chainId -ne 61997 -or
+    $prepared.deployment.kernel -ne $kernel -or
     $prepared.deployment.judge -ne $judge -or
+    $prepared.deployment.target -ne $target -or
     $prepared.deployment.targetId -ne $targetId -or
     $prepared.reporter -ne $expectedOwner -or
     $prepared.policy.active -ne $true -or
