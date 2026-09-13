@@ -41,3 +41,8 @@ Thumbs.db
 # local scratch (never commit ad-hoc local test scaffolding)
 /scratch/
 /tmp/
+
+# Ephemeral live-write fee/arg scratch files produced by scripts/*-retest*.mjs helpers - real
+# transaction evidence belongs in deployment/*/r*-manifest.json, not these transient dumps.
+.a2-c01-retest-*.json
+.r1r-*.json

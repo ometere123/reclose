@@ -252,3 +252,74 @@ pipeline behind it:
 These two remaining items are the honest gap before this remediation round is fully closed; they
 do not block E1 (which exercises the incident/decision/action path, not the policy-construction UI
 state machine) but should be picked up before final A3/A4 packet freeze.
+
+**Update (2026-09-13):** both remaining items above were closed in commit `84f73bd`: real
+top-level Evidence/Recovery-queue/Integrations nav surfaces (sourced from real SDK reads, with
+honest "not determinable from the browser" copy where genuine browser-side introspection isn't
+possible - no fabricated green checkmarks), and a real GenLayerJS-client-backed
+`trackTransaction` in `genlayerWriter.js` used directly by the policy-construction journey's
+step-advancement logic, gated on real lifecycle-final + `FINISHED_WITH_RETURN` + protocol
+readback rather than only the optional host-injected tracking hook. 66/66 frontend-remediation
+tests passing.
+
+## Fresh R1R deployment (2026-09-13) - required to exercise the new additive Kernel/Judge views live
+
+The two additive contract views landed in this remediation round (`4770d5c`'s
+`get_policy_lifecycle`, `20674c2`'s recovery-lineage views) did not exist on the deployment
+`r1-manifest.json` describes. A fresh deployment (`deployment/61997/r1r-manifest.json`) was
+carried out on Studio-dev using the funded, unlocked `reclose-deployer` CLI keystore signer
+(never a raw private key) to exercise them live. `r1-manifest.json` is preserved unchanged as
+history; this is an additional generation, not a replacement, using a new target id
+(`reclose-target-004`) and policy key (`policy-r1-005`) to avoid registration ambiguity, per this
+repo's own established pattern.
+
+**Real, honest outcome (full detail in `r1r-manifest.json`):**
+
+- All five remaining R1 contracts deployed successfully (`FINISHED_WITH_RETURN`/`ACCEPTED`):
+  ProviderStubB, AssuranceKernel(1,60), ReferenceAgentProtocol, IncidentJudgeV1, IncentiveVault.
+  ProviderStubA was reused from a prior session's cleanest capture after independently verifying
+  it live via `get_owner` (see `r1r-manifest.json`'s `priorAttemptNote` for the honest history of
+  an earlier accidental triple-deploy of that one contract, self-caught and not compounded).
+  Two real deploy attempts failed honestly first with genuine, diagnosed errors before succeeding
+  (ReferenceAgentProtocol's real 7-arg constructor was initially assumed to be zero-arg;
+  IncidentJudgeV1's `source_registry_json` constructor arg needs the file's actual JSON content,
+  not its path) - both documented in `r1r-manifest.json` with the exact failing tx hashes.
+- All three wiring calls (`Judge.set_vault`, `Protocol.set_assurance_controller`,
+  `Kernel.register_target`) succeeded and were independently verified via read-backs.
+- The canonical policy (`policy-r1-005`) was compiled via `@reclose/policy-compiler`,
+  constructed on-chain across all 11 real transactions (begin/resources/rules/effects/seal), and
+  a REAL wall-clock wait was performed for the genuine 60-second expansion timelock (not
+  skipped/faked) before activation. `get_policy_lifecycle` was read live before seal, after seal,
+  and after activation, showing real distinct on-chain values at each stage - this is the first
+  live proof that this new view works end-to-end. A CLI-side quirk was found and diagnosed: the
+  method-specific `genlayer estimate-fees` simulation for `activate_policy` evaluated the
+  timelock against a stale/replayed block timestamp and kept rejecting with
+  `E_KRN_007: TIMELOCK_NOT_ELAPSED` even ~130s after the real timelock had genuinely elapsed;
+  submitting the write directly with the network's baseline fee (bypassing that stale
+  method-specific simulation) succeeded immediately. This is a tooling quirk in the fee-estimation
+  path, not a Kernel logic bug - the Kernel's own timelock enforcement is real and was observed
+  correctly rejecting the too-early attempt.
+- A real end-to-end incident was submitted and reached `FINISHED_WITH_RETURN` at all three hops
+  (Judge -> Kernel -> Target), proving A2-C01's nested-allocation fix (`eae5e01`) generalizes to a
+  fresh deployment, not just the one it was originally verified against. The outcome was
+  UNDETERMINED/INSUFFICIENT_EVIDENCE (single-source evidence) - the same outcome class as this
+  repo's own prior canonical live proof (`r1-manifest.json`'s `zeroBondReport_UNDETERMINED`), so
+  this is a consistent, honest result.
+- **Honest remaining gap:** a live remediation-child submission (to prove the new
+  `get_incident_parent`/`get_parent_child_count`/`get_parent_child_at` views against a real
+  parent->child relationship, not just Python unit tests) was correctly rejected by the Kernel
+  with `E_KRN_017: PARENT_NOT_REMEDIATION_ELIGIBLE`, because the test incident's real Judge
+  outcome was UNDETERMINED rather than CONFIRMED - a remediation report is only valid against a
+  CONFIRMED parent, and this rejection is itself correct protocol behavior, not a bug. A second
+  attempt with two corroborating evidence sources to try to reach CONFIRMED failed with an
+  undiagnosed evidence-validation exception. Rather than keep iterating on evidence content to
+  engineer a favorable Judge outcome - which would risk exactly the benchmark-tuning CLAUDE.md
+  Section 37 prohibits - this was stopped and reported honestly. The zero-children/empty-parent
+  case for a plain root incident WAS verified live (`get_parent_child_count` = 0,
+  `get_incident_parent` = `""`). The parent->child success path itself remains proven only by
+  Python unit tests (`20674c2`), not live on-chain evidence - a genuine open item for a future
+  session, not claimed closed here.
+
+`npm run verify:js` passes in full on this state. No contract source was modified in this
+deployment pass (deploy-only). Full transaction-by-transaction evidence is in
+`deployment/61997/r1r-manifest.json`.

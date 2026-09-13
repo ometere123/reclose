@@ -1,0 +1,169 @@
+{
+  "schema": "reclose-deployment-manifest-v1",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "deployer": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+  "note": "Fresh R1 redeploy (R1R) to pick up two additive, non-breaking Kernel/Judge read views landed in the owner-directed post-A2-C01 remediation round: AssuranceKernel.get_policy_lifecycle + target-incident enumeration (commit 4770d5c), and IncidentJudgeV1's recovery-lineage views + parent-child reverse index (commit 20674c2). The prior R1 addresses (deployment/61997/r1-manifest.json, target reclose-target-003, policy-r1-004) remain valid history and are NOT superseded in place - this is a distinct, additional deployment generation using a new target_id (reclose-target-004) and policy key (policy-r1-005) to avoid any registration ambiguity, per this repo's established pattern (see r1-manifest.json's own note about c2-manifest.json's target_id bump for the same reason). All contract source for the six R1 contracts is otherwise unchanged since r1-manifest.json (contracts:lint clean on all six; tests/kernel/test_authority.py and tests/judge/test_incident_judge_v1.py pass in CI - local pytest run hit the known pre-existing Windows gltest PermissionError:[WinError 32] issue, confirmed environmental via a direct traceback check and cross-verified green in CI for the exact same test files).",
+  "priorAttemptNote": "An earlier attempt at this exact deployment accidentally re-ran the ProviderStubA deploy command three times due to an execution slip (not a script bug), producing three real signed devnet transactions (test GEN, no monetary harm) instead of one, and losing track of one resulting address. That attempt honestly self-halted rather than compound the mistake. This deployment resumed carefully: the last cleanly-captured ProviderStubA address (0x17fb724D936c930f6e42C92283cF51dB661e97f5, tx 0xabbec8f684bc645a26dca64b1acdec37d3b55bd26abfb6e950104f734527409c) was independently verified live via a real read call (get_owner returned the deployer address) before being trusted as canonical - it was NOT redeployed a fourth time.",
+  "contracts": {
+    "ProviderStubA": {
+      "address": "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
+      "txHash": "0xabbec8f684bc645a26dca64b1acdec37d3b55bd26abfb6e950104f734527409c",
+      "note": "Reused from the prior session's cleanest capture (see priorAttemptNote), independently verified live via get_owner before use, not redeployed."
+    },
+    "ProviderStubB": {
+      "address": "0x4CD612D701902355836bC3C182eac724B1487A4f",
+      "txHash": "0x3edb38626fb5f50dbd8f3c66fe7aab15e90c78eae66d9cb773f6bf876003cbe9",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "consensusStatus": "ACCEPTED"
+    },
+    "AssuranceKernel": {
+      "address": "0x056E745A74ABf2A31CbC0796eECE0431Bc5C8c71",
+      "txHash": "0x6b4661c88f75a786a8c93aaa7c353076a44f7480eab0e1ccc9e24bc24b5b37e5",
+      "constructorArgs": [1, 60],
+      "executionResult": "FINISHED_WITH_RETURN",
+      "consensusStatus": "ACCEPTED",
+      "note": "First deployment of this Kernel generation to expose get_policy_lifecycle and the target-incident enumeration views (commit 4770d5c)."
+    },
+    "ReferenceAgentProtocol": {
+      "address": "0x6475f071238B0af38b0d36b90c6a621D3baeD52D",
+      "txHash": "0xbcb55232629466292524f4f88cead20d5838b046f81284d4e7cdb18eb9b30bed",
+      "constructorArgs": [
+        "0x24fae7cd031ed702be63bdea8912141805b996bd",
+        "reclose-target-004",
+        "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
+        "0x4CD612D701902355836bC3C182eac724B1487A4f",
+        "1000000000000000000",
+        "100000000000000000",
+        true
+      ],
+      "executionResult": "FINISHED_WITH_RETURN",
+      "consensusStatus": "ACCEPTED",
+      "note": "First deploy attempt (tx 0x85a55031086086fde91f54bc03b78bc4aecaf10cc4caf31457e9782de8512acb) failed with a real TypeError (missing 7 constructor args) because the deployer initially assumed - incorrectly, based on r1-manifest.json's ReferenceAgentProtocol entry omitting a constructorArgs field - that this contract takes zero constructor args. The real signature (contracts/reference_agent_protocol.py __init__) requires authorized_agent/target_id/provider_a/provider_b/per_request_limit/safe_mode_limit/human_override_enabled, confirmed against the C2 manifest's real historical constructorArgs. This second attempt with the correct args succeeded. The failed first attempt's deployed address (0x3816E7a11e720e2Dd2614bC6801688c04298BD52) is dead code (constructor never completed) and is not used anywhere."
+    },
+    "IncidentJudgeV1": {
+      "address": "0xBB79117f59fF62a83bD5961D58818e0D2575487e",
+      "txHash": "0xd042e8cbdb9cf3a4e95e4cd9ac32fd9dcc6275860950b2c944ff337798676f3c",
+      "constructorArgs": [
+        "0x056E745A74ABf2A31CbC0796eECE0431Bc5C8c71",
+        1,
+        "0xee530fbc066a21ada6825573bf57e86c35505c9af713a2c31d0dee41511dede9",
+        "<the real JSON content of config/source-registry-r1.json, unchanged since r1-manifest.json>"
+      ],
+      "executionResult": "FINISHED_WITH_RETURN",
+      "consensusStatus": "ACCEPTED",
+      "note": "First deploy attempt (tx 0xb10a2cd55097ea0bff38acefeac4f9d491199756b3c1803f05aae4b39fabcc67) failed with a real UserError (E_JDG_000: source registry is not valid JSON) because the deployer passed the literal string \"config/source-registry-r1.json\" (a file path) as the source_registry_json constructor arg, matching r1-manifest.json's own (misleadingly path-shaped) constructorArgs entry - the real constructor (contracts/incident_judge_v1.py __init__) requires the raw JSON CONTENT of that file, not its path. This second attempt with the actual file content succeeded. First deployment of this Judge generation to expose the recovery-lineage views + parent-child reverse index (commit 20674c2)."
+    },
+    "IncentiveVault": {
+      "address": "0x38602D7F66B027d46F858357599c6444ff1Bce6B",
+      "txHash": "0x2fafe2400868efb32b245965d18196d6b50316b237ff5493c34607b16a8eb84f",
+      "constructorArgs": [
+        "0x056E745A74ABf2A31CbC0796eECE0431Bc5C8c71",
+        "0xBB79117f59fF62a83bD5961D58818e0D2575487e",
+        1
+      ],
+      "executionResult": "FINISHED_WITH_RETURN",
+      "consensusStatus": "ACCEPTED"
+    }
+  },
+  "wiring": {
+    "IncidentJudgeV1.set_vault": {
+      "args": ["0x38602D7F66B027d46F858357599c6444ff1Bce6B"],
+      "txHash": "0x6487c12f992af0590e2faf4c6fffba7536404c80b4cbbce1cb101b98d60cbcb7",
+      "consensusStatus": "ACCEPTED",
+      "verifiedVia": "IncidentJudgeV1.get_vault() read-back returned the Vault address exactly"
+    },
+    "ReferenceAgentProtocol.set_assurance_controller": {
+      "args": ["0x056E745A74ABf2A31CbC0796eECE0431Bc5C8c71"],
+      "txHash": "0x5d47b85b1b9ec3c51b059337bceed5ed19a1e23169d6e0e11b1803fb815a4862",
+      "consensusStatus": "ACCEPTED",
+      "verifiedVia": "ReferenceAgentProtocol.get_assurance_controller() read-back returned the Kernel address exactly"
+    },
+    "AssuranceKernel.register_target": {
+      "args": ["reclose-target-004", "0x6475f071238B0af38b0d36b90c6a621D3baeD52D", true],
+      "txHash": "0x32a470f9f8e47bcb94f4b15256941b199a28263250871af88840c24380d40f1f",
+      "consensusStatus": "ACCEPTED",
+      "verifiedVia": "AssuranceKernel.get_target_details('reclose-target-004') read-back returned [target_address, owner, state=0, active_policy_key, registered_at, generation, authority_revoked=false, human_override_enabled=true] exactly as expected"
+    }
+  },
+  "policy": {
+    "policyKey": "policy-r1-005",
+    "manifestHash": "0xa9f270f3d28fdbc8f9d14d571450a47387082460c8fe3a97a09532bb1a8927eb",
+    "apmSource": "deployment/61997/apm-r1-005.json",
+    "constructionCalls": [
+      { "step": "begin_policy", "args": ["reclose-target-004", "policy-r1-005", "0xa9f270f3d28fdbc8f9d14d571450a47387082460c8fe3a97a09532bb1a8927eb"], "txHash": "0x7731242fb733af6272d78a5f69b728164d945f51240caaa2eb6dacd35ecd3ef2" },
+      { "step": "add_policy_resource", "args": ["policy-r1-005", "provider_a"], "txHash": "0xfb49af065487bea2bd07354a2e8b8260199a4f238468526ffd2a8f6858092123" },
+      { "step": "add_policy_resource", "args": ["policy-r1-005", "provider_b"], "txHash": "0x26534a03f7aad92b59b1f6f42fc856a4d53538100c5f1e7217b24168709f1709" },
+      { "step": "add_policy_rule", "args": ["policy-r1-005", "PROVIDER_COMPROMISE_V1", "0xBB79117f59fF62a83bD5961D58818e0D2575487e", 1, 1, true, "0", "0"], "txHash": "0x06513ca74846232e69624bb2c7c2afb93f49aab9a4c2e237f7116d42fad9ab5d" },
+      { "step": "add_policy_rule", "args": ["policy-r1-005", "REMEDIATION_CONFIRMED_V1", "0xBB79117f59fF62a83bD5961D58818e0D2575487e", 1, 2, false, "0", "0"], "txHash": "0x360d7ceca2e918b1f0e010c13e04054617f856400f5bd86b3d9722be8c0b56c0" },
+      { "step": "add_policy_rule", "args": ["policy-r1-005", "RECOVERY_VALIDATED_V1", "0xBB79117f59fF62a83bD5961D58818e0D2575487e", 1, 3, false, "0", "0"], "txHash": "0x7e252a5d9153290812246ceff661efdec945436d2f2cea41fccd63bd69db1771" },
+      { "step": "add_policy_effect", "args": ["policy-r1-005", "PROVIDER_COMPROMISE_V1", 3, "provider_a", "0", "", 1], "txHash": "0x9050c21b9d36241c4e3d21ab277b953955eb94147449016185f8e6c72526ebe8" },
+      { "step": "add_policy_effect", "args": ["policy-r1-005", "PROVIDER_COMPROMISE_V1", 7, "", "0", "", 1], "txHash": "0x2e0b5a9769703691a274276db389321bb1cc18a2362bed16c18651acb1b59cf4" },
+      { "step": "add_policy_effect", "args": ["policy-r1-005", "REMEDIATION_CONFIRMED_V1", 9, "", "0", "", 1], "txHash": "0x163ca4b5820c20a4353706b138504ce164ea9bc33d227f256150f1bc01d2d6cf" },
+      { "step": "add_policy_effect", "args": ["policy-r1-005", "RECOVERY_VALIDATED_V1", 10, "", "0", "", 2], "txHash": "0x316ed31b7327e67a10125fe9ac06da2a66bd980ca80c02e01cf216a7f4b6674b" },
+      { "step": "seal_policy", "args": ["policy-r1-005"], "txHash": "0x61ce82feea330eea3d7adb943f93b8e8741c5203edc06d6367b9ebc903b86fa1" }
+    ],
+    "getPolicyLifecycleReadbackAfterSeal": {
+      "targetId": "reclose-target-004", "version": 1, "manifestHash": "0xa9f270f3d28fdbc8f9d14d571450a47387082460c8fe3a97a09532bb1a8927eb",
+      "createdAt": 1789278625, "sealedAt": 1789278945, "activationNotBefore": 1789279005, "activatedAt": 0,
+      "sealed": true, "active": false, "superseded": false
+    },
+    "realTimelockWaitEvidence": {
+      "requiredDelaySeconds": 60,
+      "sealedAt": 1789278945,
+      "activationNotBefore": 1789279005,
+      "note": "A real wall-clock wait was performed (a background shell loop polling `date +%s` until it reached 1789279005), not a fabricated/skipped wait. The first activate_policy attempt still failed on-chain with E_KRN_007 TIMELOCK_NOT_ELAPSED even ~130s after the local wall-clock passed activation_not_before - diagnosed as the CLI's `genlayer estimate-fees` method-specific simulation path evaluating the timelock check against a stale/replayed block timestamp rather than true current chain time. Worked around by submitting `genlayer write` directly with the network's baseline (non-method-specific) fee object, bypassing that stale simulation entirely - the actual on-chain execution used real current time and succeeded. This is a CLI/tooling quirk in the estimate-fees simulation path, not a Kernel logic bug - the Kernel's own timelock enforcement (E_KRN_007) is real, correct, and was observed firing correctly on the too-early attempt."
+    },
+    "activatePolicy": {
+      "args": ["policy-r1-005"],
+      "note": "Activation succeeded via a direct genlayer write call (see realTimelockWaitEvidence) using the network baseline fee. The exact transaction hash was not captured to a log file due to a terminal-output truncation mistake (piped through `tail` before the hash line was saved) - this is an evidence-capture gap, disclosed honestly rather than fabricating a hash. Activation itself is independently and authoritatively verified via TWO separate on-chain reads performed immediately after: get_policy_lifecycle('policy-r1-005') returned activatedAt=1789279350, sealed=true, active=true (see activationReadback below), and get_target_details('reclose-target-004') returned active_policy_key='policy-r1-005', policy_generation=1 - both real reads, not assumptions."
+    },
+    "activationReadback": {
+      "targetId": "reclose-target-004", "version": 1, "manifestHash": "0xa9f270f3d28fdbc8f9d14d571450a47387082460c8fe3a97a09532bb1a8927eb",
+      "createdAt": 1789278625, "sealedAt": 1789278945, "activationNotBefore": 1789279005, "activatedAt": 1789279350,
+      "sealed": true, "active": true, "superseded": false
+    },
+    "targetDetailsAfterActivation": {
+      "targetAddress": "0x6475f071238b0af38b0d36b90c6a621d3baed52d",
+      "owner": "0x24fae7cd031ed702be63bdea8912141805b996bd",
+      "state": 0,
+      "activePolicyKey": "policy-r1-005",
+      "registeredAt": 1789278406,
+      "policyGeneration": 1,
+      "authorityRevoked": false,
+      "humanOverrideEnabled": true
+    }
+  },
+  "targetId": "reclose-target-004",
+  "liveProofs": {
+    "incident1_UNDETERMINED": {
+      "judgeTxHash": "0x766bd8a8c84b3d38a1c66e3ad036e0d14bea30ebb3bb4e999e8d52d9466ed588",
+      "kernelChildTxHash": "0x54394c70f783135078a1bf866657970bf315b41ba9e0d588459b75a281024c88",
+      "targetChildTxHash": "0xa82029c2f7e9c0656d005ecb210d3cba32a2f642477179a78d185aee588cf412",
+      "incidentId": "reclose-target-004:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0",
+      "judgeExecutionResult": "FINISHED_WITH_RETURN",
+      "kernelChildExecutionResult": "FINISHED_WITH_RETURN",
+      "targetChildExecutionResult": "FINISHED_WITH_RETURN",
+      "outcome": 3,
+      "outcomeDecoded": "UNDETERMINED",
+      "conditionCode": "INSUFFICIENT_EVIDENCE",
+      "targetStateAfter": 1,
+      "targetStateAfterDecoded": "MONITORED",
+      "note": "Real end-to-end Judge->Kernel->Target proof using the nested message-allocation-tree fix (commit eae5e01, packages/protocol-sdk/src/feeAllocation.ts). All three hops reached FINISHED_WITH_RETURN. The submitted evidence was single-source (INDEPENDENT_PUBLIC), and the Judge's real LLM judgment returned UNDETERMINED/INSUFFICIENT_EVIDENCE - the same outcome class as this repo's own prior canonical live proof on the r1-manifest.json deployment (see that manifest's liveProofs.zeroBondReport_UNDETERMINED), so this is a consistent, honest result, not an anomaly. This proves A2-C01's fix generalizes to a fresh deployment, not just the specific contracts it was originally verified against."
+    },
+    "remediationLineageAttempt_HONESTLY_BLOCKED": {
+      "attemptedTxRejectedBeforeSubmission": true,
+      "estimationErrorCode": "E_KRN_017: PARENT_NOT_REMEDIATION_ELIGIBLE",
+      "note": "Attempted to submit a REMEDIATION_CONFIRMED_V1 report against incident1 (above) to live-verify the new get_incident_parent/get_parent_child_count/get_parent_child_at views end-to-end with a real parent->child relationship. The Kernel correctly rejected this at the simulation stage (contracts/assurance_kernel.py line ~743: remediation requires the parent incident's status == INCIDENT_STATUS_FINAL_CONFIRMED) because incident1 resolved UNDETERMINED, not CONFIRMED - this is CORRECT protocol behavior, not a bug, and is itself valid live evidence that the E_KRN_017 guard works. A second incident submission with two corroborating sources (INDEPENDENT_PUBLIC + CONTENT_ADDRESSED_SNAPSHOT) was attempted to try to reach a genuine CONFIRMED outcome, but failed with a real 'exit_code 1' Python exception during EAP/source validation (root cause not diagnosed - likely a source-fetch/URL-validation issue with the second source's URL) rather than a judgment result. Rather than keep iterating on evidence content to engineer a favorable Judge outcome - which would risk exactly the kind of benchmark-tuning CLAUDE.md Section 37 prohibits ('do not tune examples solely to make the benchmark look perfect') - this was stopped honestly. The parent-child STORAGE and READ logic itself (get_incident_parent etc.) is separately proven correct by real Python unit tests in tests/judge/test_incident_judge_v1.py (commit 20674c2), building an actual root+remediation-child pair in-process and asserting every new view against both records. What remains genuinely unverified is the live on-chain success path for a CONFIRMED-parent remediation submission specifically - an honest gap, not fabricated as closed."
+    }
+  },
+  "additiveViewsLiveVerification": {
+    "get_policy_lifecycle": {
+      "verified": true,
+      "evidence": "Called live against policy-r1-005 both before seal (all-zero/unsealed fields) and after seal/activation (see policy.getPolicyLifecycleReadbackAfterSeal and policy.activationReadback above) - real distinct on-chain values at each stage, not a static/fabricated response."
+    },
+    "get_incident_parent / get_parent_child_count / get_parent_child_at": {
+      "verified": "partially - live-confirmed for the root-incident/zero-children case (get_incident_parent('reclose-target-004:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0') returned '', get_parent_child_count on the same incident returned 0, both real reads against the fresh deployment); the actual parent->child SUCCESS path (a real remediation child linked to a CONFIRMED parent, then read back via get_incident_parent/get_parent_child_at) was not reached live this session - structural correctness of that path is proven only by Python unit tests (commit 20674c2), not live on-chain evidence. See remediationLineageAttempt_HONESTLY_BLOCKED above for exactly why."
+    }
+  }
+}
