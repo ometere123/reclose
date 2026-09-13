@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { MESSAGE_ALLOCATION_ROOT_PARENT_INDEX, MessageType, deriveInternalMessageCallKey } from "genlayer-js";
+import { MESSAGE_ALLOCATION_ROOT_PARENT_INDEX, MessageType, deriveInternalMessageCallKey, encodeInternalMessageFeeParams } from "genlayer-js";
 import { kernelDecisionEntrypointForPhase } from "../packages/protocol-sdk/dist/feeAllocation.js";
 import { assertAllocationPhase, buildRepeatedInternalAllocation, composeJudgeKernelTargetBranches, estimateRepeatedTargetAllocation } from "./studio-dev-fee-allocation.mjs";
 
@@ -52,7 +52,7 @@ async function main() {
     assert.throws(() => assertAllocationPhase(accepted, false), /phase mismatch/);
   });
 
-  await test("two accepted emissions to the same Target method use one allocation with a cumulative budget", async () => {
+  await test("higher common Target profile simulates both accepted emissions and uses one cumulative allocation", async () => {
     const actions = [
       { address: TARGET, functionName: "apply_assurance_action", args: ["restrict"], value: 0n },
       { address: TARGET, functionName: "apply_assurance_action", args: ["safe-mode"], value: 0n },
@@ -62,9 +62,12 @@ async function main() {
     const repeated = await estimateRepeatedTargetAllocation({
       client: { estimateTransactionFeesForWrite: async (call) => {
         simulatedCalls.push(call);
-        assert.equal(call.executionConsumed, undefined);
-        assert.equal(call.totalMessageFees, undefined);
-        return toEstimate(call.executionBudgetPerRound === 120n ? 17n : 19n, call.executionBudgetPerRound);
+        assert.equal(call.executionBudgetPerRound, 120n);
+        assert.equal(call.executionConsumed, 6n);
+        assert.equal(call.totalMessageFees, 7n);
+        // Model Studio returning per-action recommendations even though both
+        // successful simulations were submitted with the same higher input profile.
+        return toEstimate(17n, simulatedCalls.length === 1 ? 120n : 90n);
       } },
       actions,
       initialEstimates: initial,
@@ -83,6 +86,8 @@ async function main() {
     assert.equal(simulatedCalls.length, 2);
     assert.ok(simulatedCalls.every((call) => call.executionBudgetPerRound === 120n));
     assert.equal(new Set(repeated.feeParamsByValidatedEmission).size, 1);
+    assert.equal(repeated.allocation.feeParams, encodeInternalMessageFeeParams(initial[0].distribution));
+    assert.equal(new Set(repeated.recommendedFeeParamsByValidation).size, 2);
   });
 
   await test("different fee distribution fields other than execution budget stop common-profile simulation", async () => {

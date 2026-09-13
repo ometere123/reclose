@@ -1343,7 +1343,7 @@
   ],
   "finalManifestNote": "Corrected lifecycle-specific Kernel/Judge generation. This is the active Run A deployment; Run B will have an independent generation and deployment manifest.",
   "e1RunA": {
-    "status": "awaiting-fresh-target-treasury-funding",
+    "status": "awaiting-explicit-fee-preflight-upstream-limitation",
     "initialReadbacks": {
       "observedAt": "2026-09-13T22:37:09.652Z",
       "network": "studio-dev",
@@ -1373,6 +1373,14 @@
     "requiredFundingGen": "0.20",
     "fundingMethod": "payable fund_treasury() via injected wallet; pinned GenLayer CLI write path cannot set caller value",
     "fundingTxHash": null,
+    "fundingTxHashUnavailableReason": "The user-provided console screenshot displayed a truncated transaction ID; no hash is inferred.",
+    "fundingReadback": {
+      "evidencePath": "release-evidence/r1/diagnostics/run-a-treasury-readback.json",
+      "treasuryBalanceWei": "200000000000000000",
+      "treasuryBalanceGen": "0.2",
+      "observedAt": "2026-09-13T23:50:04.598Z"
+    },
+    "feePreflightEvidencePath": "release-evidence/r1/diagnostics/accepted-message-repro/simulation-results.json",
     "incidentSubmitted": false,
     "reporterNonce": null
   }

@@ -273,7 +273,7 @@ async function main() {
       onAcceptance,
       rootParentIndex: MESSAGE_ALLOCATION_ROOT_PARENT_INDEX,
     });
-    console.error(`Repeated ${onAcceptance ? "accepted" : "finalized"} Target calls all simulated with the estimator-produced common profile: ${JSON.stringify(jsonSafe({ commonDistribution: repeated.commonDistribution, feeParamsByValidatedEmission: repeated.feeParamsByValidatedEmission, feeValues: repeated.feeValues, allocation: repeated.allocation }), null, 2)}`);
+    console.error(`Repeated ${onAcceptance ? "accepted" : "finalized"} Target calls simulated using one estimator-produced common input profile: ${JSON.stringify(jsonSafe({ commonDistribution: repeated.commonDistribution, commonPreset: repeated.commonPreset, commonFeeParams: repeated.commonFeeParams, feeParamsByValidatedEmission: repeated.feeParamsByValidatedEmission, recommendedFeeParamsByValidation: repeated.recommendedFeeParamsByValidation, validatedEstimates: repeated.validatedEstimates.map((estimate) => ({ feeValue: estimate.feeValue, recommendedDistribution: estimate.distribution, observed: estimate.observed })), feeValues: repeated.feeValues, allocation: repeated.allocation }), null, 2)}`);
 
     const kernelFunctionName = kernelDecisionEntrypointForPhase(onAcceptance);
     console.error(`Estimating Kernel ${kernelFunctionName} (${onAcceptance ? "provisional" : "final"}) with one explicit phase-matched Target allocation.`);

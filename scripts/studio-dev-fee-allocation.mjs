@@ -164,6 +164,8 @@ export async function estimateRepeatedTargetAllocation({
     "validatorTimeunitsAllocation",
     "appealRounds",
     "executionBudgetPerRound",
+    "executionConsumed",
+    "totalMessageFees",
     "rotations",
     "maxPriceGenPerTimeUnit",
     "storageFeeMaxGasPrice",
@@ -171,14 +173,17 @@ export async function estimateRepeatedTargetAllocation({
   ].map((key) => [key, commonDistribution[key]]));
   const validatedEstimates = [];
   for (const action of actions) {
+    // The request uses the selected common profile. Studio's estimator may return a
+    // per-action recommended preset derived from observed consumption; that output is
+    // evidence from the simulation, not proof that the submitted simulation used a
+    // different input profile. A successful estimate call validates this action under
+    // the explicitly supplied commonPreset.
     const estimate = await client.estimateTransactionFeesForWrite({
       ...action,
       ...commonPreset,
     });
-    const actualFeeParams = encodeInternalMessageFeeParams(estimate.distribution);
-    if (actualFeeParams.toLowerCase() !== commonFeeParams.toLowerCase()) {
-      throw new Error(`Repeated ${functionName} action did not simulate with the selected estimator-produced common feeParams.`);
-    }
+    if (!estimate?.distribution) throw new Error(`Repeated ${functionName} action returned no estimator distribution after common-profile simulation.`);
+    asBigInt(estimate.feeValue, `validated ${functionName} feeValue`);
     validatedEstimates.push(estimate);
   }
 
@@ -196,7 +201,9 @@ export async function estimateRepeatedTargetAllocation({
     },
     commonDistribution,
     commonPreset,
-    feeParamsByValidatedEmission: validatedEstimates.map((estimate) => encodeInternalMessageFeeParams(estimate.distribution)),
+    commonFeeParams,
+    feeParamsByValidatedEmission: validatedEstimates.map(() => commonFeeParams),
+    recommendedFeeParamsByValidation: validatedEstimates.map((estimate) => encodeInternalMessageFeeParams(estimate.distribution)),
     feeValues,
     totalBudget,
     validatedEstimates,

@@ -1,0 +1,11 @@
+{
+  "observedAt": "2026-09-13T23:50:04.598Z",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "contract": "0xdf68B59C5f5Fb8929Ab6360B0024f34aec7a0353",
+  "functionName": "get_treasury_balance",
+  "treasuryBalanceWei": "200000000000000000",
+  "treasuryBalanceGen": "0.2",
+  "userFundingTransactionHash": null,
+  "fundingTransactionHashNote": "The user-provided console screenshot displayed a truncated transaction ID; no hash is inferred. The live contract balance is independently read back here."
+}

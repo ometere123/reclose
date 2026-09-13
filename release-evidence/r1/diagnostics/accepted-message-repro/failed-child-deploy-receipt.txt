@@ -1,0 +1,19 @@
+
+Result:
+{
+  stdout: '',
+  stderr: 'Traceback (most recent call last):\n' +
+    '  File "/py/libs/_genlayer_bootloader.py", line 162, in <module>\n' +
+    '    _handle_main()\n' +
+    '    ~~~~~~~~~~~~^^\n' +
+    '  File "/py/libs/_genlayer_bootloader.py", line 156, in _handle_main\n' +
+    '    _give_result(functools.partial(meth2call, contract_instance, *args, **kwargs))\n' +
+    '    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n' +
+    '  File "/py/libs/_genlayer_bootloader.py", line 61, in _give_result\n' +
+    '    res = res_fn()\n' +
+    "TypeError: AcceptedMessageReproParent.__init__() missing 1 required positional argument: 'child'\n"
+}
+
+[genlayer-js] initializeConsensusSmartContract() is deprecated and will be removed in a future release. The consensus contract is now resolved from the static chain definition.
+- Waiting for transaction receipt 0xf0ebb48a4ff0116c31b5cc1da48386f6dfe058222411da64fec25d582956109f (finalized)...
+√ Transaction stdout and stderr

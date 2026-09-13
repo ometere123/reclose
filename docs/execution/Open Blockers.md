@@ -134,7 +134,7 @@ Closed by the real user-authorized payable transfer. Transaction `0x89f42b16fea6
 
 Closed by the owner-signed initial purchase. Parent transaction `0x1414c3021e901bc7400521c07be271f16bcf19faa81cb19e723013a40db59550` and Provider A child `0x77708bab52d63943ffc867c24d6a7fe22e685e02fbd85f1865af74cecd673a2a` are both FINALIZED / FINISHED_WITH_RETURN. Provider A fulfilled the request and received 0.05 GEN; its total increased from 1.00 to 1.05 GEN; ReferenceAgent treasury reads 0.15 GEN and Provider A remains selected.
 
-## OB-012 - Explicit lifecycle-split E1 fee preflight pending treasury funding [OPEN]
+## OB-012 - E1 Run A explicit fee preflight [CLOSED - superseded by OB-014]
 
 **Opened:** 2026-09-13
 **Phase:** E1 Run A
@@ -145,20 +145,30 @@ Closed by the owner-signed initial purchase. Parent transaction `0x1414c3021e901
 
 The former accepted/finalized Kernel call-key collision is fixed in source and present in this newly deployed stack. The Judge now emits accepted messages to `receive_provisional_decision` and finalized messages to `receive_final_decision`. Repeated same-key Target effects use one cumulative allocation only after both occurrences simulate under the same estimator-produced fee profile. The Studio tagged fee source rules and regression coverage are documented in `release-evidence/r1/e1/studio-fee-semantics-verification.json` and the protocol commit. Do not repeat the superseded open-bucket preflight.
 
-The complete Run A deployment, wiring, policy construction, item readbacks, timelock and activation are verified in `deployment/61997/r1-lifecycle-split-run-a-working-manifest.json`. The new target reads NORMAL with Provider A selected; new Provider A/B owners are correct and both balances are zero. The target treasury reads zero. No Run A purchase, Reporter nonce read or incident submission has occurred on this generation.
+The complete Run A deployment, wiring, policy construction, item readbacks, timelock and activation are verified in `deployment/61997/r1-lifecycle-split-run-a-working-manifest.json`. The user funded the target; a fresh balance read returned 0.20 GEN. No incident submission or Reporter nonce read has occurred on this generation. See OB-014 for the proven accepted-message simulation limitation.
 
-**Human action required:** use the injected wallet on Studio-dev / chain 61997 to call payable `fund_treasury()` on `0xdf68B59C5f5Fb8929Ab6360B0024f34aec7a0353` with `0.20 GEN`. The pinned GenLayer CLI cannot set payable caller value. Return the transaction ID. Verify FINALIZED / FINISHED_WITH_RETURN and treasury balance before proceeding.
+**Funding closed:** the live treasury balance is `200000000000000000` wei. The screenshot transaction ID was truncated; see `release-evidence/r1/diagnostics/run-a-treasury-readback.json`. No hash is inferred.
 
-**Exact resume:** update the manifest with the funding transaction and live treasury readback. Then run the throttled read-only preflight: `node scripts/r1-final-run-a-incident-prepare.mjs deployment/61997/r1-lifecycle-split-run-a-working-manifest.json`. Its complete Judge→Kernel→Target estimate must pass with explicit accepted and finalized branches and produce the full SDK fee preset. If it fails, preserve the exact simulation error/response and stop before any incident write. If it passes, continue the canonical Run A sequence through `scripts/studio-dev-run-a-incident.ps1` with this manifest; verify every parent/child execution and post-state. Reporter nonce must be read immediately before report construction/signing.
+**Resolution:** the throttled read-only preflight was run and all checks through child-profile simulation passed. The accepted Kernel estimate failed with `SystemError: 2: inval`; the independent minimal reproduction confirms this is a current Studio-dev accepted-message simulation limitation. No incident write was submitted. Track the platform blocker under OB-014; do not rerun the same preflight until supported platform behavior changes.
 
-Old accepted-stage diagnostics remain preserved as historical evidence in `release-evidence/r1/e1/incident-fee-preflight-failure.json` and `accepted-target-fee-allocation-mismatch.json`; they are superseded by the lifecycle-split correction and do not establish an external platform block.
+The earlier shared-call-key diagnostics are historical; the lifecycle-specific call-key correction remains deployed and tested. The new minimal evidence that establishes OB-014 is at `release-evidence/r1/diagnostics/accepted-message-repro/`.
 
-### OB-013 - Fresh Run A target treasury needs wallet funding [OPEN / HUMAN ACTION]
+### OB-013 - Fresh Run A target treasury needs wallet funding [CLOSED]
 
-The new isolated Run A ReferenceAgent starts with zero treasury. Fund `0.20 GEN` through its payable `fund_treasury()` entrypoint as described above. CLI writes cannot attach caller value. Do not fund the superseded target-006 generation for this Run A.
+The new isolated Run A ReferenceAgent was funded with 0.20 GEN; the exact live readback is `release-evidence/r1/diagnostics/run-a-treasury-readback.json`. The screenshot tx hash was truncated and is intentionally unavailable.
 
 ## Current critical path
 
-`Run A target funding -> explicit read-only fee preflight -> Run A purchase/incident/recovery/trace -> independent Run B deployment and full run -> H1 -> A3/A4 -> requirements/threat reconciliation -> final docs/package -> fresh candidate verification`
+`Run A explicit accepted-message simulation supported by Studio -> Run A incident/recovery/trace -> independent Run B full run -> H1 -> A3/A4 -> requirements/threat reconciliation -> final docs/package -> fresh candidate verification`
 
 No blocker authorizes weakening policy, fee-allocation, evidence-authority, or lifecycle semantics.
+
+## 2026-09-14 correction: Run A funding verified; accepted-message simulator limitation reproduced
+
+This addendum supersedes the earlier OB-012/OB-013 funding instructions above. The new Run A treasury is funded: a serialized live read returned 0.20 GEN for ReferenceAgent `0xdf68B59C5f5Fb8929Ab6360B0024f34aec7a0353` on chain 61997. The transaction ID visible in the user's screenshot was truncated, so no transaction hash is recorded or inferred. Readback: `release-evidence/r1/diagnostics/run-a-treasury-readback.json`. Funding is no longer a human blocker.
+
+**OB-014 — Studio-dev accepted internal-message fee simulation limitation [OPEN / UPSTREAM].** The explicit lifecycle-split Run A preflight passed deployment, active policy, registry, immutable fixture authority, target/provider state, treasury and common estimator-produced profiles for both repeated provisional Target actions. The provisional Kernel emission then failed read-only simulation with `SystemError: 2: inval` at `wasi.gl_call`.
+
+A disposable Parent→Child `noop()` reproduction uses the Child's real SDK fee estimate and a correctly encoded explicit mode-2 allocation. The accepted emitter fails with the same `SystemError: 2: inval`; the otherwise matching finalized emitter succeeds and reads back the supplied allocation. Evidence, complete redacted responses, successful deploy/readback transactions, and exact source are in `release-evidence/r1/diagnostics/accepted-message-repro/`. This isolates the limitation from Reclose policy semantics. The displayed Studio version is `v0.123.0-rc.6`; the exact backend SHA is not exposed.
+
+No Run A incident transaction or Reporter nonce exists. Do not repeat the same accepted simulation, guess fee values, or submit an incident. E1 A/B and H1 remain pending until Studio-dev can simulate the explicitly allocated accepted message or a supported platform release resolves the failure. Continue independent release work, clearly label E1/H1 as blocked/not run, and do not treat those states as passing. Both deployment manifests record the treasury readback and reproduction. The previous OB-012/OB-013 funding directions are closed by the readback.
