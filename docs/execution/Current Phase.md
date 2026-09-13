@@ -204,3 +204,51 @@ Unchanged - not attempted, per FINAL_REMEDIATION.md Section 17's explicit sequen
    should be captured before declaring E1 fully satisfied), H1 live scenarios, A4, and R1/S1
    closure - in that order, and still gated on the owner's/an independent reviewer's decision on A3
    attempt 2 above.
+
+## Owner-directed post-A2-C01 remediation round (2026-09-13) - status: AWAITING EXTERNAL REVIEW — OWNER EXECUTION OVERRIDE
+
+Following A2-C01's live closure, the repository owner directed one further remediation round in
+live chat (not an external audit finding) covering thirteen previously-identified source gaps.
+Worked across several commits (`79e7461`, `4770d5c`, `20674c2`, `bba126c`, `23626d5`, `3ff474e`,
+`662df69`, `4d3c91e`, `2d21f06`), all green on exact-target CI. Honest per-item status - nothing
+below is marked done merely because a function or screen exists without a verified, tested
+pipeline behind it:
+
+**Done, tested, verified:**
+1. Bond-ID collision fix - deterministic Keccak-256 identity, regression-tested against
+   long/near-colliding target IDs (`79e7461`).
+2. Additive Kernel `get_policy_lifecycle` + target-incident enumeration views, Python-tested
+   (`4770d5c`); now wired end-to-end into a real chain-derived activation-timelock countdown in
+   the frontend policy journey (`4d3c91e`), also reachable via `reclose policy verify-readback`
+   (`2d21f06`).
+3. Additive Judge recovery-lineage views + parent-child reverse index, Python-tested (`20674c2`);
+   now wired into `protocol-sdk::getIncidentLineage` and used authoritatively in the Recovery UI
+   to gate recovery-validation behind a genuinely CONFIRMED remediation child (`4d3c91e`).
+4. Durable file-based Sentinel state store, with real restart/resume/no-duplicate-submission
+   tests (`bba126c`).
+5. Complete fee-data (`distribution`/`messageAllocations`/`feeValue`) preservation from SDK
+   estimate through to `writeContract`, payable calls estimated at real value, bond-gating
+   generalized to incident+recovery reports, policy writes bound to the live (not cached) owner,
+   unconditional registration pre-sign handshake, additive tri-state provider-availability helper
+   (`23626d5`, `3ff474e`, `662df69` - 59/59 tests).
+6. Remediation is a real, distinct on-chain entrypoint (`submit_remediation` /
+   `REMEDIATION_CONFIRMED_V1`, confirmed at `contracts/incident_judge_v1.py:752` - it already
+   existed and was simply never wired). `buildRemediationReport` added to protocol-sdk, a
+   separate Remediation form added to the Recovery UI, and `reclose remediation prepare` added
+   to the CLI (`4d3c91e`, `2d21f06`).
+7. CLI completeness: added `policy verify-readback`, `remediation prepare`, and a real
+   `sentinel run` (genlayer-CLI-keystore-backed ReporterClient, never custodies a key itself);
+   documented why `*/report` write commands and `benchmark run` are deliberately not separate CLI
+   surface (`2d21f06`).
+
+**Not attempted this round (honest, not fabricated):**
+- Evidence/Recovery-queue/Integrations as dedicated top-level nav surfaces (Recovery exists as a
+  contextual route with real lineage-backed logic now, but not yet as a global queue view;
+  Evidence and Integrations pages were not built).
+- A real GenLayerJS-client-backed tracker replacing `globalThis.__RECLOSE_PRODUCT_RUNTIME__
+  .trackTransaction` inside the sequential policy-construction journey specifically (the journey's
+  step-advancement logic itself was not touched this round beyond the timing-readback wiring).
+
+These two remaining items are the honest gap before this remediation round is fully closed; they
+do not block E1 (which exercises the incident/decision/action path, not the policy-construction UI
+state machine) but should be picked up before final A3/A4 packet freeze.
