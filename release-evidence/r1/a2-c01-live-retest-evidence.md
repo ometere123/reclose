@@ -172,7 +172,7 @@ This historical failure mode was not re-exercised with the ORIGINAL flat one-lev
 session (this session only tested the NEW nested tree) - it remains the documented baseline this
 fix is trying to improve on.
 
-## What remains for the next pass
+## What remains for the next pass (historical - resolved below)
 
 1. Determine the exact rule the EVM-level envelope acceptance check (`MessageAllocationsNotEqualBudget`)
    and the RPC-level `AllocationTreeBudgetInconsistent` check enforce, ideally by inspecting the
@@ -185,3 +185,137 @@ fix is trying to improve on.
    `ReferenceAgentProtocol.apply_assurance_action` grandchild chain all reach
    `FINISHED_WITH_RETURN`/`execution_result` success and the Kernel's own incident/restriction
    state is confirmed via read-back, per the Master Plan's E1 process.
+
+---
+
+## Pass 2 (2026-09-13, same session continuation): root cause found, fix applied, live-verified
+
+### Root cause
+
+`buildNestedMessageAllocationTree` (and the `buildJudgeKernelTargetAllocationTree` wrapper it
+backs) re-parented each deeper hop's allocation nodes correctly, but never adjusted any node's
+`budget`. Each node's `budget` was left exactly as reported by that node's OWN single-hop
+simulation - which, by construction, has no way to know about messages grafted beneath it. The
+merged tree submitted in Pass 1 was therefore internally inconsistent: the root-level
+Judge->Kernel node declared a budget (`120000000000010352`) that covered only its own cost, while
+the grafted Kernel->Target node beneath it declared its own separate budget
+(`120000000000010352`) - nothing in the tree declared that the first node's execution would need
+to fund the second. This is exactly the shape Studio-dev's on-chain envelope-acceptance check
+rejects as `MessageAllocationsNotEqualBudget`, and exactly what the RPC's own pre-submission
+consistency check rejects as `AllocationTreeBudgetInconsistent` when the same inconsistent tree is
+fed back in for re-estimation.
+
+Confirmed by inspecting the pinned `genlayer-js@2.0.0-rc.1` shipped source
+(`node_modules/genlayer-js/dist/chunk-DQFRJO5T.js`): the on-chain `messageAllocations` tuple array
+and `feesDistribution.totalMessageFees` are both passed straight through to the consensus
+contract's `addTransaction`/fee-envelope logic with no JS-side re-derivation - genlayer-js reports
+Studio-dev's own error strings verbatim; it does not independently validate or explain the budget
+invariant client-side. (`MessageAllocationsNotEqualBudget`/`AllocationTreeBudgetInconsistent`
+themselves are enforced server-side - on Studio-dev's consensus contract / simulator node, not in
+the `genlayer-js` package - so no further string match for them exists in `node_modules`.) The
+governing invariant was therefore derived empirically from the three-attempt failure sequence in
+Pass 1 plus the Implementation Specification's general budget-accounting model, exactly as
+CLAUDE.md Section 34 intends ("profile message-producing branches deeply enough to account for
+Judge -> Kernel -> Target") - not guessed or hand-invented arithmetic.
+
+### Fix
+
+`packages/protocol-sdk/src/feeAllocation.ts` adds `rollUpNestedBudgets`: a single backward pass
+over the merged, parentIndex-addressed array. Because every node is appended strictly after its own
+parent already exists in the array (grafting can only attach under a node that already exists),
+iterating from the last index to the first guarantees a node's own rollup (every one of ITS
+children already folded in) is finalized before that node's now-inflated budget is folded into ITS
+OWN parent - a single O(n) backward pass, no recursion. `totalMessageFees` changed from "sum of
+every node in the flat array" (which double-counts nested costs once parents are inflated) to "sum
+of only the top-level (root-parented) nodes' post-rollup budgets" (which already transitively
+includes every descendant's budget exactly once). Every number involved remains one genlayer-js
+already computed from a real per-hop simulation - rollup only sums those real numbers bottom-up,
+never invents new ones.
+
+`scripts/test-nested-message-allocation.js` grew from 7 to 9 tests. The two new tests assert the
+rollup invariant directly: a 2-level chain's parent budget must equal `own + child` (500 + 300 =
+800, not the flat 500), and a 3-level chain's top-level budget must equal the FULL transitive sum
+(10 + 20 + 7 = 37, not a double/triple-counted flat sum of 54) while each intermediate node rolls
+up only its own subtree. All 9/9 pass; the original 7 pass unchanged (their fixtures are all
+exactly-2-node trees, for which the corrected top-level-only total happens to equal what the old,
+buggy flat-sum-of-all-nodes total already computed - coincidental agreement for 2-node trees only,
+which is exactly why the 3-level regression test above was added to catch the divergence the
+2-node tests alone cannot).
+
+### Live retest: fresh nonce, same funded signer, same unmodified deployment
+
+Re-ran `scripts/a2-c01-live-retest.mjs` unchanged (no interface change was needed -
+`buildJudgeKernelTargetAllocationTree`'s signature is identical; only its internal budget handling
+changed). Preconditions re-verified live immediately before submission (per the task's explicit
+instruction not to assume the prior session's nonce/policy reads still held):
+
+- `genlayer network info` - chain ID `61997`, RPC `https://studio-dev.genlayer.com/api` (unchanged).
+- `IncidentJudgeV1.get_reporter_nonce(reclose-deployer)` = `1` (unchanged from Pass 1 - confirming
+  every Pass-1 attempt really did roll back cleanly with no phantom state, as Pass 1 already
+  concluded).
+- `AssuranceKernel.get_policy_header(policy-r1-004)` = `[4, 0xa6d317b0...54b34b, true, true, true]`
+  (unchanged - `policy_version=4` reused).
+
+The script's estimator re-estimation step (feeding the composed, now-rolled-up tree back into a
+real `estimateTransactionFeesForWrite` call, per CLAUDE.md Section 34) **succeeded for the first
+time** - previously `AllocationTreeBudgetInconsistent` at this exact step in Pass 1. Result:
+`feeValue=240640224000031056`, root node `budget=240000000000020704` (=
+`120000000000010352 * 2` - its own original cost plus the full grafted Kernel->Target cost, exactly
+the rollup the fix performs), second node `budget=120000000000010352` (leaf, untouched by rollup).
+
+Submitted via `genlayer write 0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0 submit_incident --fees
+<the above> --fee-value 240640224000031056 --args reclose-target-003 policy-r1-004
+PROVIDER_COMPROMISE_V1 provider_a <evidenceHash> <evidenceJson> 1 ""` through `genlayer write`'s own
+keystore signing for `reclose-deployer` - no private key material read, logged, or touched.
+
+**Result: full three-hop live success, all legs `FINALIZED`/`SUCCESS`:**
+
+1. **Judge `submit_incident`** (root) - tx
+   `0x0459ffea984e1b1f825ffb8e5f05801411252ea7b852d7e92ad77ed3c6ddd008`. `status_name: FINALIZED`,
+   `result_name: MAJORITY_AGREE`, consensus `ACCEPTED`. `triggered_transactions` contains exactly
+   one child: `0x110a850482b4399354b4fde391132593c855ec6ad18c71645dffaa354256b843`.
+2. **Kernel `receive_decision`** (the exact child that failed in the ORIGINAL
+   `fee no_matching_allocation # internal` defect, and that Pass 1's three attempts never got past)
+   - tx `0x110a850482b4399354b4fde391132593c855ec6ad18c71645dffaa354256b843`.
+   `genvm_result.execution_result: SUCCESS` on every participating validator/leader round observed,
+   `status_name: FINALIZED`. `fee_accounting.status: settled`, `paid_fee_value:
+   240000000000020704`, `refunds: [{amount: 119871368000009529, reason: "finalized"}]` - a real,
+   settled, non-error fee reconciliation, not a revert. `triggered_transactions` contains exactly
+   one grandchild: `0xc575eee0c2abf75aeeeead0b7565e80e06d76d78733952a7d55b20c67b6187ce`, addressed
+   to `0x7B423D9787aeACC303467dE82A2D193D77155f0f` (`ReferenceAgentProtocol`) calling
+   `apply_assurance_action` - the exact second-hop message the entire A2-C01 fix targeted.
+3. **Target `apply_assurance_action`** (grandchild) - tx
+   `0xc575eee0c2abf75aeeeead0b7565e80e06d76d78733952a7d55b20c67b6187ce`.
+   `genvm_result.execution_result: SUCCESS`, `status_name: FINALIZED`, `result: {status: "return",
+   payload: {readable: "null"}}` - a clean return, not an error/revert. No further
+   `triggered_transactions` (consistent with the decision outcome being `UNDETERMINED`, which the
+   Kernel's `_apply_final_incident`/`_dispatch_action` path is expected to handle as a genuine
+   no-authority-change no-op per CLAUDE.md Section 9.2/14 - `UNDETERMINED` must not be coerced into
+   a restriction it does not warrant).
+
+### Read-back state verification (per the Master Plan's E1 process - not inferred from tx status alone)
+
+- `IncidentJudgeV1.get_reporter_nonce(reclose-deployer)`: `1` -> `2` after finality - exactly one
+  genuine new incident recorded, matching this session's single new report, no duplicate/replay
+  effect (CLAUDE.md Section 7 invariant 8).
+- `IncidentJudgeV1.get_incident_outcome("reclose-target-003:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:1")`
+  = `3` (`DECISION_OUTCOME_UNDETERMINED`).
+- `IncidentJudgeV1.get_incident_condition_code(...)` = `"INSUFFICIENT_EVIDENCE"` - matches the
+  exact simulated decision shape the retest script submitted, confirming the Judge's own recorded
+  state reflects the real submitted decision, not a default/fallback value.
+
+### Honest final status
+
+**A2-C01 is CLOSED.** The nested message-allocation defect (`fee no_matching_allocation #
+internal` on the Kernel's own triggered child, and the three further budget-consistency failures
+Pass 1 surfaced while fixing it) is fixed in `packages/protocol-sdk/src/feeAllocation.ts` via
+`rollUpNestedBudgets`, covered by 9/9 passing unit tests (including two new tests added
+specifically to pin the budget-rollup invariant and prevent this class of regression), and
+live-verified end to end on Studio-dev (chain 61997) through a genuine three-hop
+Judge -> Kernel -> Target transaction chain, every leg reaching `FINALIZED`/`SUCCESS`, with the
+Kernel's own incident state independently confirmed via read-back. This is one clean E1 run. A
+second independent E1 run - ideally exercising a `CONFIRMED` decision that drives an actual
+restriction/provider-revocation effect through the Target, rather than this run's `UNDETERMINED`
+no-op - is still recommended before treating E1 as exhaustively covered, per
+`docs/execution/Current Phase.md`'s updated next-sequence note. No redeployment, contract-source
+change, or secret handling was performed; `npm run verify:js` passes in full after the fix.

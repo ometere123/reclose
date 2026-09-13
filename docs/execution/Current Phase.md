@@ -52,21 +52,75 @@ unmodified R1 deployment (`deployment/61997/r1-manifest.json`, target `reclose-t
 active policy `policy-r1-004` at live-confirmed `policy_version=4`). Full evidence:
 `release-evidence/r1/a2-c01-live-retest-evidence.md`.
 
-**A2-C01 STILL OPEN - status refined, not closed.** The nested tree's grafting logic is now
-live-confirmed correct (a real second-hop `apply_assurance_action` node, built from a genuine
-Kernel-side `receive_decision` simulation, is genuinely present and correctly re-parented in the
-composed tree - this was previously proven only against mocks). Submitting that composed tree
-live did NOT reproduce the original `fee no_matching_allocation # internal` defect, but surfaced
-THREE further, previously-undocumented constraints, none of which reached
-`FINISHED_WITH_RETURN`: `AllocationTreeBudgetInconsistent` (re-estimating with the composed tree
-as input), `MessageAllocationsNotEqualBudget` (submitting the composed tree with a hand-derived
-`feeValue`), and `InsufficientFees` (submitting with `feeValue` lowered to exactly the summed
-message budgets). The original flat-tree failure mode above is preserved unchanged as historical/
-regression reference - it was not re-exercised this session (only the new nested tree was tested).
-Next step: determine the exact `feeValue`/`distribution` consistency rule Studio-dev's envelope
-acceptance enforces for a custom multi-hop `messageAllocations` array (ideally via upstream
-GenLayer guidance, not further local hand-bisection), then retry
-`scripts/a2-c01-live-retest.mjs`.
+**Update (2026-09-13, budget-rollup fix, live-verified) — A2-C01: CLOSED — RECLOSE NESTED
+MESSAGE-ALLOCATION DEFECT FIXED AND LIVE-VERIFIED.**
+
+Root cause of the three further failures recorded immediately above
+(`MessageAllocationsNotEqualBudget`, `AllocationTreeBudgetInconsistent`, `InsufficientFees`):
+`buildNestedMessageAllocationTree`'s grafting step re-parented each deeper hop's allocation
+nodes under the correct parent node, but left every node's own `budget` exactly as reported by
+that node's OWN single-hop simulation. A parent node's single-hop simulation has no way to know
+it will also need to fund every message grafted beneath it, so the merged tree was internally
+inconsistent - Studio-dev's on-chain envelope-acceptance check (and the RPC's own
+`AllocationTreeBudgetInconsistent` pre-check) require a parent allocation's budget to cover its own
+cost PLUS the full transitive cost of everything nested under it. Fixed by adding
+`rollUpNestedBudgets` to `packages/protocol-sdk/src/feeAllocation.ts`: a single backward pass over
+the merged, parentIndex-addressed array (children are always appended after their parent, so
+iterating from the last index to the first finalizes every node's own rollup before folding it into
+its parent) that adds each node's budget into its parent's budget, transitively. `totalMessageFees`
+is now the sum of only the TOP-LEVEL (root-parented) nodes' post-rollup budgets - summing every
+node in the flat array (the pre-fix behaviour) double-counted nested costs, which was itself part
+of the defect. Every figure involved is still exactly one of genlayer-js's own per-hop `budget`
+values, just summed bottom-up instead of left flat - no hand-invented fee arithmetic
+(CLAUDE.md Section 34). `scripts/test-nested-message-allocation.js` grew from 7 to 9 tests: the two
+new tests assert the rollup invariant directly (parent budget == own cost + sum of children's
+post-rollup budgets, for a 2-level and a 3-level chain) - all 9/9 pass, and the existing 7 still
+pass unchanged (their expected `totalMessageFees` values happened to already equal the correct
+top-level-only rollup sum for those fixtures, since the fixtures are all exactly-2-node trees).
+
+**Live retest (fresh nonce, same funded `reclose-deployer` CLI-keystore signer, same unmodified
+deployment - `reclose-target-003` / `policy-r1-004` v4, chain 61997,
+`https://studio-dev.genlayer.com/api`):** `scripts/a2-c01-live-retest.mjs` rebuilt the composed tree
+with the fix in place; this time the estimator's own re-estimation step (feeding the composed tree
+back into `estimateTransactionFeesForWrite`, per CLAUDE.md Section 34 - not hand-derived) SUCCEEDED
+for the first time (previously `AllocationTreeBudgetInconsistent`), producing
+`feeValue=240640224000031056` and a rolled-up root node `budget=240000000000020704` (=
+`120000000000010352 * 2`, i.e. its own cost plus the full grafted Kernel->Target cost). Submitting
+that exact `--fees`/`--fee-value` via `genlayer write` against `IncidentJudgeV1.submit_incident`
+(reporter nonce 1, live-confirmed immediately before submission) produced a genuine three-hop
+success chain, all three legs `FINALIZED`/`Accepted` with `execution_result: SUCCESS`:
+
+1. **Judge `submit_incident`** - tx `0x0459ffea984e1b1f825ffb8e5f05801411252ea7b852d7e92ad77ed3c6ddd008`,
+   `status_name: FINALIZED`, `result_name: MAJORITY_AGREE`, consensus outcome ACCEPTED. Triggered
+   child `0x110a850482b4399354b4fde391132593c855ec6ad18c71645dffaa354256b843`.
+2. **Kernel `receive_decision`** (the child that previously failed with
+   `fee no_matching_allocation # internal`) - tx
+   `0x110a850482b4399354b4fde391132593c855ec6ad18c71645dffaa354256b843`, `execution_result: SUCCESS`,
+   `status_name: FINALIZED`, fee accounting `status: settled` (paid `240000000000020704`, refunded
+   `119871368000009529`). Emitted the further outbound message to
+   `ReferenceAgentProtocol.apply_assurance_action`, triggering grandchild
+   `0xc575eee0c2abf75aeeeead0b7565e80e06d76d78733952a7d55b20c67b6187ce`.
+3. **Target `apply_assurance_action`** - tx
+   `0xc575eee0c2abf75aeeeead0b7565e80e06d76d78733952a7d55b20c67b6187ce`, `execution_result: SUCCESS`,
+   `status_name: FINALIZED`, `result: { status: "return", payload: { readable: "null" } }`.
+
+State read-back after finality confirms real, non-phantom state: `get_reporter_nonce(reclose-deployer)`
+advanced from `1` to `2` (exactly one genuine new incident recorded, no duplicate/replay);
+`get_incident_outcome("reclose-target-003:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:1")` = `3`
+(`DECISION_OUTCOME_UNDETERMINED`, matching the simulated decision's `INSUFFICIENT_EVIDENCE`
+condition code exactly - `get_incident_condition_code` confirms `INSUFFICIENT_EVIDENCE`). Per
+CLAUDE.md Section 14/9.2, `UNDETERMINED` is a valid, non-coerced outcome - the Target leg executing
+to `SUCCESS`/`return null` for an `UNDETERMINED` decision is consistent with the Kernel not
+expanding or restricting authority on a genuinely inconclusive report.
+
+This satisfies the Master Plan's E1 live-proof bar: Judge parent, Kernel child, and Target
+grandchild all reached `FINISHED`/`SUCCESS` with the Kernel's own incident state correctly
+persisted and independently read back. The original flat-tree failure mode
+(`fee no_matching_allocation # internal`) and the three intermediate budget-mismatch failures
+(`MessageAllocationsNotEqualBudget`, `AllocationTreeBudgetInconsistent`, `InsufficientFees`) remain
+preserved unchanged above as historical/regression evidence of the debugging path - they are not
+deleted, per the task's explicit instruction. Full successful-run evidence appended to
+`release-evidence/r1/a2-c01-live-retest-evidence.md`.
 
 A3 attempt 1 (`264c14af8f83cbd2bcf0176c87d9950baf0b275a` on `chatgpt/r1-product-release`) remains
 **FAIL**, preserved unchanged at `docs/execution/audit-packets/A3/AUDIT_DECISION.md`.
@@ -120,7 +174,7 @@ policy-level export scope, the protocol read-gap above, and everything A2-C01-de
 ## Finding status after this sub-pass
 
 - **CLOSED:** A3-H01 (CRITICAL), A3-H02, A3-H03, A3-H05, A3-H06, A3-H07, A3-H10, A3-H11, A3-H12.
-- **CLOSED (code-complete, not live-proven, blocked only by A2-C01):** A3-H04.
+- **CLOSED (code-complete, now also live-proven via the A2-C01 retest above):** A3-H04.
 - **PARTIALLY CLOSED:** A3-H08 (per-incident export + real restriction-based recovery reads done;
   policy-level/cross-incident export and the remediation-chain protocol read-gap remain open),
   A3-H09 (packet-local mapping now mirrors the full canonical set for every Section 16 category;
@@ -128,11 +182,9 @@ policy-level export scope, the protocol read-gap above, and everything A2-C01-de
 
 ## A2 condition status
 
-Unchanged:
-
-- **A2-C01 OPEN / E1 BLOCKER:** Studio-dev Judge -> Kernel triggered child still fails live with
-  `fee no_matching_allocation # internal`. Independently blocks E1/R1 closure AND live proof of
-  A3-H04's Kernel -> Target second hop (a failed first hop never triggers a second).
+- **A2-C01: CLOSED (2026-09-13)** — nested message-allocation budget-rollup fix live-verified;
+  Judge -> Kernel -> Target chain reaches `FINALIZED`/`SUCCESS` end to end (see above). No longer
+  blocks E1/R1 closure or A3-H04's live proof of the Kernel -> Target second hop.
 - **A2-C02/A2-C03/A2-C04:** unchanged from the A3 attempt-1 record.
 
 ## H1 / E1 / A4 / R1 / S1 status
@@ -146,5 +198,9 @@ Unchanged - not attempted, per FINAL_REMEDIATION.md Section 17's explicit sequen
 2. If further remediation is requested: close A3-H08's remaining scope (policy-level/cross-incident
    export; consider a Kernel view or indexer mapping for the remediation-chain read-gap), and
    reconcile the canonical R1 requirements ledger if the owner wants that pulled forward.
-3. Only after A3 passes: live fee-profile closure, A2-C01 retest, two clean E1 runs, H1 live
-   scenarios, A4, and R1/S1 closure - in that order, per the standing master directive.
+3. A2-C01 is now closed (2026-09-13, live-verified). Remaining, per the standing master directive:
+   two clean E1 runs (this retest counts as the first full three-hop success; a second independent
+   run, ideally covering a CONFIRMED/restriction-triggering decision rather than UNDETERMINED,
+   should be captured before declaring E1 fully satisfied), H1 live scenarios, A4, and R1/S1
+   closure - in that order, and still gated on the owner's/an independent reviewer's decision on A3
+   attempt 2 above.

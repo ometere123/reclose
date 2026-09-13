@@ -11,7 +11,7 @@ const path = require("node:path");
 const sdk = require(path.join(__dirname, "..", "packages", "protocol-sdk", "dist", "index.js"));
 
 let passed = 0;
-const total = 7;
+const total = 9;
 async function test(name, fn) {
   await fn();
   passed += 1;
@@ -201,6 +201,91 @@ async function main() {
       () => sdk.buildNestedMessageAllocationTree(client, { address: JUDGE, functionName: "submit_incident" }, [{ address: KERNEL, functionName: "receive_decision", account: JUDGE }], CONSTANTS),
       /no allocation node targeting/
     );
+  });
+
+  await test("A2-C01 budget-invariant regression: a parent node's budget must roll up to cover its own cost PLUS everything grafted beneath it (release-evidence/r1/a2-c01-live-retest-evidence.md attempts 1-3)", async () => {
+    const client = makeClient({
+      [JUDGE.toLowerCase()]: {
+        distribution: {}, feeValue: 1n,
+        // Judge's own simulation only knows about its OWN Judge->Kernel message cost (500) - it has
+        // no way to know the Kernel will itself need to fund a further 300-budget outbound message.
+        messageAllocations: [
+          { messageType: "Internal", parentIndex: ROOT_PARENT_INDEX, recipient: KERNEL, callKey: "0xjudge_to_kernel", budget: 500n, feeParams: "0x" },
+        ],
+      },
+      [KERNEL.toLowerCase()]: {
+        distribution: {}, feeValue: 1n,
+        messageAllocations: [
+          { messageType: "Internal", parentIndex: ROOT_PARENT_INDEX, recipient: TARGET, callKey: "0xkernel_to_target", budget: 300n, feeParams: "0x" },
+        ],
+      },
+    });
+
+    const tree = await sdk.buildNestedMessageAllocationTree(
+      client,
+      { address: JUDGE, functionName: "submit_incident" },
+      [{ address: KERNEL, functionName: "receive_decision", account: JUDGE }],
+      CONSTANTS
+    );
+
+    const judgeToKernel = tree.messageAllocations[0];
+    const kernelToTarget = tree.messageAllocations[1];
+
+    // The parent's budget must be increased to its own original cost (500) PLUS the full cost of
+    // everything grafted beneath it (300) - NOT left at the flat, single-hop-only value of 500
+    // (the exact shape that produced the live `MessageAllocationsNotEqualBudget`/
+    // `AllocationTreeBudgetInconsistent` failures).
+    assert.equal(judgeToKernel.budget, 800n, "parent node's budget must roll up to include its grafted child's budget (500 own + 300 child = 800), not stay at its own-hop-only 500");
+    assert.equal(kernelToTarget.budget, 300n, "a leaf node's own budget is never inflated - only ancestors accumulate their descendants' budgets");
+
+    // Every node's budget must be >= the sum of its own direct children's budgets - the general
+    // form of the invariant, not just true for this specific two-node example.
+    for (let i = 0; i < tree.messageAllocations.length; i++) {
+      const childrenSum = tree.messageAllocations
+        .filter((n) => n.parentIndex === BigInt(i))
+        .reduce((sum, n) => sum + n.budget, 0n);
+      assert.ok(tree.messageAllocations[i].budget >= childrenSum, `node ${i}'s budget (${tree.messageAllocations[i].budget}) must be >= the sum of its direct children's budgets (${childrenSum})`);
+    }
+
+    // totalMessageFees must be the sum of ONLY the top-level (root-parented) nodes' post-rollup
+    // budgets (here, just judgeToKernel's rolled-up 800) - summing every node in the flat array
+    // (the pre-fix behaviour) would double-count the 300 already folded into judgeToKernel, which
+    // is itself one of the mechanisms behind the live budget-mismatch failures.
+    assert.equal(tree.totalMessageFees, 800n, "totalMessageFees must equal the rolled-up top-level budget (800), not the double-counted flat sum (500+300=800 here happens to match, but via the correct top-level-only computation, not a flat sum-of-all-nodes)");
+  });
+
+  await test("A2-C01 budget-invariant regression holds transitively for a 3-level chain (Judge -> Kernel -> Target -> further effect)", async () => {
+    const client = makeClient({
+      [JUDGE.toLowerCase()]: {
+        distribution: {}, feeValue: 1n,
+        messageAllocations: [{ messageType: "Internal", parentIndex: ROOT_PARENT_INDEX, recipient: KERNEL, callKey: "0xa", budget: 10n, feeParams: "0x" }],
+      },
+      [KERNEL.toLowerCase()]: {
+        distribution: {}, feeValue: 1n,
+        messageAllocations: [{ messageType: "Internal", parentIndex: ROOT_PARENT_INDEX, recipient: TARGET, callKey: "0xb", budget: 20n, feeParams: "0x" }],
+      },
+      [TARGET.toLowerCase()]: {
+        distribution: {}, feeValue: 1n,
+        messageAllocations: [{ messageType: "Internal", parentIndex: ROOT_PARENT_INDEX, recipient: JUDGE, callKey: "0xc", budget: 7n, feeParams: "0x" }],
+      },
+    });
+
+    const tree = await sdk.buildNestedMessageAllocationTree(
+      client,
+      { address: JUDGE, functionName: "submit_incident" },
+      [
+        { address: KERNEL, functionName: "receive_decision", account: JUDGE },
+        { address: TARGET, functionName: "apply_assurance_action", account: KERNEL },
+      ],
+      CONSTANTS
+    );
+
+    assert.equal(tree.messageAllocations.length, 3);
+    // idx0 (Judge->Kernel) must roll up to cover idx1 which must roll up to cover idx2: 10+20+7=37.
+    assert.equal(tree.messageAllocations[0].budget, 37n, "top-level node must roll up the FULL transitive cost of every descendant (10 own + 20 + 7 = 37)");
+    assert.equal(tree.messageAllocations[1].budget, 27n, "middle node must roll up its own cost plus its child's (20 own + 7 = 27)");
+    assert.equal(tree.messageAllocations[2].budget, 7n, "leaf node's budget is untouched");
+    assert.equal(tree.totalMessageFees, 37n, "totalMessageFees is the single top-level node's fully-rolled-up budget, never a flat sum of all three nodes (which would be 54, double/triple counting)");
   });
 
   console.log(`\n${passed}/${total} nested message-allocation tests passed`);

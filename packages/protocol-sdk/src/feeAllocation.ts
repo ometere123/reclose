@@ -222,8 +222,53 @@ export async function buildNestedMessageAllocationTree(
     previousCallAddress = step.address;
   }
 
-  const totalMessageFees = merged.reduce((sum, n) => sum + n.budget, 0n);
-  return { messageAllocations: merged, totalMessageFees, rootFeeValue, steps };
+  const rolledUp = rollUpNestedBudgets(merged, constants.rootParentIndex);
+
+  // A2-C01 live retest (release-evidence/r1/a2-c01-live-retest-evidence.md, attempts 1-3) showed
+  // the PRE-FIX tree - grafted parentIndex relinking with every node's budget left exactly as its
+  // own single-hop simulation reported - is rejected live as `MessageAllocationsNotEqualBudget`
+  // (direct write) and `AllocationTreeBudgetInconsistent` (re-estimation). The root cause: a
+  // parent node's budget, as reported by simulating ONLY that node's own hop, covers only that
+  // node's own message cost - it was never told it would also need to fund every message grafted
+  // beneath it. Studio-dev's on-chain envelope-acceptance check enforces that a parent allocation's
+  // budget is sufficient to cover its own cost PLUS everything nested under it (the invariant
+  // CLAUDE.md Section 34 requires us to satisfy via the estimator's own numbers, not hand-invented
+  // arithmetic - every figure rolled up here is still exactly one of genlayer-js's own per-hop
+  // `budget` values, just summed bottom-up instead of left flat). `rollUpNestedBudgets` performs
+  // that summation; `totalMessageFees` is then the sum of only the TOP-LEVEL (root-parented) nodes'
+  // post-rollup budgets, since those top-level budgets already transitively include every nested
+  // node's budget exactly once - summing every node in the flat array (the pre-fix behaviour) would
+  // double-count nested costs and is itself a contributor to the live budget-mismatch failures.
+  const totalMessageFees = rolledUp
+    .filter((n) => n.parentIndex === constants.rootParentIndex)
+    .reduce((sum, n) => sum + n.budget, 0n);
+  return { messageAllocations: rolledUp, totalMessageFees, rootFeeValue, steps };
+}
+
+/**
+ * Rolls up every node's budget so that a parent's budget equals its own originally-estimated cost
+ * plus the (already rolled-up) budget of every node grafted beneath it, transitively. Nodes are
+ * always appended to `merged` in an order where every node's parentIndex refers to a LOWER index
+ * (a node can only be grafted under a node that already exists in the merged array), so iterating
+ * from the last index to the first guarantees a node's own rollup is finalized (all of ITS children
+ * already folded in) before that node's budget is folded into ITS parent - a single backward pass
+ * is sufficient, no recursion needed.
+ */
+function rollUpNestedBudgets(
+  nodes: MessageFeeAllocationNodeLike[],
+  rootParentIndex: bigint
+): MessageFeeAllocationNodeLike[] {
+  const rolled = nodes.map((n) => ({ ...n }));
+  for (let i = rolled.length - 1; i >= 0; i--) {
+    const node = rolled[i];
+    if (!node || node.parentIndex === rootParentIndex) continue;
+    const parentIdx = Number(node.parentIndex);
+    if (!Number.isInteger(parentIdx) || parentIdx < 0 || parentIdx >= rolled.length) continue;
+    const parent = rolled[parentIdx];
+    if (!parent) continue;
+    rolled[parentIdx] = { ...parent, budget: parent.budget + node.budget };
+  }
+  return rolled;
 }
 
 /**
