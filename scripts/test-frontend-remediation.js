@@ -782,7 +782,63 @@ async function main() {
     assert.match(adapterSource, /remediation\.targetId === incident\.targetId/, "an indexer-supplied lineage id must be cross-checked against real protocol state (targetId match), never trusted blindly");
   });
 
-  const total = 50;
+  await test("Owner-directed remediation item 2: buildOpenBond derives a collision-resistant bondId (Keccak-256 over the full identity tuple) instead of truncating raw concatenation to 96 chars", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const longTargetId = "t".repeat(90); // near the 96-char target_id bound - the old truncation bug zone.
+    function makeTransport(nonce) {
+      return {
+        async getChainId() { return 61997; },
+        async getBlockNumber() { return 0; },
+        async readContract({ functionName }) {
+          if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, false, false];
+          if (functionName === "get_policy_header") return [1, "0x" + "a".repeat(64), true, true, false];
+          if (functionName === "get_policy_counts") return [1, 1, 1];
+          if (functionName === "get_policy_rule_id_at") return "PROVIDER_COMPROMISE_V1";
+          if (functionName === "get_policy_rule") return ["0xJudge", 1, 1, true, true];
+          if (functionName === "get_policy_rule_economics") return ["500", "0"];
+          if (functionName === "get_policy_resource_at") return "provider_a";
+          if (functionName === "get_policy_effect_at") return ["PROVIDER_COMPROMISE_V1", 3, "provider_a", "0", "", 1, true];
+          if (functionName === "get_reporter_nonce") return nonce;
+          throw new Error(`unexpected readContract ${functionName}`);
+        },
+        async getTransaction() { throw new Error("not used"); },
+        async getTriggeredTransactionIds() { return []; },
+        async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+      };
+    }
+    const reporterA = "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd";
+    const reporterB = "0x0000000000000000000000000000000000000001";
+
+    const clientLongId1 = sdk.createRecloseClient({ transport: makeTransport(3), addresses: { kernel: "0xKernel", judge: "0xJudge", vault: "0xVault" } });
+    const bondLongId1 = await clientLongId1.buildOpenBond({ targetId: longTargetId, ruleId: "PROVIDER_COMPROMISE_V1", reporterAddress: reporterA });
+    assert.ok(bondLongId1.bondId.length <= 96, "bondId must stay within the Vault's 96-char bound");
+    assert.match(bondLongId1.bondId, /^bond:0x[0-9a-f]{64}$/, "bondId should be a fixed-width Keccak-256 digest, not raw truncated concatenation");
+
+    // Different reporter, same target/nonce -> must NOT collide.
+    const clientDiffReporter = sdk.createRecloseClient({ transport: makeTransport(3), addresses: { kernel: "0xKernel", judge: "0xJudge", vault: "0xVault" } });
+    const bondDiffReporter = await clientDiffReporter.buildOpenBond({ targetId: longTargetId, ruleId: "PROVIDER_COMPROMISE_V1", reporterAddress: reporterB });
+    assert.notStrictEqual(bondLongId1.bondId, bondDiffReporter.bondId, "different reporters must produce distinct bondIds");
+
+    // Different nonce, same target/reporter -> must NOT collide.
+    const clientDiffNonce = sdk.createRecloseClient({ transport: makeTransport(7), addresses: { kernel: "0xKernel", judge: "0xJudge", vault: "0xVault" } });
+    const bondDiffNonce = await clientDiffNonce.buildOpenBond({ targetId: longTargetId, ruleId: "PROVIDER_COMPROMISE_V1", reporterAddress: reporterA });
+    assert.notStrictEqual(bondLongId1.bondId, bondDiffNonce.bondId, "different nonces must produce distinct bondIds");
+
+    // Same inputs -> deterministic (idempotent preview, same bondId every time).
+    const clientRepeat = sdk.createRecloseClient({ transport: makeTransport(3), addresses: { kernel: "0xKernel", judge: "0xJudge", vault: "0xVault" } });
+    const bondRepeat = await clientRepeat.buildOpenBond({ targetId: longTargetId, ruleId: "PROVIDER_COMPROMISE_V1", reporterAddress: reporterA });
+    assert.strictEqual(bondLongId1.bondId, bondRepeat.bondId, "the same logical bond must always derive the same bondId");
+
+    // Two near-identical long target_ids differing only in their last character (the part a naive
+    // head-truncation to 96 chars after a "bond:" prefix would have discarded) must still differ.
+    const longTargetIdVariant = "t".repeat(89) + "u";
+    const clientVariant = sdk.createRecloseClient({ transport: makeTransport(3), addresses: { kernel: "0xKernel", judge: "0xJudge", vault: "0xVault" } });
+    const bondVariant = await clientVariant.buildOpenBond({ targetId: longTargetIdVariant, ruleId: "PROVIDER_COMPROMISE_V1", reporterAddress: reporterA });
+    assert.notStrictEqual(bondLongId1.bondId, bondVariant.bondId, "target_ids differing only in a tail character must not collide");
+  });
+
+  const total = 51;
   console.log(`\n${total - failures}/${total} frontend A3-remediation checks passed.`);
   if (failures) process.exit(1);
 }

@@ -46,6 +46,42 @@ function deriveIncidentId(targetId: string, reporterAddress: string, reporterNon
   return `${targetId}:${reporterAddress.toLowerCase()}:${reporterNonce}`;
 }
 
+/** Item 2 (owner-directed remediation pass): the prior `bond:${predictedIncidentId}` construction
+ * truncated to 96 chars at the TAIL-END of a variable-length string (targetId may itself be up to
+ * 96 chars per `_valid_identifier(target_id, 96)` in assurance_kernel.py). Two different
+ * (targetId, reporterAddress, nonce) tuples whose first ~90 chars happen to agree after the
+ * "bond:" prefix would silently collide once truncated to 96 chars, since truncation discards
+ * whichever suffix (including the nonce/reporter) did not fit. Replacing the raw-concatenation
+ * prefix with a deterministic Keccak-256 digest over the FULL canonical tuple removes the
+ * truncation-collision risk entirely: the id is always `bond:0x<64 hex>` (71 chars, well inside
+ * the Vault's 96-char bound - see contracts/incentive_vault.py's own `_valid_identifier` check),
+ * and is deterministic so the same logical bond always resolves to the same id (idempotent
+ * preview), while any differing input field changes the hash. Uses the same canonicalKeccak256
+ * (RFC8785 JCS + Keccak-256) helper every other Reclose identity hash in this file uses - no new
+ * hashing primitive introduced. */
+function deriveBondId(input: {
+  targetId: string;
+  policyKey: string;
+  ruleId: string;
+  reporterAddress: string;
+  reporterNonce: number;
+  predictedIncidentId: string;
+}): string {
+  const digest = canonicalKeccak256({
+    targetId: input.targetId,
+    policyKey: input.policyKey,
+    ruleId: input.ruleId,
+    reporterAddress: input.reporterAddress.toLowerCase(),
+    reporterNonce: input.reporterNonce,
+    predictedIncidentId: input.predictedIncidentId,
+  });
+  const bondId = `bond:${digest}`;
+  // Defensive bound, even though the fixed digest form above is always 71 chars - never silently
+  // truncate in a way that could reintroduce a collision; instead this would be a loud bug.
+  if (bondId.length > 96) throw new Error(`INTERNAL: derived bondId exceeds 96 chars (${bondId.length})`);
+  return bondId;
+}
+
 /** Mirrors contracts/assurance_kernel.py::_ck exactly - length-prefixed concatenation, used by the
  * Kernel for every composite storage/identity key including action_id. Client-side replication is
  * required because action_id is never returned by any Kernel view method; it must be derived from
@@ -421,6 +457,41 @@ export class DirectRecloseClient implements RecloseSDK {
    * and effect lookup must use the policy_key recorded ON the incident, not whatever the target's
    * active policy happens to be today).
    */
+  /**
+   * Additive (not one of the frozen 14). Owner-directed remediation pass, item 6: wires the new
+   * Kernel view `get_policy_lifecycle` (contracts/assurance_kernel.py) so a caller can render a
+   * real chain-derived activation countdown - `activationNotBefore - nowSeconds` - instead of
+   * asking the user to self-attest that enough time has passed, which is what
+   * `known-limitations.md` item 8 had left as the honest state of the prior pass (get_policy_header
+   * alone never exposed sealed_at/activation_not_before/activated_at).
+   */
+  async getPolicyLifecycle(policyKey: string): Promise<{
+    targetId: string;
+    version: number;
+    manifestHash: string;
+    createdAt: number;
+    sealedAt: number;
+    activationNotBefore: number;
+    activatedAt: number;
+    sealed: boolean;
+    active: boolean;
+    superseded: boolean;
+  }> {
+    const r = tuple(await this.kernel("get_policy_lifecycle", [policyKey]));
+    return {
+      targetId: str(r[0]),
+      version: num(r[1]),
+      manifestHash: str(r[2]),
+      createdAt: num(r[3]),
+      sealedAt: num(r[4]),
+      activationNotBefore: num(r[5]),
+      activatedAt: num(r[6]),
+      sealed: Boolean(r[7]),
+      active: Boolean(r[8]),
+      superseded: Boolean(r[9]),
+    };
+  }
+
   async getPolicyByKey(policyKey: string, targetId: string): Promise<PolicyDetail> {
     const header = tuple(await this.kernel("get_policy_header", [policyKey]));
     const counts = tuple(await this.kernel("get_policy_counts", [policyKey]));
@@ -724,7 +795,14 @@ export class DirectRecloseClient implements RecloseSDK {
     if (BigInt(rule.reportBond || "0") <= 0n) throw new Error(`Rule ${input.ruleId} is a zero-bond rule - do not open a Vault bond for it (E_VLT_010).`);
     const reporterNonce = num(await this.judgeRead("get_reporter_nonce", [input.reporterAddress]));
     const predictedIncidentId = deriveIncidentId(input.targetId, input.reporterAddress, reporterNonce);
-    const bondId = (input.bondId ?? `bond:${predictedIncidentId}`).slice(0, 96);
+    const bondId = input.bondId ?? deriveBondId({
+      targetId: input.targetId,
+      policyKey: policy.summary.policyKey,
+      ruleId: input.ruleId,
+      reporterAddress: input.reporterAddress,
+      reporterNonce,
+      predictedIncidentId,
+    });
     const args: unknown[] = [bondId, input.targetId, policy.summary.policyKey, policy.summary.version, input.ruleId, reporterNonce, predictedIncidentId];
     const feeEstimate = await this.feePreview("open_bond", args, this.addresses.vault);
     const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
