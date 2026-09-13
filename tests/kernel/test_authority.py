@@ -96,6 +96,71 @@ def test_authority_expansion_timelock_uses_sealed_at_not_created_at(kernel_harne
     kernel.activate_policy("policy-2")
 
 
+def test_get_policy_lifecycle_exposes_real_timing_additively(kernel_harness, direct_vm):
+    """Owner-directed remediation pass, item 6: get_policy_lifecycle is a new ADDITIVE view that
+    exposes PolicyHeader's sealed_at/activation_not_before/activated_at fields, which
+    get_policy_header does not. Confirms real values at each lifecycle stage and that an unknown
+    policy_key returns an explicit empty/zero tuple rather than erroring."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+
+    target_id, version, manifest_hash, created_at, sealed_at, activation_not_before, activated_at, sealed, active, superseded = kernel.get_policy_lifecycle("policy-1")
+    assert target_id == "target-001"
+    assert int(version) == 1
+    assert manifest_hash == M1
+    assert int(created_at) > 0
+    assert int(sealed_at) == 0
+    assert sealed is False
+    assert active is False
+    assert superseded is False
+
+    kernel.seal_policy("policy-1")
+    (_t, _v, _m, _c, sealed_at, activation_not_before, activated_at, sealed, active, _s) = kernel.get_policy_lifecycle("policy-1")
+    assert int(sealed_at) > 0
+    assert int(activation_not_before) >= int(sealed_at)  # first policy for a target is an expansion -> timelocked
+    assert int(activated_at) == 0
+    assert sealed is True
+    assert active is False
+
+    direct_vm.warp("2026-01-01T00:01:01Z")
+    kernel.activate_policy("policy-1")
+    (_t, _v, _m, _c, _se, _anb, activated_at, _sealed, active, superseded) = kernel.get_policy_lifecycle("policy-1")
+    assert int(activated_at) > 0
+    assert active is True
+    assert superseded is False
+
+    unknown = kernel.get_policy_lifecycle("no-such-policy")
+    assert unknown[0] == ""
+    assert int(unknown[1]) == 0
+    assert unknown[7] is False and unknown[8] is False and unknown[9] is False
+
+
+def test_get_target_incident_views_enumerate_without_an_indexer(kernel_harness, direct_vm):
+    """Owner-directed remediation pass, item 6 (paired accessor): get_target_incident_count/
+    get_target_incident_at expose the existing target_incident_* reverse index (populated since
+    the A2-remediation pass) as first-class view methods, so a caller can enumerate a target's
+    incidents without already knowing incident_ids in advance or relying on an indexer."""
+    kernel, gl, owner_addr, _ = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:01:01Z")
+    kernel.activate_policy("policy-1")
+
+    assert int(kernel.get_target_incident_count("target-001")) == 0
+    kernel.receive_decision(
+        "incident-001", "", "target-001", "policy-1", 1, M1,
+        "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", STAGE_FINAL, 1,
+    )
+    assert int(kernel.get_target_incident_count("target-001")) == 1
+    assert kernel.get_target_incident_at("target-001", 0) == "incident-001"
+    assert kernel.get_target_incident_at("target-001", 1) == ""
+    assert int(kernel.get_target_incident_count("unknown-target")) == 0
+
+
 def test_authority_reduction_is_immediate(kernel_harness, direct_vm):
     """Authority REDUCTION does not require the expansion timelock."""
     kernel, gl, owner_addr, _ = kernel_harness

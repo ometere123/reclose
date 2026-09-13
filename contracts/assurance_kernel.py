@@ -1107,6 +1107,39 @@ class AssuranceKernel(gl.contract.Contract):
         header = self.policy_headers[policy_key]
         return (header.rule_count, header.resource_count, header.effect_count)
 
+    # --- Owner-directed remediation pass: additive read-only views ---------------------------
+    # Items 6 and 9 of the owner-directed bundle. Both are NEW view methods only - no existing
+    # method's signature or behavior changes. CLAUDE.md Section 12/45: the Kernel is the
+    # deterministic root of trust and stays immutable in its write surface; these views expose
+    # state the Kernel already stores (PolicyHeader.sealed_at/activation_not_before/activated_at,
+    # IncidentRecord.parent_incident_id) that was previously write-only/unreadable, closing the two
+    # "genuine, now-diagnosed protocol read-gaps" recorded in
+    # docs/execution/audit-packets/A3-attempt-2/known-limitations.md items 8 and 9.
+
+    @gl.public.view
+    def get_policy_lifecycle(self, policy_key: str) -> tuple:
+        """Item 6: full policy timing/lifecycle, so a client can render a real chain-derived
+        activation countdown instead of asking the user to self-attest that enough time has
+        passed. Returns: (target_id, version, manifest_hash, created_at, sealed_at,
+        activation_not_before, activated_at, sealed, active, superseded)."""
+        if policy_key not in self.policy_headers:
+            return ("", gl.u32(0), "", gl.u64(0), gl.u64(0), gl.u64(0), gl.u64(0), False, False, False)
+        h = self.policy_headers[policy_key]
+        return (h.target_id, h.version, h.manifest_hash, h.created_at, h.sealed_at, h.activation_not_before, h.activated_at, h.sealed, h.active, h.superseded)
+
+    @gl.public.view
+    def get_target_incident_count(self, target_id: str) -> gl.u32:
+        """Already-populated reverse index (see target_incident_count/target_incident_at above,
+        added in the A2-remediation pass) - exposed here as a first-class paired accessor
+        alongside the new lineage views so a caller can enumerate ALL of a target's incidents
+        (root, remediation and recovery-validation alike) without an indexer."""
+        return self.target_incident_count[target_id] if target_id in self.target_incident_count else gl.u32(0)
+
+    @gl.public.view
+    def get_target_incident_at(self, target_id: str, index: gl.u32) -> str:
+        key = _ck(target_id, str(int(index)))
+        return self.target_incident_at[key] if key in self.target_incident_at else ""
+
     @gl.public.view
     def get_policy_resource_at(self, policy_key: str, index: gl.u16) -> str:
         key = _ck(policy_key, str(int(index)))
