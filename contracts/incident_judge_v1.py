@@ -612,7 +612,20 @@ class IncidentJudgeV1(gl.contract.Contract):
             '{"condition_code":"<allowed code>"}.\n--- BEGIN UNTRUSTED EVIDENCE ---\n' + evidence_text +
             "\n--- END UNTRUSTED EVIDENCE ---"
         )
-        result = gl.nondet.exec_prompt(prompt, response_format="json")
+        # A2-JDG-001: exec_prompt itself (the actual nondet host call to the LLM) can raise on
+        # certain real inputs - confirmed live on Studio-dev, isolated to specific evidence text
+        # unrelated to length or source count (docs/execution/Current Phase.md, 2026-09-13) - and
+        # that exception previously propagated uncaught through leader_fn, crashing the whole
+        # transaction. Catch ONLY the exec_prompt call itself here, exactly the same
+        # graceful-degradation philosophy already used above for a failed evidence fetch (contributes
+        # nothing, never crashes). Do NOT widen this to also catch the two `raise gl.vm.UserError`
+        # checks immediately below - those are DELIBERATE hard failures for a successfully-returned
+        # but malformed/out-of-registry response (a real prompt-injection/model-malfunction signal),
+        # and MUST keep propagating uncaught (see test_prompt_injection_cannot_escape_condition_registry).
+        try:
+            result = gl.nondet.exec_prompt(prompt, response_format="json")
+        except Exception:
+            return {"condition_code": "INSUFFICIENT_EVIDENCE", "outcome": int(DECISION_OUTCOME_UNDETERMINED)}
         if not isinstance(result, dict) or "condition_code" not in result:
             raise gl.vm.UserError("E_JDG_014: [JUDGE_LLM] malformed output")
         code = result["condition_code"]

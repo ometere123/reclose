@@ -114,6 +114,29 @@ def test_insufficient_evidence_is_undetermined(judge_harness, direct_vm):
     assert [item for item in log if "decision_stage" in item][-1]["outcome"] == 3
 
 
+def test_malformed_llm_output_degrades_to_undetermined_instead_of_crashing(judge_harness, direct_vm):
+    """Live Studio-dev finding (docs/execution/Current Phase.md, 2026-09-13): certain realistic
+    evidence text made the real gl.nondet.exec_prompt call itself raise, and that exception
+    propagated uncaught through submit_incident instead of resolving to a judged outcome.
+    Reproduces the failure mode with a malformed (non-JSON) mocked LLM response - exec_prompt's
+    own response_format="json" parsing raises on this - and asserts the fix (a try/except around
+    ONLY the exec_prompt call in _evaluate_once, not the deliberate registry-check UserErrors
+    immediately after it) makes submit_incident complete normally with the same graceful
+    INSUFFICIENT_EVIDENCE/UNDETERMINED fallback _evaluate_once already uses for a failed evidence
+    fetch. See test_prompt_injection_cannot_escape_condition_registry for the sibling case this
+    fix must NOT affect: a successfully-parsed but out-of-registry condition code must still hard
+    fail, never silently degrade."""
+    judge, gl, log, config = judge_harness
+    direct_vm.mock_web(EAP_URL, {"method": "GET", "status": 200, "body": "evidence body"})
+    direct_vm.mock_llm(".*", "not valid json output from the model")
+    eap = make_eap(gl, config)
+    judge.submit_incident(
+        "target-001", "policy-1", "PROVIDER_COMPROMISE_V1", "provider_a",
+        eap["artifactHash"], canonical_json(eap), 0, "",
+    )
+    assert [item for item in log if "decision_stage" in item][-1]["outcome"] == 3
+
+
 def test_evidence_hash_must_equal_artifact_hash(judge_harness):
     judge, gl, _log, config = judge_harness
     eap = make_eap(gl, config)
