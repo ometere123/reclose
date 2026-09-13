@@ -18,6 +18,19 @@
         "validatorTimeunitsAllocation": { "type": "string" },
         "appealRounds": { "type": "string" }
       }
+    },
+    "fullFeeDetail": {
+      "description": "Item 1 (owner-directed remediation pass): the COMPLETE JSON-safe fee data (distribution/messageAllocations/feeValue) the estimator produced - never discarded down to distributionSummary alone. Every bigint is normalized to a decimal string.",
+      "type": ["object", "null"],
+      "properties": {
+        "distribution": {},
+        "messageAllocations": { "type": ["array", "null"] },
+        "feeValue": { "type": "string" }
+      }
+    },
+    "feeConfigHash": {
+      "description": "canonicalKeccak256(fullFeeDetail) - null exactly when fullFeeDetail is null.",
+      "type": ["string", "null"]
     }
   },
   "additionalProperties": false

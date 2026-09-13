@@ -537,6 +537,25 @@ export interface FeeDistributionSummary {
   appealRounds: string;
 }
 
+/**
+ * Item 1 (owner-directed remediation pass): `distributionSummary` alone (leaderTimeunitsAllocation/
+ * validatorTimeunitsAllocation/appealRounds) discards the estimator's own full message-allocation
+ * tree before it ever reaches the browser signer - the EXACT `messageAllocations` array genlayer-js
+ * itself computed (and, for a multi-hop write, `buildNestedMessageAllocationTree` composed/rolled
+ * up - see feeAllocation.ts) must survive unchanged into `writeContract`'s own `fees` argument, or
+ * a nested write genuinely needs that composed tree to avoid `no_matching_allocation # internal`.
+ * This additive field carries the COMPLETE JSON-safe fee data: every bigint (budget, parentIndex,
+ * feeValue) normalized to a decimal string so the object can pass through canonicalKeccak256/
+ * JSON.stringify without loss - never the lossy display-only summary alone. `feeConfigHash` is a
+ * canonicalKeccak256 digest over this exact object, so a reviewer/log can cite a short fingerprint
+ * for "which fee configuration was actually reviewed" without reproducing the whole tree inline.
+ */
+export interface FullFeeDetail {
+  distribution: unknown;
+  messageAllocations: Array<Record<string, string | boolean>> | null;
+  feeValue: string;
+}
+
 export interface FeeTransactionPreview {
   network: "studio-dev";
   chainId: 61997;
@@ -544,6 +563,11 @@ export interface FeeTransactionPreview {
   isEstimate: true;
   bondWei?: string | null;
   distributionSummary?: FeeDistributionSummary | null;
+  /** Additive (Item 1): see FullFeeDetail. Null when the transport did not report any fee detail
+   * (e.g. a synthetic/mock preview), never fabricated. */
+  fullFeeDetail?: FullFeeDetail | null;
+  /** Additive (Item 1): canonicalKeccak256(fullFeeDetail) - null exactly when fullFeeDetail is null. */
+  feeConfigHash?: `0x${string}` | null;
 }
 
 /**

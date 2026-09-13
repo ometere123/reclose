@@ -100,6 +100,24 @@ function computeActionId(incidentId: string, policyKey: string, actionTypeOrdina
   return ck(incidentId, policyKey, String(actionTypeOrdinal), resourceId);
 }
 
+/**
+ * Item 1 (owner-directed remediation pass): deep bigint -> decimal-string normalization, matching
+ * the pattern feeAllocation.ts's own node normalization already relies on (every bigint budget/
+ * parentIndex value stays a bigint internally but must become a JSON-safe decimal string before it
+ * can survive canonicalKeccak256/JSON.stringify/localStorage - jcsCanonicalize explicitly REJECTS a
+ * raw bigint). Never drops a field, never re-derives a value - purely a type-level normalization.
+ */
+function toJsonSafe(value: unknown): unknown {
+  if (typeof value === "bigint") return value.toString();
+  if (Array.isArray(value)) return value.map((v) => toJsonSafe(v));
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = toJsonSafe(v);
+    return out;
+  }
+  return value;
+}
+
 export interface RecloseAddresses {
   kernel: string;
   judge: string;
@@ -136,7 +154,14 @@ export interface RecloseTransport {
     functionName: string;
     args: unknown[];
     value?: bigint;
-  }): Promise<{ feeValue?: bigint | string | number; distribution?: Record<string, unknown> | null }>;
+  }): Promise<{
+    feeValue?: bigint | string | number;
+    distribution?: Record<string, unknown> | null;
+    /** Item 1: the estimator's own per-hop allocation nodes (budget/parentIndex as bigint, exactly
+     * as genlayer-js reports them) - optional because not every transport implementation surfaces
+     * this yet; when present it is preserved in full, never discarded. */
+    messageAllocations?: Array<Record<string, unknown>> | null;
+  }>;
   resolveActionTransaction?(actionId: string): Promise<ResolvedActionTransaction | null>;
 }
 
@@ -682,11 +707,75 @@ export class DirectRecloseClient implements RecloseSDK {
     };
   }
 
-  private async feePreview(functionName: string, args: unknown[], contractAddress: string = this.addresses.judge): Promise<FeeTransactionPreview> {
+  /**
+   * Item 5 (owner-directed remediation pass), ADDITIVE: `getEffectiveProviderStatus` is frozen
+   * (one of the 14 RecloseSDK methods) and its `available: boolean` return type cannot carry a
+   * third state without breaking that contract - so this is a NEW, separate product-facing helper
+   * that exposes the real tri-state truth explicitly, never reusing the same narrow boolean field:
+   *   - authority-revoked                    -> UNKNOWN (Reclose has lost control authority over
+   *                                              the target; it can no longer assert ANYTHING about
+   *                                              the underlying provider/resource, available OR not)
+   *   - an active restriction governs this resource -> UNAVAILABLE (a real Kernel restriction is in
+   *                                              force; Reclose is NOT merely unsure, it has actively
+   *                                              restricted this exact resource)
+   *   - no restriction, reachable             -> AVAILABLE
+   *   - unreadable/unsupported read           -> UNKNOWN (fail-closed-to-uncertain, never AVAILABLE)
+   * Built directly on the SAME protocol reads getEffectiveProviderStatus already performs - it does
+   * not duplicate a second restriction-lookup implementation.
+   */
+  async getProviderAvailabilityTriState(targetId: string, resourceId: string): Promise<{
+    resourceId: string;
+    status: "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
+    reason: ErrorEnvelope | null;
+  }> {
+    try {
+      const target = await this.getTarget(targetId);
+      if (target.authorityRevoked) {
+        return {
+          resourceId,
+          status: "UNKNOWN",
+          reason: { code: "AUTHORITY_REVOKED", message: `Reclose's control authority over target ${targetId} has been revoked - no statement about this resource's actual availability can be made.` },
+        };
+      }
+      const count = num(await this.kernel("get_resource_restriction_count", [target.targetAddress, resourceId]));
+      if (count > 0) {
+        return { resourceId, status: "UNAVAILABLE", reason: { code: "UNKNOWN", message: `${count} active assurance restriction(s) apply to ${resourceId}` } };
+      }
+      return { resourceId, status: "AVAILABLE", reason: null };
+    } catch (error) {
+      return { resourceId, status: "UNKNOWN", reason: { code: "UNKNOWN", message: `Provider availability could not be read: ${(error as Error).message}` } };
+    }
+  }
+
+  private async feePreview(
+    functionName: string,
+    args: unknown[],
+    contractAddress: string = this.addresses.judge,
+    value: bigint = 0n
+  ): Promise<FeeTransactionPreview> {
     await this.ensureNetwork();
     if (!this.transport.estimateTransactionFeesForWrite) throw new Error("Transport does not support fee estimation");
-    const estimate = await this.transport.estimateTransactionFeesForWrite({ address: contractAddress, functionName, args, value: 0n });
-    return { network: "studio-dev", chainId: RECLOSE_CANONICAL_CHAIN_ID, estimatedFeeValueWei: String(estimate.feeValue ?? "0"), isEstimate: true, distributionSummary: null };
+    // Item 1 (owner-directed remediation pass): the PREVIOUS unconditional `value: 0n` silently
+    // mis-estimated every payable call (e.g. IncentiveVault.open_bond, which genuinely moves
+    // `rule.reportBond` wei) as if it moved nothing - callers that actually carry a non-zero
+    // `valueWei` on their PreparedRecloseWrite MUST estimate against that same real value.
+    const estimate = await this.transport.estimateTransactionFeesForWrite({ address: contractAddress, functionName, args, value });
+    const fullFeeDetail = {
+      distribution: toJsonSafe(estimate.distribution ?? null),
+      messageAllocations: Array.isArray(estimate.messageAllocations)
+        ? estimate.messageAllocations.map((node) => toJsonSafe(node) as Record<string, string | boolean>)
+        : null,
+      feeValue: String(estimate.feeValue ?? "0"),
+    };
+    return {
+      network: "studio-dev",
+      chainId: RECLOSE_CANONICAL_CHAIN_ID,
+      estimatedFeeValueWei: String(estimate.feeValue ?? "0"),
+      isEstimate: true,
+      distributionSummary: null,
+      fullFeeDetail,
+      feeConfigHash: canonicalKeccak256(fullFeeDetail),
+    };
   }
 
   /**
@@ -698,20 +787,47 @@ export class DirectRecloseClient implements RecloseSDK {
    * the Kernel itself re-verifies this on-chain regardless; this is a fast pre-sign check, not a
    * second authority.
    */
+  /**
+   * Item 4 (owner-directed remediation pass): the pre-sign handshake is now performed
+   * UNCONDITIONALLY by the SDK's own already-configured transport/kernel reference - it no longer
+   * depends on a caller optionally injecting `targetReadContract`. Mirrors
+   * contracts/assurance_kernel.py::register_target's OWN real-time checks exactly (same method
+   * names, same order, same failure semantics), reading them directly off the target contract via
+   * `this.transport.readContract({ address: input.targetAddress, ... })`:
+   *   - get_assurance_owner()              -> reported owner (compared against expectedOwner, when supplied)
+   *   - get_assurance_controller()         -> must equal THIS Kernel's own address
+   *   - get_assurance_target_id()          -> must equal the requested targetId
+   *   - is_assurance_authority_revoked()   -> must be false
+   * The Kernel re-verifies every one of these on-chain regardless (this is a fast pre-sign UX
+   * check, not a second authority, per CLAUDE.md Section 12) - but it is no longer possible to skip
+   * the controller/targetId/revoked checks just by omitting an optional injection parameter.
+   */
   async buildTargetRegistration(input: {
     targetId: string;
     targetAddress: string;
     humanOverrideEnabled: boolean;
     expectedOwner?: string;
-    targetReadContract?: { getOwner(): Promise<string> };
   }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
     if (!/^0x[0-9a-fA-F]{40}$/.test(input.targetAddress)) throw new Error("targetAddress must be a 20-byte 0x-prefixed address");
     if (!/^[A-Za-z0-9_.:-]{1,96}$/.test(input.targetId)) throw new Error("targetId is not a valid identifier");
-    if (input.expectedOwner && input.targetReadContract) {
-      const observedOwner = await input.targetReadContract.getOwner();
-      if (observedOwner.toLowerCase() !== input.expectedOwner.toLowerCase()) {
-        throw new Error(`Target handshake failed: target reports owner ${observedOwner}, expected ${input.expectedOwner}. Registration will not be prepared.`);
-      }
+    await this.ensureNetwork();
+
+    const reportedOwner = str(await this.transport.readContract({ address: input.targetAddress, functionName: "get_assurance_owner" }));
+    const controller = str(await this.transport.readContract({ address: input.targetAddress, functionName: "get_assurance_controller" }));
+    const reportedTargetId = str(await this.transport.readContract({ address: input.targetAddress, functionName: "get_assurance_target_id" }));
+    const revoked = Boolean(await this.transport.readContract({ address: input.targetAddress, functionName: "is_assurance_authority_revoked" }));
+
+    if (controller.toLowerCase() !== this.addresses.kernel.toLowerCase()) {
+      throw new Error(`Target handshake failed: target reports controller ${controller}, expected this Kernel (${this.addresses.kernel}). Registration will not be prepared.`);
+    }
+    if (reportedTargetId !== input.targetId) {
+      throw new Error(`Target handshake failed: target reports target ID "${reportedTargetId}", expected "${input.targetId}". Registration will not be prepared.`);
+    }
+    if (revoked) {
+      throw new Error(`Target handshake failed: target reports assurance authority already revoked. Registration will not be prepared.`);
+    }
+    if (input.expectedOwner && reportedOwner.toLowerCase() !== input.expectedOwner.toLowerCase()) {
+      throw new Error(`Target handshake failed: target reports owner ${reportedOwner}, expected ${input.expectedOwner}. Registration will not be prepared.`);
     }
 
     const args: unknown[] = [input.targetId, input.targetAddress, input.humanOverrideEnabled];
@@ -726,10 +842,10 @@ export class DirectRecloseClient implements RecloseSDK {
       valueWei: "0",
       feeEstimate,
       semanticKind: "TARGET_REGISTRATION" as PreparedWriteSemanticKind,
-      // Signer-binding requirement: registration has a known expected signer only when the caller
-      // supplied one to pre-check against the target's live-reported owner; otherwise null (no
-      // single identity to bind yet).
-      expectedSigner: (input.expectedOwner as `0x${string}` | undefined) ?? null,
+      // Signer-binding requirement: the expected signer is the EXPLICITLY requested owner when
+      // supplied, otherwise the target's own REAL reported owner (never null merely because the
+      // caller omitted expectedOwner - the handshake above already read a real owner value).
+      expectedSigner: (input.expectedOwner as `0x${string}` | undefined) ?? (reportedOwner as `0x${string}`),
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
     const report: PreparedRecloseWrite = { ...draft, reviewHash: computeReviewHash(forHash) };
@@ -804,7 +920,9 @@ export class DirectRecloseClient implements RecloseSDK {
       predictedIncidentId,
     });
     const args: unknown[] = [bondId, input.targetId, policy.summary.policyKey, policy.summary.version, input.ruleId, reporterNonce, predictedIncidentId];
-    const feeEstimate = await this.feePreview("open_bond", args, this.addresses.vault);
+    // Item 1: open_bond is a REAL payable call (it moves exactly rule.reportBond wei) - estimate
+    // against that real value, never the flat 0n every previous feePreview call silently assumed.
+    const feeEstimate = await this.feePreview("open_bond", args, this.addresses.vault, BigInt(rule.reportBond || "0"));
     const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
       schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress: this.addresses.vault,
       functionName: "open_bond", args, valueWei: rule.reportBond, feeEstimate,
@@ -812,6 +930,45 @@ export class DirectRecloseClient implements RecloseSDK {
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
     return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate, bondId };
+  }
+
+  /**
+   * Item 2 (owner-directed remediation pass): generalizes the non-zero-bond gating that previously
+   * existed only inline inside buildIncidentReport to every Judge submission entrypoint
+   * (buildIncidentReport, buildRecoveryReport). Re-derives the bondId a currently-open bond for
+   * this EXACT reporter/target/rule/policy would have used, with the reporter's CURRENT nonce, and
+   * requires it to match the caller-supplied `bondId` exactly - if the reporter's nonce changed
+   * since the bond was opened (e.g. a different report was submitted/confirmed in between), the
+   * previously-opened bond no longer corresponds to the incident this submission will actually
+   * mint, and the stale bondId must be rejected with a clear explanation rather than silently
+   * accepted and failed opaquely by the Judge's own `_verify_bond` at execution time.
+   */
+  private requireVerifiedBond(input: {
+    rule: { ruleId: string; reportBond: string } | undefined;
+    ruleId: string;
+    targetId: string;
+    policyKey: string;
+    reporterAddress: string;
+    reporterNonce: number;
+    predictedIncidentId: string;
+    bondId?: string;
+  }): string {
+    if (!input.rule || BigInt(input.rule.reportBond || "0") <= 0n) return input.bondId ?? "";
+    if (!input.bondId) {
+      throw new Error(`Rule ${input.ruleId} requires a non-zero bond (${input.rule.reportBond} wei). Call buildOpenBond first, submit and confirm that transaction, then pass its bondId here - this submission cannot be prepared without it.`);
+    }
+    const expectedBondId = deriveBondId({
+      targetId: input.targetId,
+      policyKey: input.policyKey,
+      ruleId: input.ruleId,
+      reporterAddress: input.reporterAddress,
+      reporterNonce: input.reporterNonce,
+      predictedIncidentId: input.predictedIncidentId,
+    });
+    if (expectedBondId !== input.bondId) {
+      throw new Error(`Bond mismatch: the reporter's nonce has changed since this bond was opened (current nonce ${input.reporterNonce} derives expected bondId ${expectedBondId}, but ${input.bondId} was supplied). The previously-opened bond no longer corresponds to the incident this submission would mint - re-open the bond with buildOpenBond using the CURRENT nonce before submitting.`);
+    }
+    return input.bondId;
   }
 
   async buildIncidentReport(input: {
@@ -839,15 +996,6 @@ export class DirectRecloseClient implements RecloseSDK {
     if (!input.reporterAddress) throw new Error("reporterAddress is required to bind the EAP and derive the reporter nonce - Reclose never custodies a signing identity");
     const reporterAddress = input.reporterAddress;
     const ruleId = input.ruleId as RuleId;
-    // Non-zero bond rule (FINAL_REMEDIATION.md Section 5): submit_incident must never be prepared
-    // with bondId="" when the rule's reportBond > 0 - the Judge's own _verify_bond would reject it
-    // anyway, but silently defaulting to "" here would present a signable draft that was never a
-    // real bonded submission. The caller must open the bond FIRST (buildOpenBond) and pass back
-    // its exact bondId; zero-bond rules remain the direct, bondId-less path.
-    if (BigInt(rule.reportBond || "0") > 0n && !input.bondId) {
-      throw new Error(`Rule ${ruleId} requires a non-zero bond (${rule.reportBond} wei). Call buildOpenBond first, submit and confirm that transaction, then pass its bondId here - submit_incident cannot be prepared without it.`);
-    }
-    const bondId = input.bondId ?? "";
 
     const eap = this.buildCanonicalEap({
       targetId: input.targetId,
@@ -859,6 +1007,13 @@ export class DirectRecloseClient implements RecloseSDK {
     });
     const evidenceJson = JSON.stringify(eap);
     const reporterNonce = num(await this.judgeRead("get_reporter_nonce", [reporterAddress]));
+    const predictedIncidentId = deriveIncidentId(input.targetId, reporterAddress, reporterNonce);
+    // Item 2: non-zero bond rule gating, generalized into requireVerifiedBond - never prepared with
+    // bondId="" when reportBond > 0, and rejects a bond whose reporter nonce no longer matches.
+    const bondId = this.requireVerifiedBond({
+      rule, ruleId, targetId: input.targetId, policyKey: policy.summary.policyKey,
+      reporterAddress, reporterNonce, predictedIncidentId, bondId: input.bondId,
+    });
 
     const args: unknown[] = [input.targetId, policy.summary.policyKey, ruleId, input.resourceId, eap.artifactHash, evidenceJson, reporterNonce, bondId];
     const feeEstimate = await this.feePreview("submit_incident", args);
@@ -887,7 +1042,7 @@ export class DirectRecloseClient implements RecloseSDK {
       // already protocol-read inputs to this same draft. The caller persists this alongside the
       // txId the instant the draft is signed - never waiting on (or substituting) whatever value
       // a writer's return object happens to carry.
-      predictedIncidentId: { incidentId: deriveIncidentId(input.targetId, reporterAddress, reporterNonce), targetId: input.targetId, reporterAddress, reporterNonce },
+      predictedIncidentId: { incidentId: predictedIncidentId, targetId: input.targetId, reporterAddress, reporterNonce },
     };
     return { report, feePreview: feeEstimate };
   }
@@ -903,8 +1058,11 @@ export class DirectRecloseClient implements RecloseSDK {
     const policy = await this.getActivePolicy(incident.targetId);
     if (!input.reporterAddress) throw new Error("reporterAddress is required to bind the EAP and derive the reporter nonce - Reclose never custodies a signing identity");
     const reporterAddress = input.reporterAddress;
-    const bondId = input.bondId ?? "";
     const ruleId: RuleId = "RECOVERY_VALIDATED_V1";
+    // Item 2: generalizes buildIncidentReport's non-zero-bond gating to the recovery path - the
+    // rule's REAL bond economics are read from the active policy, never assumed zero just because
+    // the previous code always defaulted bondId to "".
+    const recoveryRule = policy.rules.find((r) => r.ruleId === ruleId && r.enabled);
 
     const eap = this.buildCanonicalEap({
       targetId: incident.targetId,
@@ -916,6 +1074,11 @@ export class DirectRecloseClient implements RecloseSDK {
     });
     const evidenceJson = JSON.stringify(eap);
     const reporterNonce = num(await this.judgeRead("get_reporter_nonce", [reporterAddress]));
+    const predictedIncidentId = deriveIncidentId(incident.targetId, reporterAddress, reporterNonce);
+    const bondId = this.requireVerifiedBond({
+      rule: recoveryRule, ruleId, targetId: incident.targetId, policyKey: policy.summary.policyKey,
+      reporterAddress, reporterNonce, predictedIncidentId, bondId: input.bondId,
+    });
 
     const args: unknown[] = [input.incidentId, policy.summary.policyKey, eap.artifactHash, evidenceJson, reporterNonce, bondId];
     const feeEstimate = await this.feePreview("submit_recovery_validation", args);
@@ -935,7 +1098,7 @@ export class DirectRecloseClient implements RecloseSDK {
     const report: PreparedRecloseWrite & { predictedIncidentId: PredictedIncidentIdentity } = {
       ...draft,
       reviewHash: computeReviewHash(forHash),
-      predictedIncidentId: { incidentId: deriveIncidentId(incident.targetId, reporterAddress, reporterNonce), targetId: incident.targetId, reporterAddress, reporterNonce },
+      predictedIncidentId: { incidentId: predictedIncidentId, targetId: incident.targetId, reporterAddress, reporterNonce },
     };
     return { report, feePreview: feeEstimate };
   }
@@ -1044,14 +1207,24 @@ export class DirectRecloseClient implements RecloseSDK {
    */
   async buildPreparedWriteForCall(
     call: { functionName: string; args: unknown[] },
-    options: { contractAddress?: string; semanticKind: PreparedWriteSemanticKind; valueWei?: string }
+    options: { contractAddress?: string; semanticKind: PreparedWriteSemanticKind; valueWei?: string; targetId?: string }
   ): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
     const contractAddress = options.contractAddress ?? this.addresses.kernel;
-    const feeEstimate = await this.feePreview(call.functionName, call.args, contractAddress);
+    const feeEstimate = await this.feePreview(call.functionName, call.args, contractAddress, BigInt(options.valueWei ?? "0"));
+    // Item 3 (owner-directed remediation pass): every policy-construction/activation step must be
+    // bound to the target's CURRENT, LIVE-read owner (via getTarget, which always issues a fresh
+    // readContract call - never a cached value) immediately before this draft is hashed/signed.
+    // Previously no expectedSigner was ever set on a policy-construction step at all, so
+    // submitWrite's signer-binding check (adapters.js) had nothing to verify against; an account
+    // switch mid-journey could sign a step reviewed under a different identity undetected.
+    let expectedSigner: `0x${string}` | null = null;
+    if (options.targetId) {
+      try { expectedSigner = (await this.getTarget(options.targetId)).cachedOwner as `0x${string}`; } catch { expectedSigner = null; }
+    }
     const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
       schemaVersion: "1.0.0", chainId: RECLOSE_CANONICAL_CHAIN_ID, contractAddress,
       functionName: call.functionName, args: call.args, valueWei: options.valueWei ?? "0",
-      feeEstimate, semanticKind: options.semanticKind,
+      feeEstimate, semanticKind: options.semanticKind, expectedSigner,
     };
     const { feeEstimate: _omitted, ...forHash } = draft;
     return { report: { ...draft, reviewHash: computeReviewHash(forHash) }, feePreview: feeEstimate };
@@ -1070,7 +1243,10 @@ export class DirectRecloseClient implements RecloseSDK {
     let fromApm: unknown = {};
     try { fromApm = await this.getActivePolicy(input.targetId); } catch { /* first policy for this target - expansion-from-empty semantics apply */ }
     const diff = diffCanonicalApm(fromApm, input.apm);
-    const built = await this.buildPreparedWriteForCall({ functionName: "activate_policy", args: [input.policyKey] }, { semanticKind: "POLICY_ACTIVATION" as PreparedWriteSemanticKind });
+    const built = await this.buildPreparedWriteForCall(
+      { functionName: "activate_policy", args: [input.policyKey] },
+      { semanticKind: "POLICY_ACTIVATION" as PreparedWriteSemanticKind, targetId: input.targetId }
+    );
     return { ...built, authorityExpands: diff.authorityExpands, diff };
   }
 
