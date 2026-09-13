@@ -13,7 +13,7 @@
 // messageAllocations investigation documented in release-evidence/r1/c1r/deploy-log.md).
 //
 // Usage:
-//   node scripts/estimate-studio-dev-write.mjs <contractAddress> <functionName> [--args '[...]'] [--value <wei>]
+//   node scripts/estimate-studio-dev-write.mjs <contractAddress> <functionName> [--args '[...]'] [--bigint-arg-index <n>] [--value <wei>] [--account <address>]
 //
 // Never invents parentIndex trees or feeParams - if the pinned estimator itself cannot resolve a
 // cross-contract branch, this script surfaces the exact error/response rather than guessing.
@@ -31,18 +31,30 @@ function parseArgs(argv) {
   }
   let args = [];
   let value = 0n;
+  let account;
+  const bigintArgIndexes = [];
   for (let i = 0; i < rest.length; i++) {
     if (rest[i] === "--args") {
       args = JSON.parse(rest[++i]);
     } else if (rest[i] === "--value") {
       value = BigInt(rest[++i]);
+    } else if (rest[i] === "--account") {
+      account = rest[++i];
+    } else if (rest[i] === "--bigint-arg-index") {
+      bigintArgIndexes.push(Number(rest[++i]));
     }
   }
-  return { address, functionName, args, value };
+  for (const index of bigintArgIndexes) {
+    if (!Number.isInteger(index) || index < 0 || index >= args.length || typeof args[index] !== "string" || !/^\d+$/.test(args[index])) {
+      throw new Error(`--bigint-arg-index ${index} must refer to a non-negative decimal string in --args`);
+    }
+    args[index] = BigInt(args[index]);
+  }
+  return { address, functionName, args, value, account };
 }
 
 async function main() {
-  const { address, functionName, args, value } = parseArgs(process.argv.slice(2));
+  const { address, functionName, args, value, account } = parseArgs(process.argv.slice(2));
 
   const chain = { ...chains.studioDevnet, id: STUDIO_DEV_CHAIN_ID, rpcUrls: { default: { http: [STUDIO_DEV_RPC] } } };
   // C1-FINAL / CLAUDE.md Section 10: assert canonical chain identity before any network call -
@@ -52,7 +64,7 @@ async function main() {
     process.exit(1);
   }
 
-  const client = createClient({ chain });
+  const client = createClient({ chain, ...(account ? { account } : {}) });
   const reportedChainId = await client.getChainId();
   if (Number(reportedChainId) !== STUDIO_DEV_CHAIN_ID) {
     console.error(`REFUSING: RPC reports chain ID ${reportedChainId}, expected ${STUDIO_DEV_CHAIN_ID} (studio-dev, not stable 61999)`);

@@ -21,12 +21,15 @@ if ($LASTEXITCODE -ne 0 -or $accountInfo -notmatch [regex]::Escape($expectedOwne
     throw "Refusing to submit: reclose-deployer did not verify as target owner $expectedOwner.`n$accountInfo"
 }
 
-# Estimate the exact call with real arguments, then forward the CLI's complete fee object.
-$estimateOutput = & genlayer estimate-fees $target purchase_service --rpc $rpc --json --args $requestRef $amountWei 2>&1
-if ($LASTEXITCODE -ne 0) {
+# Estimate the exact call with real arguments through the repository's pinned SDK helper.
+# It emits one JSON object and uses the same Studio-dev fee-estimation RPC as the CLI.
+$estimateArgs = '["e1-r1-final-run-a-initial-purchase-001","50000000000000000"]'
+$estimateOutput = & node (Join-Path $PSScriptRoot 'estimate-studio-dev-write.mjs') $target purchase_service --args $estimateArgs --bigint-arg-index 1 --account $expectedOwner
+$estimateExitCode = $LASTEXITCODE
+if ($estimateExitCode -ne 0) {
     throw "Fee estimation failed; no purchase was submitted.`n$($estimateOutput | Out-String)"
 }
-$estimate = ($estimateOutput | Out-String) | ConvertFrom-Json
+$estimate = ($estimateOutput -join [Environment]::NewLine) | ConvertFrom-Json
 if ($null -eq $estimate.distribution -or $null -eq $estimate.feeValue) {
     throw 'Fee estimation did not return both distribution and feeValue; no purchase was submitted.'
 }
