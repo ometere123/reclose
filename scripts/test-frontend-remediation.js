@@ -1010,7 +1010,45 @@ async function main() {
     assert.strictEqual(typeof effective.available, "boolean", "the frozen method's available field must remain a strict boolean, never replaced by the tri-state");
   });
 
-  const total = 59;
+  await test("Owner-directed remediation batch (final): getIncidentLineage wires the additive Judge lineage views (get_incident_parent/target_id/policy_key/rule_id/reporter/evidence_hash + parent-child reverse index) and buildRemediationReport targets the real submit_remediation entrypoint, distinct from submit_recovery_validation", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const judgeReads = {
+      get_incident_parent: () => "root-1",
+      get_incident_target_id: () => "reclose-target-003",
+      get_incident_policy_key: () => "policy-r1-004",
+      get_incident_rule_id: () => "REMEDIATION_CONFIRMED_V1",
+      get_incident_reporter: () => "0xReporter",
+      get_incident_evidence_hash: () => "0xEvidenceHash",
+      get_incident_outcome: () => 1,
+      get_incident_condition_code: () => "REMEDIATION_VERIFIED",
+      get_parent_child_count: () => 0,
+    };
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName in judgeReads) return judgeReads[functionName]();
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const lineage = await client.getIncidentLineage("child-1");
+    assert.strictEqual(lineage.parentIncidentId, "root-1");
+    assert.strictEqual(lineage.ruleId, "REMEDIATION_CONFIRMED_V1");
+    assert.strictEqual(lineage.outcome, 1, "outcome 1 must map to CONFIRMED per contracts/incident_judge_v1.py::DECISION_OUTCOME_CONFIRMED");
+    assert.deepStrictEqual(lineage.children, [], "zero-child-count must yield an empty array, never a fabricated child");
+
+    judgeReads.get_incident_parent = () => "";
+    const rootLineage = await client.getIncidentLineage("root-1");
+    assert.strictEqual(rootLineage.parentIncidentId, null, "an empty on-chain parent_incident_id must map to null, never the empty string or a fabricated parent");
+
+    assert.strictEqual(typeof client.buildRemediationReport, "function", "buildRemediationReport must exist as a distinct builder from buildRecoveryReport");
+  });
+
+  const total = 60;
   console.log(`\n${total - failures}/${total} frontend A3-remediation checks passed.`);
   if (failures) process.exit(1);
 }

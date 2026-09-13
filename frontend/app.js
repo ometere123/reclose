@@ -531,16 +531,52 @@ function handleReportRuleChange(event) {
   renderBondGate();
 }
 
+/** Remediation (REMEDIATION_CONFIRMED_V1 / submit_remediation) and recovery validation
+ * (RECOVERY_VALIDATED_V1 / submit_recovery_validation) are distinct on-chain entrypoints with
+ * separate outcome vocabularies - never the same flow with different labels. Recovery validation
+ * must not be offered until a CONFIRMED remediation child of the parent incident is found via a
+ * real lineage read, never a UI assumption that remediation "probably" succeeded. */
 async function renderRecovery(parts) {
   const incidentId = parts[0] ? decodeURIComponent(parts.join("/")) : "";
+  let stageHtml = `<div class="empty">Enter a parent incident above and check its stage to see whether remediation or recovery validation is the next step.</div>`;
+  if (incidentId && adapter.mode !== "mock") {
+    try {
+      const lineage = await adapter.getIncidentLineage(incidentId);
+      const remediationChildren = [];
+      for (const childId of lineage.children) {
+        const child = await adapter.getIncidentLineage(childId);
+        if (child.ruleId === "REMEDIATION_CONFIRMED_V1") remediationChildren.push({ id: childId, outcome: child.outcome });
+      }
+      const confirmedRemediation = remediationChildren.find((c) => c.outcome === 1);
+      if (confirmedRemediation) {
+        stageHtml = `${notice("Remediation confirmed", `Incident ${escapeHtml(confirmedRemediation.id)} is a CONFIRMED remediation child of ${escapeHtml(incidentId)}. Recovery validation is now the correct next step.`, "success")}
+          <form id="recovery-form" novalidate>
+            <div id="recovery-errors" class="error-summary" hidden></div>
+            <input type="hidden" name="incidentId" value="${escapeHtml(incidentId)}">
+            <div class="field"><label for="recovery-url">Recovery evidence URL</label><input id="recovery-url" name="url" type="url" value="https://status.example.com/recovery" required></div>
+            <div class="field"><label for="recovery-class">Source class</label><select id="recovery-class" name="sourceClass"><option>AUTHORITATIVE_PUBLIC</option><option>INDEPENDENT_PUBLIC</option></select></div>
+            <div class="form-actions"><button class="button primary" type="submit">Preview recovery validation transaction</button></div>
+          </form>`;
+      } else if (remediationChildren.length > 0) {
+        stageHtml = notice("Remediation pending", `${remediationChildren.length} remediation submission(s) exist for ${escapeHtml(incidentId)} but none is CONFIRMED yet. Recovery validation is blocked until one is.`, "warning");
+      } else {
+        stageHtml = `${notice("No remediation submitted yet", `No REMEDIATION_CONFIRMED_V1 child was found for ${escapeHtml(incidentId)}. Submit remediation evidence first - recovery validation cannot be built until a remediation decision confirms.`, "warning")}
+          <form id="remediation-form" novalidate>
+            <div id="remediation-errors" class="error-summary" hidden></div>
+            <input type="hidden" name="incidentId" value="${escapeHtml(incidentId)}">
+            <div class="field"><label for="remediation-url">Remediation evidence URL</label><input id="remediation-url" name="url" type="url" value="https://status.example.com/remediation" required></div>
+            <div class="field"><label for="remediation-class">Source class</label><select id="remediation-class" name="sourceClass"><option>AUTHORITATIVE_PUBLIC</option><option>INDEPENDENT_PUBLIC</option></select></div>
+            <div class="form-actions"><button class="button primary" type="submit">Preview remediation transaction</button></div>
+          </form>`;
+      }
+    } catch (error) {
+      stageHtml = notice("Lineage read failed", error.message, "danger");
+    }
+  } else if (incidentId) {
+    stageHtml = notice("Fixture mode", "Fixture mode cannot read incident lineage on-chain. Connect a live SDK to determine whether remediation or recovery validation is the correct next step.", "warning");
+  }
   return `${pageHead("recovery", "Submit remediation / recovery", "Recovery is a first-class evidence and judgment flow. Authority is not restored by a frontend toggle.")}
-    <div class="grid">${panel("Recovery evidence", `<form id="recovery-form" novalidate>
-      <div id="recovery-errors" class="error-summary" hidden></div>
-      <div class="field"><label for="recovery-incident">Parent incident</label><input id="recovery-incident" name="incidentId" value="${escapeHtml(incidentId)}" required></div>
-      <div class="field"><label for="recovery-url">Remediation evidence URL</label><input id="recovery-url" name="url" type="url" value="https://status.example.com/remediation" required></div>
-      <div class="field"><label for="recovery-class">Source class</label><select id="recovery-class" name="sourceClass"><option>AUTHORITATIVE_PUBLIC</option><option>INDEPENDENT_PUBLIC</option></select></div>
-      <div class="form-actions"><button class="button primary" type="submit">Preview recovery transaction</button></div>
-    </form>`, "span-7")}${panel("Recovery boundary", '<div id="recovery-preview" class="empty">Restoration requires a final recovery validation decision and the absence of conflicting restrictions.</div>', "span-5")}</div>`;
+    <div class="grid">${panel("Recovery stage", `<form id="recovery-lookup-form" novalidate><div class="field"><label for="recovery-incident">Parent incident</label><input id="recovery-incident" name="incidentId" value="${escapeHtml(incidentId)}" required></div><div class="form-actions"><button class="button" type="submit">Check stage</button></div></form><div id="recovery-stage">${stageHtml}</div>`, "span-7")}${panel("Signing boundary", '<div id="recovery-preview" class="empty">Restoration requires a final recovery validation decision and the absence of conflicting restrictions.</div>', "span-5")}</div>`;
 }
 
 async function renderOnboard() {
@@ -633,21 +669,41 @@ async function submitPolicyJourneyStep() {
 }
 
 /** "Read activation_not_before, wait the real timelock where required" (FINAL_REMEDIATION.md
- * Section 3) - honestly bounded: the Kernel exposes no view for `sealed_at`/`activation_not_before`
- * (confirmed by reading contracts/assurance_kernel.py::get_policy_header in full - it returns only
- * version/manifestHash/sealed/active/humanOverrideEnabled). This reads what IS available (sealed
- * flag via getPolicyHeaderReadback) rather than fabricating a timelock countdown this SDK cannot
- * actually observe. */
+ * Section 3). The Kernel now exposes get_policy_lifecycle (owner-directed remediation pass, item
+ * 6) with a real activation_not_before field, so this reads a genuine chain-derived countdown
+ * instead of asking the user to self-attest that enough time has passed. Falls back to the older
+ * sealed-only readback only if the connected SDK build predates get_policy_lifecycle. */
 async function handlePolicyVerifySeal() {
   const j = state.policyJourney;
   const el = document.getElementById("policy-construction-output");
   try {
-    const summary = await adapter.getPolicyHeaderReadback(j.policyKey);
-    if (!summary.sealed) { el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Not sealed yet", "On-chain readback reports sealed=false. The seal_policy transaction may still be pending.", "warning")}`; return; }
+    const lifecycle = await adapter.getPolicyLifecycle(j.policyKey);
+    if (!lifecycle.sealed) { el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Not sealed yet", "On-chain readback reports sealed=false. The seal_policy transaction may still be pending.", "warning")}`; return; }
     j.sealConfirmed = true;
-    el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Seal confirmed on-chain", `Readback: version=${summary.version}, manifestHash=${summary.manifestHash}, sealed=true. Activation_not_before cannot be read - the Kernel exposes no view for it (see known-limitations.md) - confirm any required expansion delay has elapsed before activating.`, "success")}<div class="form-actions" style="margin-top:10px"><button class="button primary" type="button" data-action="policy-build-activation">Build activation draft</button></div>`;
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const remaining = lifecycle.activationNotBefore - nowSeconds;
+    const timingNotice = remaining > 0
+      ? notice("Activation delay still in effect", `Chain-derived readback: activation_not_before=${lifecycle.activationNotBefore} (now=${nowSeconds}). ${remaining}s remain before activation is eligible. Refresh this step once the delay has elapsed.`, "warning")
+      : notice("Activation is eligible now", `Chain-derived readback: activation_not_before=${lifecycle.activationNotBefore} has passed (now=${nowSeconds}).`, "success");
+    const canActivateNow = remaining <= 0;
+    el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Seal confirmed on-chain", `Readback: version=${lifecycle.version}, manifestHash=${lifecycle.manifestHash}, sealed=true.`, "success")}${timingNotice}${canActivateNow ? `<div class="form-actions" style="margin-top:10px"><button class="button primary" type="button" data-action="policy-build-activation">Build activation draft</button></div>` : `<div class="form-actions" style="margin-top:10px"><button class="button" type="button" data-action="policy-verify-seal">Re-check timelock</button></div>`}`;
     document.querySelector('[data-action="policy-build-activation"]')?.addEventListener("click", handlePolicyBuildActivation);
+    document.querySelector('[data-action="policy-verify-seal"]')?.addEventListener("click", handlePolicyVerifySeal);
   } catch (error) {
+    if (String(error.message || "").includes("does not support get_policy_lifecycle")) {
+      // Older-SDK fallback: sealed-only readback, no countdown available.
+      try {
+        const summary = await adapter.getPolicyHeaderReadback(j.policyKey);
+        if (!summary.sealed) { el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Not sealed yet", "On-chain readback reports sealed=false. The seal_policy transaction may still be pending.", "warning")}`; return; }
+        j.sealConfirmed = true;
+        el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Seal confirmed on-chain", `Readback: version=${summary.version}, manifestHash=${summary.manifestHash}, sealed=true. Activation timing could not be read from this connected SDK build - confirm any required expansion delay has elapsed before activating.`, "success")}<div class="form-actions" style="margin-top:10px"><button class="button primary" type="button" data-action="policy-build-activation">Build activation draft</button></div>`;
+        document.querySelector('[data-action="policy-build-activation"]')?.addEventListener("click", handlePolicyBuildActivation);
+        return;
+      } catch (fallbackError) {
+        el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Readback failed", fallbackError.message, "danger")}`;
+        return;
+      }
+    }
     el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Readback failed", error.message, "danger")}`;
   }
 }
@@ -867,6 +923,36 @@ async function handleRecoverySubmit(event) {
   bindDynamicButtons();
 }
 
+async function handleRemediationSubmit(event) {
+  event.preventDefault();
+  invalidateDraft("remediation");
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const input = Object.fromEntries(data.entries());
+  const errors = [];
+  if (!input.incidentId) errors.push("Parent incident is required.");
+  if (adapter.mode !== "mock" && !state.wallet?.address) errors.push("Connect a wallet first - reporterAddress is required to build this remediation report and cannot be fabricated.");
+  try { const u = new URL(input.url); if (u.protocol !== "https:") errors.push("Evidence URL must use HTTPS."); } catch { errors.push("Evidence URL is invalid."); }
+  formError("remediation-errors", errors);
+  if (errors.length) return;
+  const preview = await adapter.previewRemediation({ incidentId: input.incidentId, reporterAddress: state.wallet?.address, evidenceSources: [{ sourceId: "remediation-source-1", url: input.url, sourceClass: input.sourceClass, fetchedAt: new Date().toISOString(), availability: "AVAILABLE" }] });
+  const el = document.getElementById("recovery-preview");
+  el.className = "";
+  draftRegistry.registerDraft("remediation", preview.draft);
+  invalidateDraftOnEdit(form, "remediation");
+  const draftHtml = renderPreparedWriteFields(preview.draft);
+  el.innerHTML = `${recordRows([["Network", `<span class="mono">${preview.network} · ${preview.chainId}</span>`],["Estimated fee", `<span class="mono">${escapeHtml(preview.estimatedFeeValueWei)} wei</span>`],["Estimate", preview.isEstimate ? "yes · may change" : "no"]])}${draftHtml}${preview.synthetic ? notice("Preview only", "Fixture mode cannot fabricate a remediation transaction.", "warning") : '<button class="button primary" type="button" data-action="submit-remediation">Sign & submit remediation</button>'}`;
+  setLiveMessage("Remediation transaction preview ready. The exact reviewed draft will be signed.");
+  bindDynamicButtons();
+}
+
+async function handleRecoveryLookup(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const incidentId = new FormData(form).get("incidentId");
+  location.hash = `#/recover/${encodeURIComponent(incidentId || "")}`;
+}
+
 async function handleOnboardSubmit(event) {
   event.preventDefault();
   invalidateDraft("registerTarget");
@@ -986,6 +1072,7 @@ async function submitLiveWrite(kind) {
 function bindDynamicButtons() {
   document.querySelector('[data-action="submit-incident"]')?.addEventListener("click", () => submitLiveWrite("incident"));
   document.querySelector('[data-action="submit-recovery"]')?.addEventListener("click", () => submitLiveWrite("recovery"));
+  document.querySelector('[data-action="submit-remediation"]')?.addEventListener("click", () => submitLiveWrite("remediation"));
   document.querySelector('[data-action="submit-registerTarget"]')?.addEventListener("click", () => submitLiveWrite("registerTarget"));
   document.querySelector('[data-action="submit-revokeAuthority"]')?.addEventListener("click", () => submitLiveWrite("revokeAuthority"));
   document.querySelector('[data-action="submit-disableAction"]')?.addEventListener("click", () => submitLiveWrite("disableAction"));
@@ -1064,6 +1151,8 @@ function bindEvents() {
   document.getElementById("report-rule")?.addEventListener("change", handleReportRuleChange);
   renderBondGate();
   document.getElementById("recovery-form")?.addEventListener("submit", handleRecoverySubmit);
+  document.getElementById("remediation-form")?.addEventListener("submit", handleRemediationSubmit);
+  document.getElementById("recovery-lookup-form")?.addEventListener("submit", handleRecoveryLookup);
   document.getElementById("onboard-form")?.addEventListener("submit", handleOnboardSubmit);
   document.getElementById("revoke-form")?.addEventListener("submit", handleRevokeSubmit);
   document.getElementById("disable-action-form")?.addEventListener("submit", handleDisableActionSubmit);

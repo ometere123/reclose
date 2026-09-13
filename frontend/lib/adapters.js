@@ -64,6 +64,13 @@ export class MockProductAdapter {
     await delay();
     return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "100000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
   }
+  async previewRemediation(input) {
+    await delay();
+    return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "100000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
+  }
+  async getIncidentLineage() {
+    throw new Error("Fixture mode cannot read back on-chain incident lineage - connect a live SDK.");
+  }
   async previewRegistration(input) {
     await delay();
     return { network: "studio-dev", chainId: CHAIN_ID, estimatedFeeValueWei: "80000000000000000", isEstimate: true, bondWei: null, distributionSummary: null, draft: clone(input), synthetic: true };
@@ -94,6 +101,9 @@ export class MockProductAdapter {
     throw new Error("Fixture mode cannot build a real activation write - connect a live SDK.");
   }
   async getPolicyHeaderReadback() {
+    throw new Error("Fixture mode cannot read back on-chain policy state - connect a live SDK.");
+  }
+  async getPolicyLifecycle() {
     throw new Error("Fixture mode cannot read back on-chain policy state - connect a live SDK.");
   }
   async submitWrite() {
@@ -306,6 +316,17 @@ export class SdkProductAdapter {
     const built = await this.sdk.buildRecoveryReport(input);
     return { ...built.feePreview, draft: built.report, synthetic: false };
   }
+  /** Remediation is a distinct entrypoint/rule from recovery validation - see
+   * protocol-sdk::buildRemediationReport. Never let the UI substitute one for the other. */
+  async previewRemediation(input) {
+    if (typeof this.sdk.buildRemediationReport !== "function") throw new Error("Connected SDK does not support the remediation reporting journey");
+    const built = await this.sdk.buildRemediationReport(input);
+    return { ...built.feePreview, draft: built.report, synthetic: false };
+  }
+  async getIncidentLineage(incidentId) {
+    if (typeof this.sdk.getIncidentLineage !== "function") throw new Error("Connected SDK does not support authoritative incident-lineage reads.");
+    return this.sdk.getIncidentLineage(incidentId);
+  }
   /** A3-H02: onboarding is a real bounded governed write with the same review-to-sign guarantee
    * as incident/recovery - never presentation-only. */
   async previewRegistration(input) {
@@ -390,6 +411,15 @@ export class SdkProductAdapter {
     const policy = await this.sdk.getPolicyByKey?.(policyKey, "");
     if (!policy) throw new Error("Connected SDK does not support policy readback by key");
     return policy.summary;
+  }
+
+  /** Item 6 wiring: real chain-derived get_policy_lifecycle readback (activation_not_before etc),
+   * replacing the self-attested "confirm enough time has passed" UX with an actual on-chain read. */
+  async getPolicyLifecycle(policyKey) {
+    if (typeof this.sdk.getPolicyLifecycle !== "function") {
+      throw new Error("Connected SDK does not support get_policy_lifecycle - reconnect with an up-to-date protocol-sdk build.");
+    }
+    return this.sdk.getPolicyLifecycle(policyKey);
   }
 
   /**

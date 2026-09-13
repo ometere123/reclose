@@ -1104,6 +1104,120 @@ export class DirectRecloseClient implements RecloseSDK {
   }
 
   /**
+   * Remediation is a distinct on-chain entrypoint from recovery validation
+   * (contracts/incident_judge_v1.py::submit_remediation / RULE_REMEDIATION_CONFIRMED_V1), not a
+   * relabeling of submit_recovery_validation - the two rule families have separate outcome/
+   * condition-code vocabularies (REMEDIATION_VERIFIED vs RECOVERY_VERIFIED) and the product must
+   * gate recovery-validation behind a genuinely CONFIRMED remediation decision (see
+   * frontend/app.js's recovery flow), never let a caller skip straight to recovery validation.
+   * Mirrors buildRecoveryReport's exact bond-gating/EAP/fee-preview pattern.
+   */
+  async buildRemediationReport(input: {
+    incidentId: string;
+    evidenceSources: Array<EvidenceSource & { extractedText?: string; snapshotRef?: string }>;
+    reporterAddress?: string;
+    bondId?: string;
+    subject?: string;
+  }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }> {
+    const incident = await this.getIncident(input.incidentId);
+    const policy = await this.getActivePolicy(incident.targetId);
+    if (!input.reporterAddress) throw new Error("reporterAddress is required to bind the EAP and derive the reporter nonce - Reclose never custodies a signing identity");
+    const reporterAddress = input.reporterAddress;
+    const ruleId: RuleId = "REMEDIATION_CONFIRMED_V1";
+    const remediationRule = policy.rules.find((r) => r.ruleId === ruleId && r.enabled);
+
+    const eap = this.buildCanonicalEap({
+      targetId: incident.targetId,
+      policyHash: policy.summary.manifestHash,
+      ruleId,
+      subject: input.subject ?? `Remediation for ${input.incidentId}`,
+      reporterAddress,
+      evidenceSources: input.evidenceSources,
+    });
+    const evidenceJson = JSON.stringify(eap);
+    const reporterNonce = num(await this.judgeRead("get_reporter_nonce", [reporterAddress]));
+    const predictedIncidentId = deriveIncidentId(incident.targetId, reporterAddress, reporterNonce);
+    const bondId = this.requireVerifiedBond({
+      rule: remediationRule, ruleId, targetId: incident.targetId, policyKey: policy.summary.policyKey,
+      reporterAddress, reporterNonce, predictedIncidentId, bondId: input.bondId,
+    });
+
+    const args: unknown[] = [input.incidentId, policy.summary.policyKey, eap.artifactHash, evidenceJson, reporterNonce, bondId];
+    const feeEstimate = await this.feePreview("submit_remediation", args);
+
+    const draft: Omit<PreparedRecloseWrite, "reviewHash"> = {
+      schemaVersion: "1.0.0",
+      chainId: RECLOSE_CANONICAL_CHAIN_ID,
+      contractAddress: this.addresses.judge,
+      functionName: "submit_remediation",
+      args,
+      valueWei: "0",
+      feeEstimate,
+      semanticKind: "REMEDIATION_REPORT" as PreparedWriteSemanticKind,
+      expectedSigner: reporterAddress as `0x${string}`,
+    };
+    const { feeEstimate: _omitted, ...forHash } = draft;
+    const report: PreparedRecloseWrite & { predictedIncidentId: PredictedIncidentIdentity } = {
+      ...draft,
+      reviewHash: computeReviewHash(forHash),
+      predictedIncidentId: { incidentId: predictedIncidentId, targetId: incident.targetId, reporterAddress, reporterNonce },
+    };
+    return { report, feePreview: feeEstimate };
+  }
+
+  /**
+   * Additive (not one of the frozen 14). Wires the authoritative Judge recovery-lineage views
+   * added in contracts/incident_judge_v1.py (get_incident_parent/target_id/policy_key/rule_id/
+   * reporter/evidence_hash and the get_parent_child_count/at reverse index) so the product can
+   * reconstruct a real remediation/recovery-validation chain from protocol state directly, rather
+   * than relying only on the optional indexer.resolveIncidentLineage hook from an earlier pass.
+   * Returns an empty children array and null parent fields for a root incident (parent_incident_id
+   * == "" on-chain) - never fabricates a chain that doesn't exist.
+   */
+  async getIncidentLineage(incidentId: string): Promise<{
+    incidentId: string;
+    parentIncidentId: string | null;
+    targetId: string;
+    policyKey: string;
+    ruleId: string;
+    reporter: string;
+    evidenceHash: string;
+    outcome: number;
+    conditionCode: string;
+    children: string[];
+  }> {
+    const [parentIncidentId, targetId, policyKey, ruleId, reporter, evidenceHash, outcome, conditionCode, childCount] = await Promise.all([
+      this.judgeRead("get_incident_parent", [incidentId]),
+      this.judgeRead("get_incident_target_id", [incidentId]),
+      this.judgeRead("get_incident_policy_key", [incidentId]),
+      this.judgeRead("get_incident_rule_id", [incidentId]),
+      this.judgeRead("get_incident_reporter", [incidentId]),
+      this.judgeRead("get_incident_evidence_hash", [incidentId]),
+      this.judgeRead("get_incident_outcome", [incidentId]),
+      this.judgeRead("get_incident_condition_code", [incidentId]),
+      this.judgeRead("get_parent_child_count", [incidentId]),
+    ]);
+    const childCountNum = num(childCount);
+    const children: string[] = [];
+    for (let i = 0; i < childCountNum; i += 1) {
+      children.push(str(await this.judgeRead("get_parent_child_at", [incidentId, i])));
+    }
+    const parentStr = str(parentIncidentId);
+    return {
+      incidentId,
+      parentIncidentId: parentStr === "" ? null : parentStr,
+      targetId: str(targetId),
+      policyKey: str(policyKey),
+      ruleId: str(ruleId),
+      reporter: str(reporter),
+      evidenceHash: str(evidenceHash),
+      outcome: num(outcome),
+      conditionCode: str(conditionCode),
+      children,
+    };
+  }
+
+  /**
    * A3-H07: bounded owner bearing-authority controls that already exist on the deployed Kernel
    * (`revoke_authority`, `disable_action`, `disable_resource` - contracts/assurance_kernel.py) but
    * were never exposed as a governed write in the product. No separate "emergency pause" method
