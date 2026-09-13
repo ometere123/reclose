@@ -6,15 +6,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createClient, chains, MESSAGE_ALLOCATION_ROOT_PARENT_INDEX } from "genlayer-js";
 import {
+  createClient,
+  chains,
+  MESSAGE_ALLOCATION_ROOT_PARENT_INDEX,
   deriveInternalMessageCallKey,
   encodeInternalMessageFeeParams,
-  MessageType,
 } from "genlayer-js";
 import { buildEap } from "../packages/protocol-sdk/dist/evidence.js";
 import { canonicalKeccak256, keccak256Hex } from "../packages/protocol-sdk/dist/canonical.js";
 import { installStudioDevRpcThrottle } from "./studio-dev-rpc-throttle.mjs";
+import { buildRepeatedInternalAllocation, composeJudgeKernelTargetBranches } from "./studio-dev-fee-allocation.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CHAIN_ID = 61997;
@@ -221,12 +223,12 @@ async function main() {
       decisionStage: stage,
     }));
 
-  // A confirmed outcome can emit both accepted and finalized Judge -> Kernel messages. Studio's
-  // discovery estimate cannot discover the accepted branch from an empty allocation list (the VM
-  // fails while recording the accepted emit). Seed the exact subtrees from real per-hop estimates,
-  // then let genlayer-js estimate the complete root call with those estimator-produced values.
+  // A confirmed outcome can emit both accepted and finalized Judge -> Kernel messages. Estimate
+  // every Target child independently, encode each exact GenLayer fee distribution, then give the
+  // Kernel simulation one explicit mode-2 bucket per repeated method/recipient/phase call key.
+  // Never substitute an open aggregate message-fee bucket for these internal emissions.
   const branchTrees = [];
-  for (const decisionStage of [2, 1]) {
+  for (const decisionStage of [1, 2]) {
     const onAcceptance = decisionStage === 1;
     const actionCalls = targetActionsForStage(decisionStage);
     if (actionCalls.length === 0) fail(`No governed target effects are applicable to decision stage ${decisionStage}.`);
@@ -241,16 +243,29 @@ async function main() {
         value: 0n,
       }));
     }
-    // Studio rejected the manually pinned Target subtree while simulating receive_decision.
-    // Test the documented open message-fee bucket for this child transaction, sized from the exact
-    // Target write estimates. Keep Judge -> Kernel pinned and let the SDK report any child
-    // allocations it can recover from the live simulation.
-    const targetMessageFees = targetEstimates.reduce(
-      (sum, estimate) => sum + asBigInt(estimate.feeValue, "Target child feeValue"),
-      0n,
-    );
+    const targetEstimateDetails = targetEstimates.map((estimate, index) => ({
+      action: actionCalls[index],
+      feeValue: String(estimate.feeValue),
+      distribution: jsonSafe(estimate.distribution),
+      messageAllocations: jsonSafe(estimate.messageAllocations ?? []),
+      callKey: deriveInternalMessageCallKey("apply_assurance_action"),
+      encodedFeeParams: encodeInternalMessageFeeParams(estimate.distribution),
+    }));
+    console.error(`Individually estimated ${onAcceptance ? "accepted" : "finalized"} Target calls (all values below come from the live SDK estimator): ${JSON.stringify(jsonSafe(targetEstimateDetails), null, 2)}`);
+    const repeated = buildRepeatedInternalAllocation({
+      estimates: targetEstimates,
+      recipient: TARGET,
+      functionName: "apply_assurance_action",
+      onAcceptance,
+      rootParentIndex: MESSAGE_ALLOCATION_ROOT_PARENT_INDEX,
+    });
+    console.error(`Target feeParams by repeated ${onAcceptance ? "accepted" : "finalized"} emission: ${JSON.stringify(repeated.feeParamsByEmission)}`);
+    if (repeated.feeParamsByEmission.some((feeParams) => feeParams.toLowerCase() !== repeated.feeParamsByEmission[0].toLowerCase())) {
+      fail(`Target feeParams differ within the ${onAcceptance ? "accepted" : "finalized"} repeated-call group.`);
+    }
+    console.error(`Using one ${onAcceptance ? "accepted" : "finalized"} mode-2 Target allocation for ${repeated.repeatedEmissions} repeated calls: ${JSON.stringify(jsonSafe(repeated.allocation))}`);
 
-    console.error(`Estimating Kernel receive_decision (${onAcceptance ? "provisional" : "final"}) with its Target allocations.`);
+    console.error(`Estimating Kernel receive_decision (${onAcceptance ? "provisional" : "final"}) with one explicit phase-matched Target allocation.`);
     let kernelEstimate;
     try {
       kernelEstimate = await client.estimateTransactionFeesForWrite({
@@ -259,51 +274,29 @@ async function main() {
         functionName: "receive_decision",
         args: receiveDecisionArgs(decisionStage),
         value: 0n,
-        totalMessageFees: targetMessageFees,
+        messageAllocations: [repeated.allocation],
       });
     } catch (error) {
       console.error(`Kernel stage ${decisionStage} RPC details: ${JSON.stringify(compactFailure(error))}`);
       throw error;
     }
-    if (asBigInt(kernelEstimate.distribution?.totalMessageFees ?? 0, `Kernel stage ${decisionStage} totalMessageFees`) < targetMessageFees) {
-      fail(`Kernel stage ${decisionStage} estimator returned totalMessageFees below the sum of exact Target child estimates (${kernelEstimate.distribution?.totalMessageFees} < ${targetMessageFees}).`);
-    }
     const kernelAllocations = Array.isArray(kernelEstimate.messageAllocations) ? kernelEstimate.messageAllocations : [];
     console.error(`Kernel stage ${decisionStage} estimate succeeded: ${JSON.stringify({
       feeValue: String(kernelEstimate.feeValue),
       distribution: jsonSafe(kernelEstimate.distribution),
-      childAllocations: jsonSafe(kernelAllocations),
+      explicitChildAllocationReadback: jsonSafe(kernelAllocations),
     })}`);
-    branchTrees.push({ decisionStage, onAcceptance, actionCalls, targetEstimates, targetMessageFees, kernelEstimate, kernelAllocations });
+    branchTrees.push({ decisionStage, onAcceptance, actionCalls, targetEstimates, targetAllocation: repeated.allocation, kernelEstimate, kernelAllocations });
   }
 
-  const composedAllocations = [];
-  for (const branch of branchTrees) {
-    const kernelNodeIndex = BigInt(composedAllocations.length);
-    composedAllocations.push({
-      messageType: MessageType.Internal,
-      onAcceptance: branch.onAcceptance,
-      parentIndex: MESSAGE_ALLOCATION_ROOT_PARENT_INDEX,
-      recipient: KERNEL,
-      callKey: deriveInternalMessageCallKey("receive_decision"),
-      budget: asBigInt(branch.kernelEstimate.feeValue, "Kernel branch feeValue"),
-      feeParams: encodeInternalMessageFeeParams(branch.kernelEstimate.distribution),
-    });
-    const offset = BigInt(composedAllocations.length);
-    for (const allocation of branch.kernelAllocations) {
-      const parentIndex = asBigInt(allocation.parentIndex ?? MESSAGE_ALLOCATION_ROOT_PARENT_INDEX, "nested parentIndex");
-      composedAllocations.push({
-        ...allocation,
-        messageType: MessageType.Internal,
-        onAcceptance: Boolean(allocation.onAcceptance),
-        parentIndex: parentIndex === MESSAGE_ALLOCATION_ROOT_PARENT_INDEX ? kernelNodeIndex : offset + parentIndex,
-        recipient: allocation.recipient,
-        callKey: allocation.callKey,
-        budget: asBigInt(allocation.budget, "nested target budget"),
-        feeParams: allocation.feeParams,
-      });
-    }
-  }
+  const { allocations: composedAllocations, topLevelMessageFees } = composeJudgeKernelTargetBranches({
+    branches: branchTrees,
+    kernelAddress: KERNEL,
+    kernelFunctionName: "receive_decision",
+    targetAddress: TARGET,
+    targetFunctionName: "apply_assurance_action",
+    rootParentIndex: MESSAGE_ALLOCATION_ROOT_PARENT_INDEX,
+  });
 
   console.error("Estimating exact Judge submit_incident with accepted and finalized nested allocations.");
   const estimate = await client.estimateTransactionFeesForWrite({
@@ -316,6 +309,25 @@ async function main() {
   });
   const feeValueWei = asBigInt(estimate.feeValue, "feeValue").toString();
   if (!Array.isArray(estimate.messageAllocations) || estimate.messageAllocations.length === 0) fail("Final estimator did not return the composed nested allocations.");
+  if (asBigInt(estimate.distribution?.totalMessageFees, "root totalMessageFees") !== topLevelMessageFees) {
+    fail(`Root SDK preset totalMessageFees (${estimate.distribution?.totalMessageFees}) does not equal the sum of post-rollup root allocation budgets (${topLevelMessageFees}).`);
+  }
+  if (estimate.messageAllocations.length !== composedAllocations.length) {
+    fail(`Root SDK preset returned ${estimate.messageAllocations.length} allocations; expected the complete explicit tree of ${composedAllocations.length}.`);
+  }
+  for (let index = 0; index < composedAllocations.length; index += 1) {
+    const expected = composedAllocations[index];
+    const actual = estimate.messageAllocations[index];
+    if (!(Number(actual.messageType) === Number(expected.messageType) || String(actual.messageType).toLowerCase() === "internal") ||
+        Boolean(actual.onAcceptance) !== Boolean(expected.onAcceptance) ||
+        asBigInt(actual.parentIndex, `root allocation ${index} parentIndex`) !== expected.parentIndex ||
+        !sameAddress(actual.recipient, expected.recipient) ||
+        String(actual.callKey).toLowerCase() !== String(expected.callKey).toLowerCase() ||
+        asBigInt(actual.budget, `root allocation ${index} budget`) !== expected.budget ||
+        String(actual.feeParams).toLowerCase() !== String(expected.feeParams).toLowerCase()) {
+      fail(`Root SDK preset allocation ${index} differs from the complete explicit phase-specific tree.`);
+    }
+  }
 
   // Catch nonce races after potentially slow independent simulations. The first read above was
   // immediately before EAP construction; this second guard is immediately before handing args to
@@ -353,10 +365,11 @@ async function main() {
     tree: {
       allocations: composedAllocations.map((node) => ({ ...node, parentIndex: node.parentIndex.toString(), budget: node.budget.toString() })),
       simulationSteps: branchTrees.flatMap((branch) => [
-        ...branch.targetEstimates.map((targetEstimate, index) => ({ address: TARGET, functionName: "apply_assurance_action", args: branch.actionCalls[index], feeValue: targetEstimate.feeValue.toString(), allocationCount: targetEstimate.messageAllocations?.length ?? 0 })),
-        { address: TARGET, functionName: "open message-fee bucket from exact child estimates", repeatedMessages: branch.actionCalls.length, feeValue: branch.targetMessageFees.toString() },
-        { address: KERNEL, functionName: "receive_decision", decisionStage: branch.decisionStage, feeValue: branch.kernelEstimate.feeValue.toString(), allocationCount: branch.kernelAllocations.length },
+        ...branch.targetEstimates.map((targetEstimate, index) => ({ address: TARGET, functionName: "apply_assurance_action", args: branch.actionCalls[index], feeValue: targetEstimate.feeValue.toString(), distribution: jsonSafe(targetEstimate.distribution), encodedFeeParams: branch.targetAllocation.feeParams, allocationCount: targetEstimate.messageAllocations?.length ?? 0 })),
+        { address: TARGET, functionName: "explicit repeated-message allocation", onAcceptance: branch.onAcceptance, repeatedMessages: branch.actionCalls.length, budget: branch.targetAllocation.budget.toString(), feeParams: branch.targetAllocation.feeParams },
+        { address: KERNEL, functionName: "receive_decision", decisionStage: branch.decisionStage, feeValue: branch.kernelEstimate.feeValue.toString(), distribution: jsonSafe(branch.kernelEstimate.distribution), allocationCount: branch.kernelAllocations.length },
       ]),
+      postRollupRootMessageFees: topLevelMessageFees.toString(),
     },
     preflightReadbacks: {
       judgeKernel, liveRegistryHash, policyIdentity, targetDetails,

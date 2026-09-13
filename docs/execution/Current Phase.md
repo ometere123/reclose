@@ -1,4 +1,12 @@
-Current phase: **A3 ATTEMPT 2 SUBMITTED - AWAITING EXTERNAL REVIEW.**
+Current phase: **E1 RUN A — explicit accepted-allocation preflight unresolved; no incident write submitted.**
+
+**Latest correction (2026-09-13, supersedes earlier open-bucket diagnosis):** the current policy's two accepted Target actions (`RESTRICT provider_a`, `ENTER_SAFE_MODE`) were separately estimated under the serialized Studio-dev throttle. Their SDK-produced `feeParams` differ in `executionBudgetPerRound` (153455400000000 vs 153455100000000), so the proposed single common repeated-message allocation cannot be constructed from these estimates. Studio allocation semantics match by message key, then require exact phase and fee parameters; duplicate sibling keys are rejected. The explicit attempt stopped before Kernel simulation. Evidence: `release-evidence/r1/e1/accepted-target-fee-allocation-mismatch.json`. The older open-bucket EINVAL artifact is historical and does not prove an explicit-allocation platform limitation. No incident write occurred. Keep A2-C01's final-only live-verified result closed and unchanged.
+
+The next step is to establish the exact deployed Studio fee-source revision and determine a supported repeated-emission construction for these estimator outputs. Do not combine differing profiles or submit incident authority. Continue with accepted and finalized Kernel simulations and the Judge root only after that question is resolved. `docs/execution/Open Blockers.md` and the latest section of `docs/execution/HANDOFF.md` contain the current operation boundary.
+
+---
+
+Historical phase entry below; its A2-C01 status was corrected later in the execution ledger.
 
 ## A2-C01 status update (nested message-allocation investigation)
 
