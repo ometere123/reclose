@@ -1,0 +1,73 @@
+{
+  "schema": "reclose-studio-dev-fee-preflight-failure-v1",
+  "classification": "READ_ONLY_SIMULATION_FAILURE",
+  "network": {
+    "name": "studio-dev",
+    "chainId": 61997,
+    "rpc": "https://studio-dev.genlayer.com/api",
+    "rateLimitPerMinute": 30,
+    "throttle": "serialized; minimum 2600ms between RPC starts; bounded transient retries with exponential backoff"
+  },
+  "deployment": {
+    "kernel": "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+    "judge": "0x05f9E58B5ce635FCEd8076c9dAA714b19c287028",
+    "target": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+    "targetId": "reclose-target-006",
+    "policyKey": "policy-r1-008",
+    "policyVersion": 2,
+    "policyHash": "0x6c1c74ecf17d4812bb36b45ca8c162c87a3da893d675caba3f33ff4bc97d1881",
+    "sourceRegistryHash": "0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386"
+  },
+  "preflight": {
+    "function": "submit_incident",
+    "path": [
+      "IncidentJudgeV1.submit_incident",
+      "Kernel.receive_decision (accepted/provisional, decisionStage=1)",
+      "ReferenceAgentProtocol.apply_assurance_action"
+    ],
+    "writeSubmitted": false,
+    "transactionHash": null,
+    "stableFailureReproductions": 3,
+    "rateLimitOrCapacityErrorsInFinalReproduction": false,
+    "earlierTransientResponses": [
+      "Rate limit exceeded: 30 requests per minute",
+      "Server busy: all 8 execution slots occupied"
+    ],
+    "finalizedBranch": {
+      "status": "SIMULATION_SUCCEEDED",
+      "decisionStage": 2,
+      "feeValueWei": "240663559200031056",
+      "totalMessageFeesWei": "240024000000020704",
+      "childAllocationCount": 1
+    },
+    "acceptedBranch": {
+      "status": "SIMULATION_FAILED",
+      "decisionStage": 1,
+      "feePresetProduced": false
+    }
+  },
+  "error": {
+    "message": "GenLayer RPC error (sim_estimateTransactionFees): execution failed",
+    "rpcResponse": [
+      {
+        "code": -32000,
+        "message": "Missing or invalid parameters.\nDouble check you have provided the correct parameters.\n\nDetails: execution failed\nVersion: viem@2.56.3"
+      },
+      {
+        "code": -32000,
+        "message": "execution failed"
+      },
+      {
+        "execution_result": "ERROR",
+        "genvm_result": {
+          "stderr": "Traceback (most recent call last):\n  File \"/py/libs/_genlayer_bootloader.py\", line 162, in <module>\n    _handle_main()\n  File \"/py/libs/_genlayer_bootloader.py\", line 156, in _handle_main\n    _give_result(functools.partial(meth2call, contract_instance, *args, **kwargs))\n  File \"/py/libs/_genlayer_bootloader.py\", line 61, in _give_result\n    res = res_fn()\n  File \"/contract.py\", line 733, in receive_decision\n    self._apply_provisional(incident, rule, outcome, policy_key, header)\n  File \"/contract.py\", line 768, in _apply_provisional\n    if self._apply_restriction(incident, rule.rule_id, idx, effect, DECISION_STAGE_PROVISIONAL):\n  File \"/contract.py\", line 878, in _apply_restriction\n    self._dispatch_action(target_id, incident.incident_id, incident.policy_key, effect.action_type, effect.resource_id, effect.param_u256, effect.param_str, decision_stage)\n  File \"/contract.py\", line 977, in _dispatch_action\n    gl.contract.get_at(target.target_address).emit(on=on).apply_assurance_action(action_id, incident_id, policy_key, int(action_type), resource_id, param_u256, param_str, int(decision_stage))\n  File \"/py/libs/genlayer/contract/__init__.py\", line 128, in __call__\n    wasi.gl_call(calldata.encode({'EmitInternalMessage': message}))\nSystemError: 2: inval",
+          "error_code": null,
+          "error_description": null,
+          "raw_error": null
+        }
+      }
+    ]
+  },
+  "decision": "STOP_PREFLIGHT_RETRIES_AND_DO_NOT_SUBMIT",
+  "provenance": "Failure details transcribed from the immediately preceding live read-only preflight log; no transaction was submitted for this simulation."
+}

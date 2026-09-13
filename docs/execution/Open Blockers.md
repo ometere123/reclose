@@ -125,15 +125,24 @@ Closure evidence: corrected Judge deployed with the new hash; `get_source_regist
 
 Closed by the real user-authorized payable transfer. Transaction `0x89f42b16fea6f065607c25b9d68c7663a955a4f56f4878d891fa4e9aeb04dc62` is FINALIZED / FINISHED_WITH_RETURN; Explorer and SDK readback show `200000000000000000` wei (0.20 GEN) in the ReferenceAgent treasury.
 
-## OB-011 - E1 Run A initial purchase needs the registered owner signer [OPEN / HUMAN CLI ACTION]
+## OB-011 - E1 Run A initial purchase needs the registered owner signer [CLOSED]
 
 **Opened:** 2026-09-13  
 **Phase:** E1 Run A  
 **Network:** Studio-dev / chain 61997  
 **Target:** `0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2`
 
-The funding sender `0x755BA2BD3B11aaa29aa0f6a042e43e36566A6472` is not the target owner. `purchase_service` enforces owner/authorized-agent identity; `reclose-deployer` is the registered owner `0x24fAe7cD031Ed702Be63BDeA8912141805B996bd`. The current task sandbox cannot launch the installed Windows GenLayer CLI shim, so no purchase was submitted.
+Closed by the owner-signed initial purchase. Parent transaction `0x1414c3021e901bc7400521c07be271f16bcf19faa81cb19e723013a40db59550` and Provider A child `0x77708bab52d63943ffc867c24d6a7fe22e685e02fbd85f1865af74cecd673a2a` are both FINALIZED / FINISHED_WITH_RETURN. Provider A fulfilled the request and received 0.05 GEN; its total increased from 1.00 to 1.05 GEN; ReferenceAgent treasury reads 0.15 GEN and Provider A remains selected.
 
-**Exact user action:** from the repository in the configured PowerShell, run `./scripts/studio-dev-run-a-initial-purchase.ps1` once and return its transaction ID. The helper checks chain 61997 and owner identity, estimates the exact call, and submits `purchase_service("e1-r1-final-run-a-initial-purchase-001", 50000000000000000)` with caller value zero.
+## OB-012 - E1 Run A compromise report fee preflight is not yet executable [OPEN / LIVE SIMULATION]
 
-**Closure evidence required:** FINALIZED + FINISHED_WITH_RETURN; read back Provider A selection, the fulfilled request reference, the 0.05 GEN provider balance delta, and treasury state. No Reporter nonce or incident has yet been created.
+**Opened:** 2026-09-13
+**Phase:** E1 Run A compromise
+**Network:** Studio-dev / chain 61997
+**Judge:** `0x05f9E58B5ce635FCEd8076c9dAA714b19c287028`
+
+The initial Run A purchase is closed under OB-011. The read-only report-preparation helper validates the active policy, current registry hash and authority, target state/provider, treasury, immutable synthetic fixture, and current reporter nonce before constructing the canonical EAP. No report transaction has been submitted.
+
+The read-only fee simulator has not produced a usable complete Judge→Kernel→Target preset. With an open message-fee bucket sized from exact Target estimates, the finalized Kernel stage succeeds: SDK `feeValue=240663559200031056` wei, `totalMessageFees=240024000000020704` wei, one SDK-reported child allocation. The accepted/provisional Kernel stage repeatedly fails at `AssuranceKernel._dispatch_action`'s accepted `EmitInternalMessage` with `SystemError: 2: inval`. Earlier attempts also encountered Studio-dev rate-limit and execution-slot pressure; the same accepted-stage failure was then reproduced three times after those transient conditions cleared, with no rate-limit/capacity error in the final reproduction. Full GenVM trace and RPC response are retained in `release-evidence/r1/e1/incident-fee-preflight-failure.json`. This is consistent with the previously documented GenVM internal-message allocation limitation in `docs/execution/C2 Live Proof Evidence.md`; it remains unverified on this fresh deployment. No incident transaction was submitted and no incident state or Reporter nonce was consumed.
+
+All future Studio-dev requests in the guarded preflight/CLI path now share a FIFO request queue, minimum 2600ms spacing, bounded transient retries with exponential backoff, and increasing delays for consecutive receipt/status polls. Stable simulation failures are not retried. Do not repeat the same accepted-stage preflight while its exact failure remains unchanged. Resolve the accepted/provisional message-fee path from the retained trace and code; do not guess or increase fee buckets. Only after a full read-only Judge→Kernel→Target preflight returns a complete SDK fee preset may the guarded wrapper submit once, then poll the receipt through the throttled CLI transport and verify authoritative containment state. Do not interpret simulator failure or UNDETERMINED as success.

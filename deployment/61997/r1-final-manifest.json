@@ -415,7 +415,7 @@
     "policyWritesRequireFinalizedExecutionAndReadback": true
   },
   "e1RunA": {
-    "status": "funded-awaiting-owner-signed-initial-purchase",
+    "status": "initial-provider-a-purchase-verified",
     "preflightReadbacks": {
       "referenceAgentState": 0,
       "effectiveProvider": 1,
@@ -435,7 +435,7 @@
       "treasuryBalanceReadbackWei": "200000000000000000"
     },
     "initialPurchase": {
-      "status": "prepared-not-submitted",
+      "status": "finalized-success",
       "function": "purchase_service",
       "args": [
         "e1-r1-final-run-a-initial-purchase-001",
@@ -444,7 +444,29 @@
       "callerValueWei": "0",
       "expectedProvider": "Provider A",
       "expectedProviderAddress": "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
-      "reasonNotSubmitted": "The owner CLI signer is installed but unavailable to this restricted execution process."
+      "parentTransaction": {
+        "txHash": "0x1414c3021e901bc7400521c07be271f16bcf19faa81cb19e723013a40db59550",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "sender": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+        "recipient": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2"
+      },
+      "providerChildTransaction": {
+        "txHash": "0x77708bab52d63943ffc867c24d6a7fe22e685e02fbd85f1865af74cecd673a2a",
+        "consensusStatus": "FINALIZED",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "sender": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+        "recipient": "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
+        "valueWei": "50000000000000000"
+      },
+      "readbacks": {
+        "providerAFulfilled": true,
+        "providerATotalReceivedBeforeWei": "1000000000000000000",
+        "providerATotalReceivedAfterWei": "1050000000000000000",
+        "effectiveProvider": 1,
+        "treasuryBalanceAfterWei": "150000000000000000"
+      },
+      "feeValueWei": "120619935600020704"
     },
     "reporterNonce": null,
     "incidentId": null
