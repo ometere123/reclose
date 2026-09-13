@@ -179,6 +179,19 @@ class _FakeKernelVaultProxy:
     def receive_decision(self, incident_id, parent_incident_id, target_id, policy_key, policy_version,
                           policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome,
                           condition_code, decision_stage, judge_version):
+        self._record_decision(incident_id, outcome, condition_code, decision_stage)
+
+    def receive_provisional_decision(self, incident_id, parent_incident_id, target_id, policy_key, policy_version,
+                                     policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome,
+                                     condition_code, judge_version):
+        self._record_decision(incident_id, outcome, condition_code, 1)
+
+    def receive_final_decision(self, incident_id, parent_incident_id, target_id, policy_key, policy_version,
+                               policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome,
+                               condition_code, judge_version):
+        self._record_decision(incident_id, outcome, condition_code, 2)
+
+    def _record_decision(self, incident_id, outcome, condition_code, decision_stage):
         self.decision_log.append({
             "incident_id": incident_id, "outcome": int(outcome), "condition_code": condition_code,
             "decision_stage": int(decision_stage),

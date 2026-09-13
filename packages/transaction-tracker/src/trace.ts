@@ -73,7 +73,7 @@ export async function buildTransactionTrace(
 export function inferRoleFromFunctionName(functionName: string | null | undefined): TraceRole {
   if (!functionName) return "UNKNOWN";
   if (["submit_incident", "submit_remediation", "submit_recovery_validation"].includes(functionName)) return "REPORT_SUBMISSION";
-  if (functionName === "receive_decision") return "JUDGE_DECISION";
+  if (["receive_provisional_decision", "receive_final_decision", "receive_decision"].includes(functionName)) return "JUDGE_DECISION";
   if (functionName === "apply_assurance_action") return "TARGET_ACTION";
   if (functionName === "emit_transfer" || functionName === "claim") return "VAULT_PAYOUT";
   if (["redispatch_final_action", "activate_policy", "disable_action", "disable_resource"].includes(functionName)) return "KERNEL_EFFECT";

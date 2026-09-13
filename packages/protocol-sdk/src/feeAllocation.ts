@@ -4,7 +4,7 @@
  * Context (see docs/execution/C2 Live Proof Evidence.md and
  * docs/execution/audit-packets/A3-attempt-2): on Studio-dev (chain 61997, pinned genlayer-js
  * 2.0.0-rc.1), `IncidentJudgeV1.submit_incident` genuinely triggers a child transaction that calls
- * `AssuranceKernel.receive_decision` (confirmed live via `getTriggeredTransactionIds`). That CHILD
+ * `AssuranceKernel.receive_final_decision` (confirmed live via `getTriggeredTransactionIds`). That CHILD
  * transaction's own execution fails with the exact payload `fee no_matching_allocation # internal`
  * whenever the decision is FINAL/CONFIRMED and the Kernel's own `_apply_final_incident` path goes
  * on to dispatch an effect, which synchronously emits a FURTHER outbound internal message from the
@@ -26,9 +26,11 @@
  * This module fixes that by composing the tree explicitly:
  *  1. Estimate/simulate the ROOT call (e.g. Judge.submit_incident) to get its own one-level
  *     allocation tree - this already contains the Judge -> Kernel node.
- *  2. Separately estimate/simulate the CHILD call the root triggers (Kernel.receive_decision),
+ *  2. Separately estimate/simulate the CHILD call the root triggers (Kernel.receive_provisional_decision
+ *     or Kernel.receive_final_decision),
  *     USING THE JUDGE AS THE SIMULATED CALLER (since `gl.message.sender_address` inside the Kernel
- *     must be the Judge for `receive_decision` to pass `_require(gl.message.sender_address == rule.judge, ...)`),
+ *     must be the Judge for the lifecycle-specific decision method to pass
+ *     `_require(gl.message.sender_address == rule.judge, ...)`),
  *     to get the allocation nodes the CHILD's OWN execution needs for its Kernel -> Target message.
  *  3. Graft those child-level nodes underneath the root tree's Judge -> Kernel node by rewriting
  *     `parentIndex`: any child node whose `parentIndex` was the child's own tree root
@@ -43,7 +45,10 @@
  * value it grafts is one genlayer-js itself already computed from a real simulation.
  *
  * This generalizes beyond the two-hop Judge->Kernel->Target case: `composeNestedCalls` accepts an
- * arbitrary chain of calls (no-effect stops after the root; one-effect/multi-effect/bonded/
+ * arbitrary chain of calls. Callers must select distinct Kernel method names for accepted and
+ * finalized sibling emissions; Studio's allocation key does not include `onAcceptance`, so one
+ * method name cannot represent both phases beneath the same parent. (No-effect stops after the
+ * root; one-effect/multi-effect/bonded/
  * remediation/recovery all differ only in which calls are included in the chain and what args they
  * carry), so it is reusable for every message topology described in CLAUDE.md Section 20/37, not a
  * one-off script.
@@ -52,6 +57,16 @@
 /** Local structural alias - this package's `types.ts` does not define a `Hex` type of its own, and
  * genlayer-js's own `Hex` is an internal RC detail this module should not import directly. */
 export type Hex = `0x${string}`;
+
+/** The two Kernel message identities are distinct because Studio allocation keys omit lifecycle phase. */
+export const KERNEL_DECISION_ENTRYPOINTS = {
+  provisional: "receive_provisional_decision",
+  final: "receive_final_decision",
+} as const;
+
+export function kernelDecisionEntrypointForPhase(onAcceptance: boolean): typeof KERNEL_DECISION_ENTRYPOINTS[keyof typeof KERNEL_DECISION_ENTRYPOINTS] {
+  return onAcceptance ? KERNEL_DECISION_ENTRYPOINTS.provisional : KERNEL_DECISION_ENTRYPOINTS.final;
+}
 
 export interface MessageFeeAllocationNodeLike {
   messageType: unknown;

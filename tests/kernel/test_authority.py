@@ -41,6 +41,33 @@ def test_no_action_without_active_policy(kernel_harness, direct_vm):
         )
 
 
+def test_lifecycle_specific_entrypoints_force_their_decision_stage(kernel_harness, direct_vm):
+    """The new public wrappers select a fixed stage and reject caller-supplied stage values."""
+    kernel, gl, owner_addr, dispatch_log = kernel_harness
+    _base_time(direct_vm)
+    kernel.begin_policy("target-001", "policy-1", M1)
+    kernel.add_policy_resource("policy-1", "provider_a")
+    kernel.add_policy_rule("policy-1", "RULE_A", owner_addr, 1, INCIDENT_RULE, True, 0, 0)
+    kernel.add_policy_effect("policy-1", "RULE_A", 3, "provider_a", 0, "", 2)
+    kernel.seal_policy("policy-1")
+    direct_vm.warp("2026-01-01T00:01:01Z")
+    kernel.activate_policy("policy-1")
+
+    args = (
+        "incident-lifecycle", "", "target-001", "policy-1", 1, M1,
+        "RULE_A", "provider_a", owner_addr, EV_A, OUTCOME_CONFIRMED, "COND_1", 1,
+    )
+    kernel.receive_provisional_decision(*args)
+    assert dispatch_log[-1]["decision_stage"] == STAGE_PROVISIONAL
+    with pytest.raises(Exception):
+        kernel.receive_provisional_decision(*args, STAGE_FINAL)
+
+    kernel.receive_final_decision(*args)
+    assert dispatch_log[-1]["decision_stage"] == STAGE_FINAL
+    with pytest.raises(Exception):
+        kernel.receive_final_decision(*args, STAGE_PROVISIONAL)
+
+
 def test_unauthorized_owner_cannot_construct_policy(kernel_harness, direct_vm, direct_alice):
     """TM-AUTH-007-adjacent: only the live target owner may construct/mutate a policy."""
     kernel, gl, owner_addr, _ = kernel_harness

@@ -826,15 +826,15 @@ class IncidentJudgeV1(gl.contract.Contract):
 
         kernel_contract = gl.contract.get_at(self.kernel)
         if provisional_allowed and int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
-            kernel_contract.emit(on="accepted").receive_decision(
+            kernel_contract.emit(on="accepted").receive_provisional_decision(
                 incident_id, "", target_id, policy_key, policy_version, policy_hash,
                 rule_id, resource_id, reporter, evidence_hash, int(outcome), condition_code,
-                int(DECISION_STAGE_PROVISIONAL), int(self.module_version),
+                int(self.module_version),
             )
-        kernel_contract.emit(on="finalized").receive_decision(
+        kernel_contract.emit(on="finalized").receive_final_decision(
             incident_id, "", target_id, policy_key, policy_version, policy_hash,
             rule_id, resource_id, reporter, evidence_hash, int(outcome), condition_code,
-            int(DECISION_STAGE_FINAL), int(self.module_version),
+            int(self.module_version),
         )
         return incident_id
 
@@ -890,10 +890,10 @@ class IncidentJudgeV1(gl.contract.Contract):
         child_idx = int(self.parent_child_count[parent_incident_id]) if parent_incident_id in self.parent_child_count else 0
         self.parent_child_at[_ck_local(parent_incident_id, str(child_idx))] = incident_id
         self.parent_child_count[parent_incident_id] = gl.u32(child_idx + 1)
-        gl.contract.get_at(self.kernel).emit(on="finalized").receive_decision(
+        gl.contract.get_at(self.kernel).emit(on="finalized").receive_final_decision(
             incident_id, parent_incident_id, target_id, policy_key, policy_version, policy_hash,
             rule_id, resource_id, reporter, evidence_hash, int(outcome), condition_code,
-            int(DECISION_STAGE_FINAL), int(self.module_version),
+            int(self.module_version),
         )
         return incident_id
 

@@ -54,7 +54,8 @@ export function buildRepeatedInternalAllocation({
 export function composeJudgeKernelTargetBranches({
   branches,
   kernelAddress,
-  kernelFunctionName,
+  provisionalKernelFunctionName,
+  finalKernelFunctionName,
   targetAddress,
   targetFunctionName,
   rootParentIndex,
@@ -103,6 +104,10 @@ export function composeJudgeKernelTargetBranches({
     }
 
     const kernelNodeIndex = BigInt(allocations.length);
+    const kernelFunctionName = branch.onAcceptance
+      ? provisionalKernelFunctionName
+      : finalKernelFunctionName;
+    if (!kernelFunctionName) throw new Error(`${label} is missing its lifecycle-specific Kernel entrypoint name.`);
     allocations.push({
       messageType: MessageType.Internal,
       onAcceptance: branch.onAcceptance,
@@ -119,4 +124,82 @@ export function composeJudgeKernelTargetBranches({
     .filter((allocation) => BigInt(allocation.parentIndex) === root)
     .reduce((sum, allocation) => sum + BigInt(allocation.budget), 0n);
   return { allocations, topLevelMessageFees };
+}
+
+function comparableDistribution(distribution) {
+  if (!distribution || typeof distribution !== "object") throw new Error("Target estimate has no fee distribution.");
+  const entries = Object.entries(distribution)
+    .filter(([key]) => key !== "executionBudgetPerRound")
+    .map(([key, value]) => [key, Array.isArray(value) ? value.map(String) : String(value)])
+    .sort(([left], [right]) => left.localeCompare(right));
+  return JSON.stringify(entries);
+}
+
+/** Validate one estimator-produced common profile across every repeated Target emission. */
+export async function estimateRepeatedTargetAllocation({
+  client,
+  actions,
+  initialEstimates,
+  recipient,
+  functionName,
+  onAcceptance,
+  rootParentIndex,
+}) {
+  if (!Array.isArray(actions) || actions.length === 0 || actions.length !== initialEstimates.length) {
+    throw new Error("Target actions and their individual live estimates must have matching non-empty lengths.");
+  }
+  const baseline = comparableDistribution(initialEstimates[0].distribution);
+  for (let index = 1; index < initialEstimates.length; index += 1) {
+    if (comparableDistribution(initialEstimates[index].distribution) !== baseline) {
+      throw new Error(`Repeated ${functionName} estimates differ in fee distribution fields other than executionBudgetPerRound; refusing to create a common profile.`);
+    }
+  }
+
+  const selectedIndex = initialEstimates.reduce((best, estimate, index, estimates) =>
+    BigInt(estimate.distribution.executionBudgetPerRound) > BigInt(estimates[best].distribution.executionBudgetPerRound) ? index : best, 0);
+  const commonDistribution = initialEstimates[selectedIndex].distribution;
+  const commonFeeParams = encodeInternalMessageFeeParams(commonDistribution);
+  const commonPreset = Object.fromEntries([
+    "leaderTimeunitsAllocation",
+    "validatorTimeunitsAllocation",
+    "appealRounds",
+    "executionBudgetPerRound",
+    "rotations",
+    "maxPriceGenPerTimeUnit",
+    "storageFeeMaxGasPrice",
+    "receiptFeeMaxGasPrice",
+  ].map((key) => [key, commonDistribution[key]]));
+  const validatedEstimates = [];
+  for (const action of actions) {
+    const estimate = await client.estimateTransactionFeesForWrite({
+      ...action,
+      ...commonPreset,
+    });
+    const actualFeeParams = encodeInternalMessageFeeParams(estimate.distribution);
+    if (actualFeeParams.toLowerCase() !== commonFeeParams.toLowerCase()) {
+      throw new Error(`Repeated ${functionName} action did not simulate with the selected estimator-produced common feeParams.`);
+    }
+    validatedEstimates.push(estimate);
+  }
+
+  const feeValues = validatedEstimates.map((estimate, index) => asBigInt(estimate.feeValue, `validated Target estimate ${index} feeValue`));
+  const totalBudget = feeValues.reduce((sum, value) => sum + value, 0n);
+  return {
+    allocation: {
+      messageType: MessageType.Internal,
+      onAcceptance: Boolean(onAcceptance),
+      parentIndex: BigInt(rootParentIndex),
+      recipient,
+      callKey: deriveInternalMessageCallKey(functionName),
+      budget: totalBudget,
+      feeParams: commonFeeParams,
+    },
+    commonDistribution,
+    commonPreset,
+    feeParamsByValidatedEmission: validatedEstimates.map((estimate) => encodeInternalMessageFeeParams(estimate.distribution)),
+    feeValues,
+    totalBudget,
+    validatedEstimates,
+    repeatedEmissions: actions.length,
+  };
 }

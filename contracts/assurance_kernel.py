@@ -665,6 +665,32 @@ class AssuranceKernel(gl.contract.Contract):
 
     @gl.public.write
     def receive_decision(self, incident_id: str, parent_incident_id: str, target_id: str, policy_key: str, policy_version: gl.u32, policy_hash: str, rule_id: str, resource_id: str, reporter: gl.Address, evidence_hash: str, outcome: gl.u8, condition_code: str, decision_stage: gl.u8, judge_version: gl.u32) -> None:
+        """Legacy compatibility entrypoint. IncidentJudgeV1 uses stage-specific methods."""
+        self._receive_decision(
+            incident_id, parent_incident_id, target_id, policy_key, policy_version,
+            policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome,
+            condition_code, decision_stage, judge_version,
+        )
+
+    @gl.public.write
+    def receive_provisional_decision(self, incident_id: str, parent_incident_id: str, target_id: str, policy_key: str, policy_version: gl.u32, policy_hash: str, rule_id: str, resource_id: str, reporter: gl.Address, evidence_hash: str, outcome: gl.u8, condition_code: str, judge_version: gl.u32) -> None:
+        """Apply the authenticated decision through the accepted/provisional lifecycle."""
+        self._receive_decision(
+            incident_id, parent_incident_id, target_id, policy_key, policy_version,
+            policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome,
+            condition_code, DECISION_STAGE_PROVISIONAL, judge_version,
+        )
+
+    @gl.public.write
+    def receive_final_decision(self, incident_id: str, parent_incident_id: str, target_id: str, policy_key: str, policy_version: gl.u32, policy_hash: str, rule_id: str, resource_id: str, reporter: gl.Address, evidence_hash: str, outcome: gl.u8, condition_code: str, judge_version: gl.u32) -> None:
+        """Apply the authenticated decision through the finalized lifecycle."""
+        self._receive_decision(
+            incident_id, parent_incident_id, target_id, policy_key, policy_version,
+            policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome,
+            condition_code, DECISION_STAGE_FINAL, judge_version,
+        )
+
+    def _receive_decision(self, incident_id: str, parent_incident_id: str, target_id: str, policy_key: str, policy_version: gl.u32, policy_hash: str, rule_id: str, resource_id: str, reporter: gl.Address, evidence_hash: str, outcome: gl.u8, condition_code: str, decision_stage: gl.u8, judge_version: gl.u32) -> None:
         reporter = gl.Address(reporter)
         policy_hash = _normalize_hash_arg(policy_hash)
         evidence_hash = _normalize_hash_arg(evidence_hash)

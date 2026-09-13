@@ -15,8 +15,9 @@ import {
 } from "genlayer-js";
 import { buildEap } from "../packages/protocol-sdk/dist/evidence.js";
 import { canonicalKeccak256, keccak256Hex } from "../packages/protocol-sdk/dist/canonical.js";
+import { kernelDecisionEntrypointForPhase } from "../packages/protocol-sdk/dist/feeAllocation.js";
 import { installStudioDevRpcThrottle } from "./studio-dev-rpc-throttle.mjs";
-import { buildRepeatedInternalAllocation, composeJudgeKernelTargetBranches } from "./studio-dev-fee-allocation.mjs";
+import { composeJudgeKernelTargetBranches, estimateRepeatedTargetAllocation } from "./studio-dev-fee-allocation.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CHAIN_ID = 61997;
@@ -201,9 +202,9 @@ async function main() {
   const ownerAccount = { address: OWNER, type: "json-rpc" };
   const judgeAccount = { address: JUDGE, type: "json-rpc" };
   const incidentId = `${TARGET_ID}:${OWNER.toLowerCase()}:${reporterNonce}`;
-  const receiveDecisionArgs = (decisionStage) => [
+  const receiveDecisionArgs = () => [
     incidentId, "", TARGET_ID, POLICY_KEY, POLICY_VERSION, POLICY_HASH, RULE_ID, RESOURCE_ID,
-    OWNER, eap.artifactHash, 1, "CREDENTIAL_COMPROMISE", decisionStage, 1,
+    OWNER, eap.artifactHash, 1, "CREDENTIAL_COMPROMISE", 1,
   ];
   const actionKey = (actionType, resourceId) => {
     const parts = [incidentId, POLICY_KEY, String(actionType), resourceId];
@@ -233,9 +234,9 @@ async function main() {
     const actionCalls = targetActionsForStage(decisionStage);
     if (actionCalls.length === 0) fail(`No governed target effects are applicable to decision stage ${decisionStage}.`);
     console.error(`Estimating ${onAcceptance ? "accepted/provisional" : "finalized"} Target child calls (${actionCalls.length}).`);
-    const targetEstimates = [];
+    const targetIndividualEstimates = [];
     for (const action of actionCalls) {
-      targetEstimates.push(await client.estimateTransactionFeesForWrite({
+      targetIndividualEstimates.push(await client.estimateTransactionFeesForWrite({
         account: targetSimAccount,
         address: TARGET,
         functionName: "apply_assurance_action",
@@ -243,7 +244,7 @@ async function main() {
         value: 0n,
       }));
     }
-    const targetEstimateDetails = targetEstimates.map((estimate, index) => ({
+    const targetEstimateDetails = targetIndividualEstimates.map((estimate, index) => ({
       action: actionCalls[index],
       feeValue: String(estimate.feeValue),
       distribution: jsonSafe(estimate.distribution),
@@ -252,27 +253,32 @@ async function main() {
       encodedFeeParams: encodeInternalMessageFeeParams(estimate.distribution),
     }));
     console.error(`Individually estimated ${onAcceptance ? "accepted" : "finalized"} Target calls (all values below come from the live SDK estimator): ${JSON.stringify(jsonSafe(targetEstimateDetails), null, 2)}`);
-    const repeated = buildRepeatedInternalAllocation({
-      estimates: targetEstimates,
+    const repeated = await estimateRepeatedTargetAllocation({
+      client,
+      actions: actionCalls.map((action) => ({
+        account: targetSimAccount,
+        address: TARGET,
+        functionName: "apply_assurance_action",
+        args: [action.actionId, action.incidentId, action.policyKey, action.actionType, action.resourceId, action.paramU256, action.paramString, action.decisionStage],
+        value: 0n,
+      })),
+      initialEstimates: targetIndividualEstimates,
       recipient: TARGET,
       functionName: "apply_assurance_action",
       onAcceptance,
       rootParentIndex: MESSAGE_ALLOCATION_ROOT_PARENT_INDEX,
     });
-    console.error(`Target feeParams by repeated ${onAcceptance ? "accepted" : "finalized"} emission: ${JSON.stringify(repeated.feeParamsByEmission)}`);
-    if (repeated.feeParamsByEmission.some((feeParams) => feeParams.toLowerCase() !== repeated.feeParamsByEmission[0].toLowerCase())) {
-      fail(`Target feeParams differ within the ${onAcceptance ? "accepted" : "finalized"} repeated-call group.`);
-    }
-    console.error(`Using one ${onAcceptance ? "accepted" : "finalized"} mode-2 Target allocation for ${repeated.repeatedEmissions} repeated calls: ${JSON.stringify(jsonSafe(repeated.allocation))}`);
+    console.error(`Repeated ${onAcceptance ? "accepted" : "finalized"} Target calls all simulated with the estimator-produced common profile: ${JSON.stringify(jsonSafe({ commonDistribution: repeated.commonDistribution, feeParamsByValidatedEmission: repeated.feeParamsByValidatedEmission, feeValues: repeated.feeValues, allocation: repeated.allocation }), null, 2)}`);
 
-    console.error(`Estimating Kernel receive_decision (${onAcceptance ? "provisional" : "final"}) with one explicit phase-matched Target allocation.`);
+    const kernelFunctionName = kernelDecisionEntrypointForPhase(onAcceptance);
+    console.error(`Estimating Kernel ${kernelFunctionName} (${onAcceptance ? "provisional" : "final"}) with one explicit phase-matched Target allocation.`);
     let kernelEstimate;
     try {
       kernelEstimate = await client.estimateTransactionFeesForWrite({
         account: judgeAccount,
         address: KERNEL,
-        functionName: "receive_decision",
-        args: receiveDecisionArgs(decisionStage),
+        functionName: kernelFunctionName,
+        args: receiveDecisionArgs(),
         value: 0n,
         messageAllocations: [repeated.allocation],
       });
@@ -286,13 +292,14 @@ async function main() {
       distribution: jsonSafe(kernelEstimate.distribution),
       explicitChildAllocationReadback: jsonSafe(kernelAllocations),
     })}`);
-    branchTrees.push({ decisionStage, onAcceptance, actionCalls, targetEstimates, targetAllocation: repeated.allocation, kernelEstimate, kernelAllocations });
+    branchTrees.push({ decisionStage, onAcceptance, actionCalls, targetIndividualEstimates, targetEstimates: repeated.validatedEstimates, targetAllocation: repeated.allocation, kernelFunctionName, kernelEstimate, kernelAllocations });
   }
 
   const { allocations: composedAllocations, topLevelMessageFees } = composeJudgeKernelTargetBranches({
     branches: branchTrees,
     kernelAddress: KERNEL,
-    kernelFunctionName: "receive_decision",
+    provisionalKernelFunctionName: kernelDecisionEntrypointForPhase(true),
+    finalKernelFunctionName: kernelDecisionEntrypointForPhase(false),
     targetAddress: TARGET,
     targetFunctionName: "apply_assurance_action",
     rootParentIndex: MESSAGE_ALLOCATION_ROOT_PARENT_INDEX,
@@ -365,9 +372,10 @@ async function main() {
     tree: {
       allocations: composedAllocations.map((node) => ({ ...node, parentIndex: node.parentIndex.toString(), budget: node.budget.toString() })),
       simulationSteps: branchTrees.flatMap((branch) => [
-        ...branch.targetEstimates.map((targetEstimate, index) => ({ address: TARGET, functionName: "apply_assurance_action", args: branch.actionCalls[index], feeValue: targetEstimate.feeValue.toString(), distribution: jsonSafe(targetEstimate.distribution), encodedFeeParams: branch.targetAllocation.feeParams, allocationCount: targetEstimate.messageAllocations?.length ?? 0 })),
+        ...branch.targetIndividualEstimates.map((targetEstimate, index) => ({ address: TARGET, functionName: "apply_assurance_action", args: branch.actionCalls[index], simulation: "individual-profile-baseline", feeValue: targetEstimate.feeValue.toString(), distribution: jsonSafe(targetEstimate.distribution), encodedFeeParams: encodeInternalMessageFeeParams(targetEstimate.distribution), allocationCount: targetEstimate.messageAllocations?.length ?? 0 })),
+        ...branch.targetEstimates.map((targetEstimate, index) => ({ address: TARGET, functionName: "apply_assurance_action", args: branch.actionCalls[index], simulation: "validated-common-profile", feeValue: targetEstimate.feeValue.toString(), distribution: jsonSafe(targetEstimate.distribution), encodedFeeParams: branch.targetAllocation.feeParams, allocationCount: targetEstimate.messageAllocations?.length ?? 0 })),
         { address: TARGET, functionName: "explicit repeated-message allocation", onAcceptance: branch.onAcceptance, repeatedMessages: branch.actionCalls.length, budget: branch.targetAllocation.budget.toString(), feeParams: branch.targetAllocation.feeParams },
-        { address: KERNEL, functionName: "receive_decision", decisionStage: branch.decisionStage, feeValue: branch.kernelEstimate.feeValue.toString(), distribution: jsonSafe(branch.kernelEstimate.distribution), allocationCount: branch.kernelAllocations.length },
+        { address: KERNEL, functionName: branch.kernelFunctionName, decisionStage: branch.decisionStage, feeValue: branch.kernelEstimate.feeValue.toString(), distribution: jsonSafe(branch.kernelEstimate.distribution), allocationCount: branch.kernelAllocations.length },
       ]),
       postRollupRootMessageFees: topLevelMessageFees.toString(),
     },

@@ -733,3 +733,39 @@ The latest pasted terminal output is the same successful Run A initial-purchase 
 Added `scripts/studio-dev-rpc-throttle.mjs`, a shared per-process FIFO fetch guard for Studio-dev RPC. It spaces RPC starts by at least 2600ms, retries only bounded transient transport/rate/capacity failures with exponential backoff, and increases spacing for consecutive transaction receipt/status polls. The incident preflight now issues RPC operations sequentially. The PowerShell submit flow preloads the same guard into each Node/GenLayer CLI process, spaces process launches, uses the preflight-produced fee preset unchanged, and performs bounded throttled receipt polling only after a successful preflight and write. The stable accepted-stage simulation error itself is not retried. No new Studio-dev RPC call or write was made during this implementation pass.
 
 The active resume point is local diagnosis of the accepted/provisional message-fee path using the retained trace; do not rerun the same failing preflight or submit an incident until the full read-only Judge→Kernel→Target simulation produces a complete SDK fee preset. `.claude/settings.local.json` remains pre-existing, untracked, and untouched.
+
+## 2026-09-13 correction: lifecycle-specific Kernel call keys
+
+The exact Studio release tag shown by the captured Studio-dev UI is `v0.123.0-rc.6`. Its official
+peeled source commit is `6551995be232d093144f2c32b6775757a010ab3c`; the tagged fee implementation
+verifies allocation identity `(messageType, recipient, callKey)` plus `parentIndex` for sibling
+uniqueness, with `onAcceptance` checked separately. Studio does not expose its exact backend SHA,
+so only the deployed version tag is verified; exact deployed SHA correspondence is not claimed.
+See `release-evidence/r1/e1/studio-fee-semantics-verification.json`.
+
+The protocol correction is implemented locally: Kernel now exposes `receive_provisional_decision`
+and `receive_final_decision`, each fixing its stage and delegating to one shared authenticated
+implementation. The current Judge emits to the matching entrypoint, so accepted and finalized
+Judge→Kernel allocations have distinct call keys. The legacy `receive_decision` remains for
+compatibility and is no longer used by the current Judge. The preflight groups repeated Target
+calls by parent/type/recipient/call key/phase, selects the complete estimator-produced higher
+execution profile only when every other distribution field matches, simulates every repeated
+action with that profile, then uses the validated estimator fee values for the cumulative
+allocation. It refuses incompatible profiles. No Studio-dev write or fee preflight has been run
+after this correction.
+
+Regression tests cover the old-key collision, wrapper stages and call keys, phase rejection,
+repeated accepted/finalized actions, common-profile simulation, nested parent placement and budget
+roll-up, and the preserved A2-C01 final-only shape. Full JS verification passed. Kernel Direct
+Mode passed 85/85 and Judge Direct Mode passed 51/51. After updating the Judge test proxies to
+record the two fixed-stage methods, the full canonical Python suite passed 219/219. Exact-target
+CI has not yet run for these changes.
+
+Branch is `claude/r1-product-final`, starting HEAD `9dea85da8344dab8ff18304adbeeceb4d843cc10`;
+protocol changes and the source-verification artifact are still uncommitted. Preserve the
+pre-existing `.claude/settings.local.json` and do not stage it. After complete tests and
+exact-target CI pass, commit/push the protocol correction, then deploy a fresh Kernel, Judge and
+Vault (and fresh target/ReferenceAgent if immutable controller binding requires it), rebuild and
+activate a policy against the new Judge after its genuine timelock, and only then run the
+throttled read-only explicit fee preflight. No incident write is permitted before the complete
+Judge→Kernel→Target preset is accepted.

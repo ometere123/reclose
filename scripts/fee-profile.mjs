@@ -16,7 +16,7 @@
 // reports the estimator's exact response/error for that branch rather than skipping it, since an
 // honest fee profile must show what actually happens, not a curated subset.
 
-import { createClient, chains } from "genlayer-js";
+import { createClient, chains, deriveInternalMessageCallKey } from "genlayer-js";
 import { writeFileSync } from "node:fs";
 
 const STUDIO_DEV_CHAIN_ID = 61997;
@@ -59,6 +59,10 @@ async function main() {
   const results = [];
   for (const profile of profiles) {
     const entry = { name: profile.name, address: profile.address, functionName: profile.functionName, notes: profile.notes ?? null };
+    if (["receive_provisional_decision", "receive_final_decision"].includes(profile.functionName)) {
+      entry.lifecyclePhase = profile.functionName === "receive_provisional_decision" ? "accepted/provisional" : "finalized";
+      entry.internalMessageCallKey = deriveInternalMessageCallKey(profile.functionName);
+    }
     try {
       const estimate = await client.estimateTransactionFeesForWrite({
         address: profile.address,

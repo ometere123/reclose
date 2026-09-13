@@ -1,0 +1,35 @@
+{
+  "schema": "reclose-studio-fee-semantics-verification-v1",
+  "deployedVersion": {
+    "value": "v0.123.0-rc.6",
+    "status": "VERIFIED_FROM_STUDIO_UI_EVIDENCE",
+    "sourceEvidence": "release-evidence/r1/g0/network-verification.json",
+    "observedAt": "2026-09-10",
+    "network": "studio-dev",
+    "chainId": 61997
+  },
+  "exactDeployedSourceSha": {
+    "value": null,
+    "status": "NOT_EXPOSED",
+    "explanation": "The captured Studio UI exposes the deployed version tag but no backend source commit/build SHA. The release source tag is therefore used to verify version-level fee semantics; exact deployed source SHA correspondence is not claimed."
+  },
+  "officialReleaseSource": {
+    "repository": "https://github.com/genlayerlabs/genlayer-studio",
+    "tag": "v0.123.0-rc.6",
+    "tagObject": "f67dd3ee8e0afe5b59e38d9ba3b16478c32117bb",
+    "peeledCommit": "6551995be232d093144f2c32b6775757a010ab3c",
+    "file": "backend/protocol_rpc/fees.py"
+  },
+  "verifiedRulesAtReleaseTag": {
+    "allocationIdentity": ["messageType", "recipient", "callKey"],
+    "siblingUniquenessAdds": ["parentIndex"],
+    "onAcceptanceExcludedFromAllocationIdentity": true,
+    "duplicateSiblingAllocationsRejected": true,
+    "resolutionChecksPhaseSeparately": true,
+    "resolutionChecksExactFeeParams": true,
+    "repeatedConsumptionAccumulatesAgainstOneAllocationBudget": true,
+    "feeBearingGenVMMessageRequiresMode2AllocationTree": true
+  },
+  "verificationMethod": "Read-only git ls-remote resolved the official release tag and peeled commit. The tagged fee source was read directly from commit 6551995be232d093144f2c32b6775757a010ab3c; inspected functions include _allocation_key, _validate_sibling_duplicates, _resolve_allocation, _consume_against_allocation, and genvm_message_fee_allocation.",
+  "conclusion": "The Studio-dev version evidence matches the v0.123.0-rc.6 release tag, and that release source confirms the fee semantics used by the protocol correction. The live service does not expose an exact source SHA in the available evidence."
+}

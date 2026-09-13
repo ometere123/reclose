@@ -121,6 +121,15 @@ class FakeKernelVaultProxy:
         self.decision_log.append({"_bond_consumed": True, "bond_id": bond_id, "incident_id": incident_id})
 
     def receive_decision(self, incident_id, parent_incident_id, target_id, policy_key, policy_version, policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome, condition_code, decision_stage, judge_version):
+        self._record_decision(incident_id, parent_incident_id, target_id, policy_key, policy_version, policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome, condition_code, decision_stage, judge_version)
+
+    def receive_provisional_decision(self, incident_id, parent_incident_id, target_id, policy_key, policy_version, policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome, condition_code, judge_version):
+        self._record_decision(incident_id, parent_incident_id, target_id, policy_key, policy_version, policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome, condition_code, 1, judge_version)
+
+    def receive_final_decision(self, incident_id, parent_incident_id, target_id, policy_key, policy_version, policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome, condition_code, judge_version):
+        self._record_decision(incident_id, parent_incident_id, target_id, policy_key, policy_version, policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome, condition_code, 2, judge_version)
+
+    def _record_decision(self, incident_id, parent_incident_id, target_id, policy_key, policy_version, policy_hash, rule_id, resource_id, reporter, evidence_hash, outcome, condition_code, decision_stage, judge_version):
         self.decision_log.append({
             "incident_id": incident_id,
             "parent_incident_id": parent_incident_id,

@@ -7,7 +7,7 @@
 const assert = require("assert");
 const path = require("path");
 
-const { TransactionTracker, InMemoryTransactionStore } = require(
+const { TransactionTracker, InMemoryTransactionStore, inferRoleFromFunctionName } = require(
   path.join(__dirname, "..", "packages", "transaction-tracker", "dist", "index.js")
 );
 
@@ -38,6 +38,12 @@ function fakeClient(responses) {
 }
 
 async function main() {
+  await test("trace resolver recognizes both lifecycle-specific Kernel decision entrypoints", async () => {
+    assert.strictEqual(inferRoleFromFunctionName("receive_provisional_decision"), "JUDGE_DECISION");
+    assert.strictEqual(inferRoleFromFunctionName("receive_final_decision"), "JUDGE_DECISION");
+    assert.strictEqual(inferRoleFromFunctionName("receive_decision"), "JUDGE_DECISION");
+  });
+
   await test("track() persists a placeholder immediately, before any poll", async () => {
     const tracker = new TransactionTracker(fakeClient(new Map()), new InMemoryTransactionStore());
     const record = await tracker.track("0xabc", { label: "submit_incident" });
