@@ -373,3 +373,50 @@ write/deploy call - confirmed by reading its actual source - so it cannot itself
 value; first purchase tx `0x2a324292ce0ed5f92a2d3d70f1a2fec66379e9458e15e8d429a97cb6ff8121f9`,
 FINISHED_WITH_RETURN). The remaining steps (CONFIRMED incident onward) are blocked by the bug
 above, not by funding or tooling.
+
+## CRITICAL CORRECTION (2026-09-13, later same day): the exec_prompt fix did NOT resolve the multi-source crash
+
+After redeploying a fresh stack (target `reclose-target-005`, policy `policy-r1-006`, Judge
+`0xcdC5ce7A17cBecbBDCde4F5FA65E83366B018819` carrying the `_evaluate_once` exec_prompt try/except
+fix from commit `595c723`), the exact same multi-source evidence that previously crashed with
+`exit_code 1` was retested against the FIXED Judge and **still crashes identically**. This proves
+the earlier root-cause hypothesis (an uncaught exception from `gl.nondet.exec_prompt` itself) was
+**incomplete or wrong** - the fix is real and defensible on its own merits (it correctly closes a
+genuine gap versus `validator_fn`'s existing exception handling, and is covered by a real
+regression test), but it does NOT explain or fix the specific multi-source crash observed.
+
+**Honest conclusion:** the true root cause of the multi-source `exit_code 1` crash remains
+UNDIAGNOSED. It is reproducible, deterministic (not flaky), and correlated with realistic
+English-language prose content in a `CONTENT_ADDRESSED_SNAPSHOT`-classed source specifically
+(trivial/repetitive text of the same or greater length never crashes) - but the exact mechanism
+was not found before this session's token budget was exhausted. Candidate next steps for a future
+session: instrument `_parse_and_validate_eap` and `_authority_for_source` directly (add temporary
+print/log statements or bisect by commenting out sections) against a MINIMAL two-line Direct Mode
+repro using `gltest` (once the Windows `PermissionError` blocker is worked around, e.g. by running
+on Linux/WSL/CI), since the live-chain `exit_code 1` gives no traceback at all and further live
+bisection is costly in both GEN and time.
+
+**Practical state:** single-source PROVIDER_COMPROMISE_V1 submissions work correctly on the fixed
+Judge and correctly resolve to real LLM-judged outcomes (this session's fresh-stack test:
+UNDETERMINED/INSUFFICIENT_EVIDENCE, tx `0x933fd81a4e67043a42df5204031f1c8454debe3c2d4aa1ea88a5769519ed6e01`,
+consistent with every prior single-source live test in this repository). Multi-source submissions
+remain broken and MUST NOT be used until root-caused. The full E1 canonical demo's CONFIRMED
+path was not completed live this session - reaching CONFIRMED via single-source evidence alone
+was not achieved either (the real LLM judgment for the tested single-source content resolved to
+UNDETERMINED both before and after the Judge redeploy).
+
+**Do not attempt further live incident submissions to chase a CONFIRMED outcome without either
+(a) a specific new evidence-quality hypothesis worth testing once, or (b) fixing the multi-source
+bug first** - repeated attempts already exhausted this session's reasonable budget without new
+signal, and further blind iteration risks the benchmark-tuning CLAUDE.md Section 37 prohibits.
+
+### Fresh stack addresses (this redeploy, "r1r2" generation)
+- Kernel: `0xa0a967Db641af4E62DB36367F560afb21cc7Ec00`
+- ReferenceAgentProtocol (target `reclose-target-005`): `0xC8B75C6a131d601f8C1A3d0a82ffEd4Be2D58AD2`
+- IncidentJudgeV1 (fixed): `0xcdC5ce7A17cBecbBDCde4F5FA65E83366B018819`
+- IncentiveVault: `0x33A1DD29572136d1a4B443b3ebF5F3A08F35B90C`
+- Providers reused from r1r: ProviderStubA `0x17fb724D936c930f6e42C92283cF51dB661e97f5`, ProviderStubB `0x4CD612D701902355836bC3C182eac724B1487A4f`
+- Policy: `policy-r1-006`, sealed+activated (activatedAt=1789294172), all wiring verified live.
+- Full construction/wiring tx hashes captured in shell history this session; a formal manifest
+  file (`deployment/61997/r1r2-manifest.json`) was NOT written before the token budget ran out -
+  this is an honest documentation gap for the next session to close using the tx hashes above.
