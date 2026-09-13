@@ -611,3 +611,52 @@ implemented (by the concurrent session) but **still requires a fresh live Judge 
 real live retest before the multi-source crash can be marked LIVE-VERIFIED CLOSED** - this pass did
 not deploy anything (out of scope for this task) and did not spend further live GEN/time on
 speculative live retests, per the owner's explicit cost-consciousness instruction for this task.
+
+## Frontend-only 21-item audit re-verification (2026-09-13, later same day, `frontend/` only)
+
+Owner directed a frontend-only re-verification pass of a 21-item checklist covering the wallet
+writer, signer/owner-binding, fee-detail threading, bond gating, policy journey, recovery/
+remediation lineage, tri-state provider truth, nav surfaces, Sentinel persistence, CLI coverage,
+and an accessibility/security browser sweep - explicitly scoped away from `contracts/`,
+`deployment/`, and `release-evidence/` to avoid colliding with a concurrent live-deployment/E1
+session. Full per-item results reported to the owner in chat; one real gap found and fixed:
+
+- **Item 17 (provider tri-state):** `getProviderAvailabilityTriState` was fully implemented in
+  `packages/protocol-sdk/src/client.ts` and both frontend adapters, but never called or rendered
+  anywhere in `frontend/app.js` - the truth existed but was invisible in the product. Added a
+  "Provider availability (tri-state)" panel to `renderTargetDetail` (commit `6dfd522`), verified
+  live in-browser against the `reclose-target-004` fixture (renders AVAILABLE/UNAVAILABLE/UNKNOWN
+  correctly, no console errors, 1440x900 and 375x812 viewports both clean).
+- All other 20 items were independently re-verified against current source (not memory/docs) and
+  found genuinely DONE: pinned `genlayer-js@2.0.0-rc.1` browser writer, no real Snap integration
+  (the `wallet_requestSnaps` hit is dead code inside the vendored genlayer-js bundle's own unused
+  `metamaskClient` helper, not Reclose's own writer path), signer-identity binding at sign time,
+  live (fresh-read, non-memoized) owner checks for every owner-bounded write builder,
+  `accountsChanged`/`chainChanged` invalidating the whole policy journey (not just the latest
+  draft), wrong-network blocking in `submitWrite`, full fee detail
+  (distribution/messageAllocations/feeValue) threaded through to `writeContract`, `buildOpenBond`
+  estimating at the real non-zero `rule.reportBond` value, deterministic Keccak-256 bond IDs,
+  `requireVerifiedBond` gating all three of `buildIncidentReport`/`buildRecoveryReport`/
+  `buildRemediationReport`, the strict sequential policy-construction/activation state machine
+  (advance only after tracked lifecycle-final + execution success), `get_policy_lifecycle`-backed
+  seal/timelock readback, the unconditional target-registration handshake, correctly-gated
+  remediation-then-recovery UI driven by real `getIncidentLineage` reads, and real
+  Evidence/Recovery-queue/Integrations nav surfaces.
+- **Item 19/20 (Sentinel durable state, CLI coverage):** confirmed via direct source/test
+  inspection - `FileSentinelStateStore` (atomic tmp-file + rename) with real
+  restart/resume/no-duplicate tests in `scripts/test-sentinel.js`; `packages/cli/bin/reclose.js`
+  covers every documented command, with `*/report` write commands and `benchmark run`
+  intentionally absent and documented as such.
+- **Item 21 (accessibility/security browser sweep):** no prior real sweep existed (only "pending"
+  notes in the A3 packets) - ran one this pass against the live `reclose-frontend` preview server
+  (port 4600): 1440x900 and 375x812 viewports both render cleanly with zero console errors;
+  `frontend/styles.css` has `:focus-visible` styling, a skip link, and a
+  `prefers-reduced-motion: reduce` block; every dynamic/user-controlled field rendered into
+  `innerHTML` across `frontend/app.js` passes through `escapeHtml` first (spot-checked by
+  excluding all `innerHTML` call sites that already route through `escapeHtml`/`notice`/`panel`/
+  `recordRows`/etc. - none left over that inject raw evidence/URL text). Did not run a full
+  automated axe-core/Lighthouse scan (no such tool is wired into this repo's toolchain) - this
+  remains an honest gap for a future pass, consistent with the existing A3-attempt-2 packet notes.
+
+`npm run verify:js` passes in full after this pass's single change. No file under `contracts/`,
+`deployment/`, or `release-evidence/` was touched.
