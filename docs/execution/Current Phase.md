@@ -410,6 +410,101 @@ UNDETERMINED both before and after the Judge redeploy).
 bug first** - repeated attempts already exhausted this session's reasonable budget without new
 signal, and further blind iteration risks the benchmark-tuning CLAUDE.md Section 37 prohibits.
 
+## Judge evidence-authority hardening (2026-09-13, owner-directed, source-only — NOT deployed)
+
+The repository owner identified a real, release-critical gap in the Judge's evidence-authority
+model, independent of the crash-bug investigation above (which a concurrent agent worked on in
+parallel; this pass avoided `_evaluate_once`/`_parse_and_validate_eap`/`_run_judgment`'s
+leader/validator control flow itself except where the fetch-and-verify change below required
+touching `_evaluate_once`'s `CONTENT_ADDRESSED_SNAPSHOT` branch specifically). Three issues,
+all closed:
+
+1. **Snapshot evidence is now independently fetched and hash-verified, not merely
+   self-consistent.** `CONTENT_ADDRESSED_SNAPSHOT` sources previously satisfied `contentHash ==
+   keccak(extractedText)` and were then trusted as-is inside `_evaluate_once` - proving only that
+   the Reporter hashed their own submitted text correctly, never that the text exists anywhere
+   independently checkable. `_parse_and_validate_eap` now requires a non-empty `snapshotRef`
+   (bound to the same registered origin/path authority as `url`) for this class, and
+   `_evaluate_once` now performs a real `gl.nondet.web.get(snapshotRef)` fetch, hashes the
+   REAL fetched bytes, and only uses that fetched content for judgment if the hash matches the
+   claimed `contentHash`. A fetch failure, non-200, or hash mismatch contributes nothing
+   (UNCERTAINTY) - it never falls back to Reporter-supplied `extractedText`. This is a genuine
+   evaluation-semantics change for this one source class, not a purely additive view.
+2. **Origin binding narrowed below hostname.** Added an optional `canonicalPathPrefix` field to
+   the source-registry schema (`SourceAuthorityRecord.canonical_path_prefix`); `_authority_for_source`
+   now calls the new `_url_matches_authority`/`_extract_origin_and_path` helpers, which require the
+   URL's path to start with the registered prefix, not just match the hostname. Applied to BOTH
+   `url` and (for `CONTENT_ADDRESSED_SNAPSHOT`) `snapshotRef`. `config/source-registry-r1.json`
+   (the only source-registry config file in the repo - no other generation-specific variants
+   exist) now binds both existing sources to
+   `/genlayerlabs/genlayer-project-boilerplate/main/` specifically, rather than the bare
+   `raw.githubusercontent.com` hostname (which is shared, multi-tenant infrastructure hosting
+   arbitrary attacker-controlled repos). **This changes the registry's canonical hash
+   (`_canonical_hash(registry)`), so any future Judge deployment using this registry needs the
+   hash recomputed - not done here since no deployment is part of this task.**
+3. **Duplicate/correlated sources within one EAP now rejected.** `_parse_and_validate_eap` tracks
+   seen `sourceId`s, `url`s (lowercased), and `contentHash`es across the `sources` array in a
+   single pass and raises `E_JDG_SOURCE: duplicate sourceId in one EAP` /
+   `E_JDG_SOURCE: duplicate URL claimed as independent corroboration` /
+   `E_JDG_SOURCE: duplicate contentHash claimed as independent corroboration` on any repeat -
+   closing the gap where a Reporter could submit the same evidence multiple times dressed up as
+   independent corroboration.
+4. **Source-class self-upgrade protection confirmed unchanged.**
+   `_authority_for_source`'s `claimed_class == rec.source_class` check was already correct and is
+   untouched; `test_source_class_cannot_self_upgrade` (pre-existing) and the new
+   `test_source_class_cannot_self_upgrade_still_enforced_after_hardening` both pass.
+
+`get_source_authority`'s return tuple grew from `(origin, sourceClass, ruleIdsCsv, enabled)` to
+`(origin, pathPrefix, sourceClass, ruleIdsCsv, enabled)` - a breaking view-signature change,
+confirmed to have zero frontend/SDK callers (grepped repo-wide; only the test file called it), so
+no other source needed updating for this specific signature change.
+
+**Client-side (`@reclose/evidence-builder` / `packages/protocol-sdk/src/evidence.ts`):**
+`validateEap` now rejects a `CONTENT_ADDRESSED_SNAPSHOT` source with an empty/missing or
+unsafe-URL `snapshotRef` - previously `snapshotRef` was always-optional/frequently-empty per the
+pre-hardening design (`packages/sentinel/src/candidateEap.ts` always set it to `""`). Updated
+`candidateEap.ts` so a Sentinel-detected `CONTENT_ADDRESSED_SNAPSHOT` source now sets
+`snapshotRef = source.url` (the exact URL Sentinel already independently fetched to produce
+`extractedText`), satisfying the new requirement without inventing a second fetch. `client.ts`'s
+`buildIncidentReport`/`buildRecoveryReport`/`buildRemediationReport` already threaded a
+caller-supplied `snapshotRef` through unchanged - no further client change needed there.
+
+**Tests added** (`tests/judge/test_incident_judge_v1.py`, all passing locally - 45/45 total in
+this file, up from 34): narrow-path-binding round-trip proof
+(`test_registry_narrows_binding_below_hostname`); attacker-repo-same-hostname rejection under both
+`url` and `snapshotRef` (`test_attacker_controlled_repo_same_hostname_rejected`,
+`test_snapshot_ref_outside_authority_path_rejected_even_with_good_url`); empty-snapshotRef
+rejection (`test_content_addressed_snapshot_requires_nonempty_snapshot_ref`); invented-text
+rejection when the independent fetch disagrees with the claimed hash
+(`test_invented_snapshot_text_rejected_when_independent_fetch_disagrees`, mocks a fetch returning
+different content than claimed and confirms UNDETERMINED/INSUFFICIENT_EVIDENCE rather than the
+Reporter's claimed CONFIRMED code); positive-path sanity that a genuinely matching fetch is used
+and CAN confirm (`test_snapshot_content_matching_hash_is_used_and_can_confirm`); fetch-outage
+never-falls-back proof (`test_snapshot_fetch_outage_never_falls_back_to_reporter_text`, mocks a 404
+and confirms no fallback to `extractedText`); duplicate-sourceId/URL/contentHash rejection across
+three tests; and a fresh confirmation that source-class self-upgrade is still rejected. Ran via
+local `pytest tests/judge/test_incident_judge_v1.py -q` on this Windows environment - the
+previously-reported `gltest` Windows `PermissionError: [WinError 32]` did NOT reproduce this
+session (45 passed in ~33s); genvm-lint (`node scripts/genvm-lint-wrapper.js
+contracts/incident_judge_v1.py`) is clean, `python -c "import ast; ast.parse(...)"` confirms valid
+syntax, and the full `npm run verify:js` (lint/typecheck/build/every JS-side test suite including
+`evidence-builder:test`, `sentinel:test`, `sdk-product-truth:test`, `a0-integrity`) passes in full
+after these changes. CI (Linux) remains authoritative for the real Python test result once pushed,
+per this repo's standing practice.
+
+**Not deployed - explicitly out of scope for this task.** This is a genuine semantic change to
+`IncidentJudgeV1` (the `CONTENT_ADDRESSED_SNAPSHOT` evaluation branch now performs a real fetch it
+previously skipped, plus the narrower registry binding changes the registry's canonical hash), so
+none of the live deployments referenced elsewhere in this document
+(`r1-manifest.json`/`r1r-manifest.json`/the "r1r2" generation) carry this hardening. **A fresh
+Judge deployment is required before this hardening is live-provable**, and per the section above
+this same fresh deployment should also carry the concurrent agent's `_run_judgment` leader-path
+crash fix (`_evaluate_once`'s `exec_prompt` try/except, commit `595c723`, already confirmed
+insufficient alone for the still-undiagnosed multi-source crash) so both hardening passes land
+together rather than requiring two more redeploy cycles. Until that redeploy happens and is
+live-verified, treat this evidence-authority hardening as CODE-COMPLETE/TESTED, NOT
+LIVE-VERIFIED.
+
 ### Fresh stack addresses (this redeploy, "r1r2" generation)
 - Kernel: `0xa0a967Db641af4E62DB36367F560afb21cc7Ec00`
 - ReferenceAgentProtocol (target `reclose-target-005`): `0xC8B75C6a131d601f8C1A3d0a82ffEd4Be2D58AD2`
