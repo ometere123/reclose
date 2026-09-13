@@ -1048,7 +1048,57 @@ async function main() {
     assert.strictEqual(typeof client.buildRemediationReport, "function", "buildRemediationReport must exist as a distinct builder from buildRecoveryReport");
   });
 
-  const total = 60;
+  await test("Owner-directed remediation round 2, item 1: Evidence, Recovery queue and Integrations exist as real top-level nav surfaces, routed and rendered from actual adapter reads, never fabricated placeholder data", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /\["evidence", "Evidence"\]/, "Evidence must be a real top-level nav entry");
+    assert.match(app, /\["recovery-queue", "Recovery queue"\]/, "Recovery queue must be a real top-level nav entry");
+    assert.match(app, /\["integrations", "Integrations"\]/, "Integrations must be a real top-level nav entry");
+    assert.match(app, /case "evidence": return renderEvidence\(\)/, "evidence route must be wired");
+    assert.match(app, /case "recovery-queue": return renderRecoveryQueue\(\)/, "recovery-queue route must be wired");
+    assert.match(app, /case "integrations": return renderIntegrations\(\)/, "integrations route must be wired");
+    assert.match(app, /async function renderEvidence\(\)[\s\S]{0,400}adapter\.listIncidents\(\)/, "renderEvidence must source real incident reads, not fabricated data");
+    assert.match(app, /async function renderRecoveryQueue\(\)[\s\S]{0,400}adapter\.listIncidents\(\)/, "renderRecoveryQueue must source real incident reads, not fabricated data");
+    assert.match(app, /Source list requires a connected indexer/, "Evidence page must honestly disclose what the connected read surface does not expose, never invent a source list");
+    assert.match(app, /Not determinable from the browser/, "Integrations page must honestly disclose what a browser tab cannot observe (CLI/Sentinel presence), never fabricate a green checkmark");
+  });
+
+  await test("Owner-directed remediation round 2, item 1: Recovery queue detects reason-indexed restriction conflicts across incidents sharing a resource (CLAUDE.md Section 17), never claims resolving one restores capability another incident still restricts", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /resourceToIncidents/, "conflict detection must group restrictions by resource across incidents");
+    assert.match(app, /conflicts = \[\.\.\.resourceToIncidents\.entries\(\)\]\.filter\(\(\[, ids\]\) => ids\.length > 1\)/, "a conflict is exactly a resource restricted by more than one incident");
+  });
+
+  await test("Owner-directed remediation round 2, item 2: genlayerWriter exposes a real GenLayerJS-client-backed trackTransaction using the pinned SDK's own lifecycle/execution-result fields, never an invented status", async () => {
+    const source = read("frontend/lib/genlayerWriter.js");
+    assert.match(source, /async function trackTransaction\(txId\)/, "trackTransaction must exist on the real writer");
+    assert.match(source, /client\.waitForTransactionReceipt\(/, "trackTransaction must poll through the pinned genlayer-js client's own waitForTransactionReceipt, never a homemade poller");
+    assert.match(source, /txExecutionResultName/, "success must be read from the client's own txExecutionResultName field");
+    assert.match(source, /"FINISHED_WITH_RETURN"/, "success must be compared against the pinned SDK's own ExecutionResult enum spelling, never a Reclose-invented string");
+    assert.match(source, /writePreparedDraft,\s*\n\s*trackTransaction,/, "trackTransaction must be exposed on the writer's returned surface");
+  });
+
+  await test("Owner-directed remediation round 2, item 2: submitLiveWrite tracks policy-journey steps through the real writer directly, not only the optional host-injected runtime hook", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /isPolicyJourneyStep && typeof adapter\.writer\?\.trackTransaction === "function"/, "policy-journey steps must prefer the real writer-backed tracker");
+    assert.match(app, /\(txId\) => adapter\.writer\.trackTransaction\(txId\)/, "the real tracker call must go directly through adapter.writer.trackTransaction");
+  });
+
+  await test("Owner-directed remediation round 2, item 2: submitPolicyJourneyStep only advances after BOTH a terminal lifecycle state AND a real FINISHED_WITH_RETURN execution result; a failed/unconfirmed/untracked step must never advance", () => {
+    const app = read("frontend/app.js");
+    const fnMatch = app.match(/async function submitPolicyJourneyStep\(\) \{[\s\S]*?\n\}/);
+    assert.ok(fnMatch, "submitPolicyJourneyStep must exist");
+    const fn = fnMatch[0];
+    assert.match(fn, /if \(outcome\.trackError\)/, "a tracking error must be handled and must not advance the sequence");
+    assert.match(fn, /if \(!outcome\.trackResult\)/, "an untracked step (no tracker connected) must not advance the sequence");
+    assert.match(fn, /const \{ isFinal, success, executionResult \} = outcome\.trackResult\.derived/, "advancement must inspect both isFinal and success derived from the real tracker");
+    assert.match(fn, /if \(!isFinal \|\| !success\)/, "the sequence must refuse to advance unless BOTH isFinal and success are true");
+    // Every early-return branch above `j.currentIndex += 1` must occur strictly before it in source order.
+    const advanceIndex = fn.indexOf("j.currentIndex += 1");
+    const guardIndex = fn.indexOf("if (!isFinal || !success)");
+    assert.ok(guardIndex > 0 && guardIndex < advanceIndex, "the isFinal/success guard must run before the sequence is allowed to advance");
+  });
+
+  const total = 66;
   console.log(`\n${total - failures}/${total} frontend A3-remediation checks passed.`);
   if (failures) process.exit(1);
 }

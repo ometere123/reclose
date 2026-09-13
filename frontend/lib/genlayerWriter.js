@@ -70,10 +70,32 @@ export function createGenLayerWriter({ account, provider }) {
     return { txId: typeof txHash === "string" ? txHash : txHash?.hash ?? txHash?.txId ?? String(txHash) };
   }
 
+  // Item 2 (owner-directed remediation pass): a REAL GenLayerJS-client-backed tracker, used so
+  // policy-journey steps get real lifecycle/execution-result confirmation in ordinary browser use
+  // (no host-injected `__RECLOSE_PRODUCT_RUNTIME__.trackTransaction` required). This wraps the
+  // pinned SDK's own `waitForTransactionReceipt` polling - it never reimplements lifecycle
+  // semantics or guesses at a success value; `txExecutionResultName` and `lifecycle.state` are
+  // read verbatim from the client's own response shape.
+  async function trackTransaction(txId) {
+    if (!txId) throw new Error("trackTransaction requires a transaction hash/ID");
+    const tx = await client.waitForTransactionReceipt({ hash: txId, waitUntil: "decided", fullTransaction: true });
+    const isFinal = tx?.lifecycle?.state === "decided";
+    const executionResult = tx?.txExecutionResultName ?? null;
+    // "FINISHED_WITH_RETURN" is the pinned genlayer-js package's own ExecutionResult enum value
+    // for a successful execution - never a Reclose-invented success string.
+    const success = executionResult === "FINISHED_WITH_RETURN";
+    return {
+      rawStatus: tx?.statusName ?? (tx?.status !== undefined ? String(tx.status) : null),
+      derived: { isFinal, success, executionResult },
+      raw: tx,
+    };
+  }
+
   return {
     getConnectedChainId: async () => Number(await client.getChainId()),
     getConnectedAccount: () => account,
     writePreparedDraft,
+    trackTransaction,
     submitIncident: writePreparedDraft,
     submitRecovery: writePreparedDraft,
     submitRemediation: writePreparedDraft,

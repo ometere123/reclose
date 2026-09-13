@@ -14,7 +14,8 @@ const pendingStore = new PendingTransactionStore();
 
 const NAV = [
   ["overview", "Overview"], ["targets", "Targets"], ["incidents", "Incidents"],
-  ["policies", "Policies"], ["benchmark", "Benchmark"], ["system", "System"]
+  ["policies", "Policies"], ["evidence", "Evidence"], ["recovery-queue", "Recovery queue"],
+  ["integrations", "Integrations"], ["benchmark", "Benchmark"], ["system", "System"]
 ];
 
 const state = {
@@ -662,8 +663,29 @@ async function renderPolicyJourneyStep() {
  * in flight or unconfirmed. */
 async function submitPolicyJourneyStep() {
   const j = state.policyJourney;
-  const ok = await submitLiveWrite(`policyStep:${j.currentIndex}`);
-  if (!ok) return; // a failed/rejected step must never advance the sequence
+  const outcome = await submitLiveWrite(`policyStep:${j.currentIndex}`);
+  if (!outcome) return; // submission itself failed - never advance the sequence
+  // A failed/rejected step must never advance the sequence. Advancing requires BOTH a terminal
+  // lifecycle state AND a real success execution result (FINISHED_WITH_RETURN, the pinned
+  // genlayer-js package's own enum spelling) - never inferred from "the write call didn't throw".
+  if (outcome.trackError) {
+    const el = document.getElementById("policy-construction-output");
+    if (el) el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Step submitted, but confirmation failed", `Transaction ${shortHash(outcome.txId)} was submitted but its on-chain lifecycle could not be confirmed: ${outcome.trackError.message || outcome.trackError}. The sequence has not advanced - re-check this transaction before retrying.`, "danger")}`;
+    return;
+  }
+  if (!outcome.trackResult) {
+    // No tracker was available at all (no host-injected hook and no writer.trackTransaction, e.g.
+    // fixture mode) - the sequence cannot honestly claim confirmation, so it does not advance.
+    const el = document.getElementById("policy-construction-output");
+    if (el) el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Step submitted, confirmation not determinable", `Transaction ${shortHash(outcome.txId)} was submitted, but no transaction tracker is connected to confirm its lifecycle/execution result. The sequence has not advanced - connect a live writer or host tracker, then verify this transaction manually before continuing.`, "warning")}`;
+    return;
+  }
+  const { isFinal, success, executionResult } = outcome.trackResult.derived || {};
+  if (!isFinal || !success) {
+    const el = document.getElementById("policy-construction-output");
+    if (el) el.innerHTML = `${renderPolicyJourneyPlan()}${notice("Step did not confirm successfully", `Transaction ${shortHash(outcome.txId)} reached ${isFinal ? "a terminal state" : "no terminal state"} with execution result ${executionResult ?? "unknown"}. The sequence has not advanced.`, "danger")}`;
+    return;
+  }
   j.currentIndex += 1;
   await renderPolicyJourneyStep();
 }
@@ -751,12 +773,115 @@ async function renderPending() {
   return `${pageHead("transaction tracker", "Pending writes", "Transaction IDs are persisted immediately. Polling errors never trigger blind resubmission.")}${panel("Local resume queue", body)}`;
 }
 
+/**
+ * Evidence (owner-directed remediation, item 1): a real artifact explorer sourced from actual SDK
+ * reads (adapter.listIncidents(), the same call renderIncidents/getOverview already use) - never
+ * fabricated source/content data. getIncident already exposes evidenceHash/conditionCode/reporter/
+ * judge per incident (packages/protocol-sdk/src/client.ts::getIncident); there is no protocol view
+ * enumerating the underlying evidence SOURCES (URLs/content hashes) an EAP was built from, so that
+ * column is rendered as an honest "not exposed by the connected read surface" rather than invented.
+ */
+async function renderEvidence() {
+  try {
+    const list = await adapter.listIncidents();
+    const rows = list.map((incident) => `<tr>
+      <td class="hash"><a href="#/incidents/${escapeHtml(incident.incidentId)}">${escapeHtml(shortHash(incident.incidentId, 10, 6))}</a></td>
+      <td>${escapeHtml(incident.targetId)}</td>
+      <td>${escapeHtml(incident.ruleId)}</td>
+      <td class="hash">${incident.evidenceHash ? escapeHtml(shortHash(incident.evidenceHash, 10, 6)) : '<span class="muted">none recorded</span>'}</td>
+      <td class="hash">${escapeHtml(shortHash(incident.judge, 8, 4))}</td>
+      <td>${escapeHtml(incident.conditionCode || "-")}</td>
+    </tr>`).join("");
+    const body = list.length
+      ? `<div class="table-wrap"><table><thead><tr><th>Incident</th><th>Target</th><th>Rule</th><th>Evidence hash</th><th>Judge</th><th>Condition code</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      : '<div class="empty">No incidents are discoverable from the connected read surface.</div>';
+    return `${pageHead("evidence", "Evidence artifacts", "Evidence hashes and adjudication metadata as recorded on-chain per incident. This is not a source-content browser.")}${panel("Recorded evidence, per incident", body)}${notice("Known limitation", "The connected protocol read surface exposes a per-incident evidence hash and condition code, but no view enumerating the underlying evidence sources (URLs, source class, retrieval provenance) that an Evidence Artifact Package was built from. Source list requires a connected indexer/evidence-builder record this SDK build does not expose - this page never fabricates that data.", "warning")}`;
+  } catch (error) {
+    return `${pageHead("evidence", "Evidence artifacts", "Evidence hashes and adjudication metadata as recorded on-chain per incident.")}${notice("Evidence list unavailable", error.message, "danger")}`;
+  }
+}
+
+/**
+ * Recovery queue (owner-directed remediation, item 1): a global view across every discoverable
+ * incident's REAL recovery state (reusing the same honest `.recovery` object getIncident already
+ * builds from get_incident_restriction_count/at, plus the optional lineage read - never a second,
+ * independent recovery evaluator). Also flags reason-indexed restriction conflicts across
+ * incidents sharing a resource (CLAUDE.md Section 17) using only what these reads determine -
+ * anything the SDK genuinely cannot determine is labelled as such, never guessed.
+ */
+async function renderRecoveryQueue() {
+  try {
+    const list = await adapter.listIncidents();
+    const withRestrictions = list.filter((incident) => (incident.recovery?.remainingRestrictions || []).length > 0);
+    const resourceToIncidents = new Map();
+    for (const incident of withRestrictions) {
+      for (const restriction of incident.recovery.remainingRestrictions) {
+        if (!resourceToIncidents.has(restriction)) resourceToIncidents.set(restriction, []);
+        resourceToIncidents.get(restriction).push(incident.incidentId);
+      }
+    }
+    const conflicts = [...resourceToIncidents.entries()].filter(([, ids]) => ids.length > 1);
+    const stageOf = (incident) => {
+      const r = incident.recovery;
+      if (!r) return "not determinable";
+      if (r.recoveryValidated) return "restored";
+      if (r.remediationDecision === "CONFIRMED") return "recovery validation pending";
+      if (r.remediationSubmitted) return "remediation pending decision";
+      if (r.remediationRequired === false) return "no remediation required";
+      return "remediation pending / not determinable";
+    };
+    const rows = withRestrictions.map((incident) => `<tr>
+      <td class="hash"><a href="#/recover/${escapeHtml(incident.incidentId)}">${escapeHtml(shortHash(incident.incidentId, 10, 6))}</a></td>
+      <td>${escapeHtml(incident.targetId)}</td>
+      <td>${incident.recovery.remainingRestrictions.map((r) => `<span class="mono">${escapeHtml(r)}</span>`).join(", ")}</td>
+      <td>${escapeHtml(stageOf(incident))}</td>
+    </tr>`).join("");
+    const body = withRestrictions.length
+      ? `<div class="table-wrap"><table><thead><tr><th>Incident</th><th>Target</th><th>Active restrictions</th><th>Recovery stage</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      : '<div class="empty">No discoverable incident currently carries an active restriction.</div>';
+    const conflictBody = conflicts.length
+      ? `<div class="table-wrap"><table><thead><tr><th>Resource / effect</th><th>Restricting incidents</th></tr></thead><tbody>${conflicts.map(([resource, ids]) => `<tr><td class="mono">${escapeHtml(resource)}</td><td>${ids.map((id) => `<a class="hash" href="#/recover/${escapeHtml(id)}">${escapeHtml(shortHash(id, 8, 4))}</a>`).join(", ")}</td></tr>`).join("")}</tbody></table></div>`
+      : '<div class="empty">No cross-incident restriction conflicts are detected among discoverable incidents.</div>';
+    return `${pageHead("recovery queue", "Global recovery queue", "Every discoverable incident's active restrictions and recovery stage. Resolving one incident's restriction never restores capability another active incident still restricts (CLAUDE.md Section 17).")}${panel("Incidents with active restrictions", body)}${panel("Reason-indexed restriction conflicts", conflictBody)}${notice("Known limitation", "This queue is limited to incidents the connected read surface can discover and to the remediation/recovery fields getIncident can determine from protocol reads (optionally supplemented by an indexer lineage hint). Where a field cannot be determined, it is reported as such rather than guessed.", "warning")}`;
+  } catch (error) {
+    return `${pageHead("recovery queue", "Global recovery queue", "Every discoverable incident's active restrictions and recovery stage.")}${notice("Recovery queue unavailable", error.message, "danger")}`;
+  }
+}
+
+/**
+ * Integrations (owner-directed remediation, item 1): reports only what is genuinely determinable
+ * from the browser. CLI/Sentinel presence on the user's machine or as a separate process is NOT
+ * observable from here and is reported honestly as such - this never fabricates a green checkmark.
+ * Indexer connection state and network/runtime health reuse the app's own existing state rather
+ * than inventing a second health model.
+ */
+async function renderIntegrations() {
+  const indexerConnected = adapter.mode !== "mock" && Boolean(adapter.indexer);
+  const writerConnected = adapter.mode !== "mock" && Boolean(adapter.writer);
+  const walletRows = state.wallet
+    ? [["Connected account", `<span class="hash">${escapeHtml(state.wallet.address)}</span>`], ["Connected chain", `${escapeHtml(state.wallet.chainId)}${state.wallet.chainId === CHAIN_ID ? "" : " (WRONG NETWORK, expected " + CHAIN_ID + ")"}`]]
+    : [["Wallet", "Not connected in this browser session"]];
+  const rows = recordRows([
+    ["Adapter mode", escapeHtml(adapter.meta.label) + ` (${adapter.mode})`],
+    ["Canonical network", `${NETWORK_NAME} · chain ${CHAIN_ID}`],
+    ["Indexer connection", adapter.mode === "mock" ? "Not applicable in fixture mode (synthetic data requires no indexer)" : (indexerConnected ? "Connected (host-injected index adapter present)" : "Not connected - reads requiring discovery (overview/incident listing) are unavailable")],
+    ["Live writer", adapter.mode === "mock" ? "Not applicable in fixture mode (fixture mode never submits transactions)" : (writerConnected ? "Connected (GenLayerJS-backed writer bound to the connected wallet)" : "Not connected - write flows are unavailable")],
+    ...walletRows,
+    ["CLI presence", "Not determinable from the browser - the CLI runs as a separate local process this page cannot observe."],
+    ["Sentinel presence", "Not determinable from the browser - Sentinel runs as a separate process/service this page cannot observe unless a shared health endpoint is wired, which none currently is."],
+  ]);
+  return `${pageHead("integrations", "Integrations", "Real, browser-determinable connection state for the SDK/indexer/writer this page is actually using. Anything this page cannot observe is reported honestly rather than assumed healthy.")}${panel("Connection state", rows)}${notice("Scope note", "This page reports only what a browser tab can genuinely observe about its own connections. A CLI, Sentinel process, or target adapter running elsewhere is not visible here; use their own health output/logs directly.", "warning")}`;
+}
+
 async function routeContent(route, parts) {
   switch (route) {
     case "overview": return renderOverview();
     case "targets": return renderTargets(parts);
     case "incidents": return renderIncidents(parts);
     case "policies": return renderPolicies(parts);
+    case "evidence": return renderEvidence();
+    case "recovery-queue": return renderRecoveryQueue();
+    case "integrations": return renderIntegrations();
     case "benchmark": return renderBenchmark();
     case "system": return renderSystem();
     case "report": return renderReport();
@@ -1055,13 +1180,28 @@ async function submitLiveWrite(kind) {
     const incidentId = draft.predictedIncidentId?.incidentId ?? result.incidentId ?? null;
     const record = { txId: result.txId, kind, incidentId, predicted: Boolean(draft.predictedIncidentId) };
     draftRegistry.invalidateDraft(kind);
-    await persistThenTrack(pendingStore, record, globalThis.__RECLOSE_PRODUCT_RUNTIME__?.trackTransaction, ({ phase }) => setLiveMessage(`Transaction ${phase}: ${shortHash(result.txId)}`));
-    state.pending = pendingStore.loadAll();
     // Sequential policy-journey steps stay on the policy-author page so the next step can be
     // prepared in place - only one-shot writes navigate to the pending-transaction tracker.
     const isPolicyJourneyStep = kind.startsWith("policyStep:") || kind === "policyActivate";
+    // Item 2 (owner-directed remediation pass): for policy-journey steps specifically, track
+    // through the REAL GenLayerJS-client-backed writer.trackTransaction directly (added to
+    // genlayerWriter.js above) rather than only the optional host-injected
+    // __RECLOSE_PRODUCT_RUNTIME__.trackTransaction hook, so ordinary browser use (no host runtime
+    // present) still gets genuine lifecycle/execution-result confirmation before the sequence is
+    // allowed to advance. Non-policy writes keep the existing host-hook-only behaviour unchanged.
+    const tracker = isPolicyJourneyStep && typeof adapter.writer?.trackTransaction === "function"
+      ? (txId) => adapter.writer.trackTransaction(txId)
+      : globalThis.__RECLOSE_PRODUCT_RUNTIME__?.trackTransaction;
+    let trackResult = null;
+    let trackError = null;
+    await persistThenTrack(pendingStore, record, tracker, ({ phase, result: trackedResult, error }) => {
+      if (phase === "tracked") trackResult = trackedResult;
+      if (phase === "tracking-error") trackError = error;
+      setLiveMessage(`Transaction ${phase}: ${shortHash(result.txId)}`);
+    });
+    state.pending = pendingStore.loadAll();
     if (!isPolicyJourneyStep) location.hash = "#/pending";
-    return true;
+    return { ok: true, txId: result.txId, isPolicyJourneyStep, trackResult, trackError };
   } catch (error) {
     setLiveMessage(`Submission failed: ${error.message}`);
     alert(`Submission failed: ${error.message}`);
