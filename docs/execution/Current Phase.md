@@ -45,6 +45,29 @@ child transaction reaches `FINISHED_WITH_RETURN` instead of `fee no_matching_all
 Do not treat A2-C01 as CLOSED until that live run is captured as evidence per the Master Plan's E1
 process.
 
+**Update (2026-09-13, funded-signer live retest):** a genuinely funded, unlocked Studio-dev
+account (`reclose-deployer`, CLI keystore alias, resolved by alias only - no key material
+touched) became available and was used to retest the fix end to end against the existing,
+unmodified R1 deployment (`deployment/61997/r1-manifest.json`, target `reclose-target-003`,
+active policy `policy-r1-004` at live-confirmed `policy_version=4`). Full evidence:
+`release-evidence/r1/a2-c01-live-retest-evidence.md`.
+
+**A2-C01 STILL OPEN - status refined, not closed.** The nested tree's grafting logic is now
+live-confirmed correct (a real second-hop `apply_assurance_action` node, built from a genuine
+Kernel-side `receive_decision` simulation, is genuinely present and correctly re-parented in the
+composed tree - this was previously proven only against mocks). Submitting that composed tree
+live did NOT reproduce the original `fee no_matching_allocation # internal` defect, but surfaced
+THREE further, previously-undocumented constraints, none of which reached
+`FINISHED_WITH_RETURN`: `AllocationTreeBudgetInconsistent` (re-estimating with the composed tree
+as input), `MessageAllocationsNotEqualBudget` (submitting the composed tree with a hand-derived
+`feeValue`), and `InsufficientFees` (submitting with `feeValue` lowered to exactly the summed
+message budgets). The original flat-tree failure mode above is preserved unchanged as historical/
+regression reference - it was not re-exercised this session (only the new nested tree was tested).
+Next step: determine the exact `feeValue`/`distribution` consistency rule Studio-dev's envelope
+acceptance enforces for a custom multi-hop `messageAllocations` array (ideally via upstream
+GenLayer guidance, not further local hand-bisection), then retry
+`scripts/a2-c01-live-retest.mjs`.
+
 A3 attempt 1 (`264c14af8f83cbd2bcf0176c87d9950baf0b275a` on `chatgpt/r1-product-release`) remains
 **FAIL**, preserved unchanged at `docs/execution/audit-packets/A3/AUDIT_DECISION.md`.
 
