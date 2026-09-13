@@ -1,0 +1,195 @@
+{
+  "schema": "reclose-deployment-generation-manifest-v1",
+  "generation": "r1-final-working",
+  "status": "contracts-deployed-wiring-verified-policy-pending",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "rpc": "https://studio-dev.genlayer.com/api",
+  "deployer": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+  "sourceCommit": "c564895787992c391f7ec27d24a1c20f69941e9b",
+  "runtime": {
+    "genlayerJs": "2.0.0-rc.1",
+    "sourceRegistryFile": "config/source-registry-r1.json",
+    "sourceRegistryHash": "0x85a0a476466daca668641c58857545189becb498514e649774c5eb0b2a59159c",
+    "sourceRegistryHashFileCurrent": true,
+    "judgeHashReadbackMatches": true,
+    "sourceAuthorityReadbacks": {
+      "genlayer-project-boilerplate": [
+        "https://raw.githubusercontent.com",
+        "/genlayerlabs/genlayer-project-boilerplate/main/",
+        "INDEPENDENT_PUBLIC",
+        "PROVIDER_COMPROMISE_V1,RECOVERY_VALIDATED_V1,REMEDIATION_CONFIRMED_V1,SERVICE_FAILURE_V1",
+        true
+      ],
+      "reclose-reference-evidence": [
+        "https://raw.githubusercontent.com",
+        "/genlayerlabs/genlayer-project-boilerplate/main/",
+        "CONTENT_ADDRESSED_SNAPSHOT",
+        "PROVIDER_COMPROMISE_V1,RECOVERY_VALIDATED_V1,REMEDIATION_CONFIRMED_V1,SERVICE_FAILURE_V1",
+        true
+      ]
+    }
+  },
+  "contracts": {
+    "AssuranceKernel": {
+      "address": "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+      "txHash": "0xe3b5132225c6dfae49ec14fea04e95ea4cb3266ac44b9d56b4f3bd84e3b8b6c9",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "deployedAt": "2026-09-13T11:12:11+01:00",
+      "constructorArgs": [
+        1,
+        60
+      ]
+    },
+    "ReferenceAgentProtocol": {
+      "address": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+      "txHash": "0x7b5c15322c243677a1b8455a4f6d8c903242c02002d14bd62b548a822c1f8a11",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "deployedAt": "2026-09-13T11:12:44+01:00",
+      "constructorArgs": [
+        "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+        "reclose-target-006",
+        "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
+        "0x4CD612D701902355836bC3C182eac724B1487A4f",
+        "1000000000000000000",
+        "100000000000000000",
+        true
+      ]
+    },
+    "IncidentJudgeV1": {
+      "address": "0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6",
+      "txHash": "0x2530a81f172711af5d7e419c905dbfb0a06d13098a0923b837264cfcdb61959e",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "deployedAt": "2026-09-13T11:14:27+01:00",
+      "constructorArgs": [
+        "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+        1,
+        "0x85a0a476466daca668641c58857545189becb498514e649774c5eb0b2a59159c",
+        "{\r\n  \"schema\": \"reclose-source-registry-v1\",\r\n  \"sources\": [\r\n    {\r\n      \"sourceId\": \"genlayer-project-boilerplate\",\r\n      \"canonicalOrigin\": \"https://raw.githubusercontent.com\",\r\n      \"canonicalPathPrefix\": \"/genlayerlabs/genlayer-project-boilerplate/main/\",\r\n      \"sourceClass\": \"INDEPENDENT_PUBLIC\",\r\n      \"ruleIds\": [\r\n        \"PROVIDER_COMPROMISE_V1\",\r\n        \"SERVICE_FAILURE_V1\",\r\n        \"REMEDIATION_CONFIRMED_V1\",\r\n        \"RECOVERY_VALIDATED_V1\"\r\n      ],\r\n      \"enabled\": true\r\n    },\r\n    {\r\n      \"sourceId\": \"reclose-reference-evidence\",\r\n      \"canonicalOrigin\": \"https://raw.githubusercontent.com\",\r\n      \"canonicalPathPrefix\": \"/genlayerlabs/genlayer-project-boilerplate/main/\",\r\n      \"sourceClass\": \"CONTENT_ADDRESSED_SNAPSHOT\",\r\n      \"ruleIds\": [\r\n        \"PROVIDER_COMPROMISE_V1\",\r\n        \"SERVICE_FAILURE_V1\",\r\n        \"REMEDIATION_CONFIRMED_V1\",\r\n        \"RECOVERY_VALIDATED_V1\"\r\n      ],\r\n      \"enabled\": true\r\n    }\r\n  ]\r\n}"
+      ],
+      "moduleVersion": 1
+    },
+    "IncentiveVault": {
+      "address": "0x08b127F7B5Ed25702CA44fc9C9f516A7e427AdD2",
+      "txHash": "0xfc679c78c2739de3970837608f58bb8168f116ba682a845fb45d5191f1a1ce78",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "deployedAt": "2026-09-13T11:15:03+01:00",
+      "constructorArgs": [
+        "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+        "0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6",
+        1
+      ]
+    },
+    "ProviderStubA": {
+      "address": "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
+      "deploymentTxHash": "0xabbec8f684bc645a26dca64b1acdec37d3b55bd26abfb6e950104f734527409c",
+      "reusedFrom": "r1r",
+      "liveOwnerReadback": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd"
+    },
+    "ProviderStubB": {
+      "address": "0x4CD612D701902355836bC3C182eac724B1487A4f",
+      "deploymentTxHash": "0x3edb38626fb5f50dbd8f3c66fe7aab15e90c78eae66d9cb773f6bf876003cbe9",
+      "reusedFrom": "r1r",
+      "liveOwnerReadback": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd"
+    }
+  },
+  "wiring": {
+    "IncidentJudgeV1.set_vault": {
+      "txHash": "0x1a96a77aafe15c5c646b493046aa98edd90da20a75fddc2407d99d73dedbc8db",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "args": [
+        "0x08b127F7B5Ed25702CA44fc9C9f516A7e427AdD2"
+      ],
+      "readback": {
+        "judgeVault": "0x08b127F7B5Ed25702CA44fc9C9f516A7e427AdD2"
+      }
+    },
+    "ReferenceAgentProtocol.set_assurance_controller": {
+      "txHash": "0xc7dffa0cddf03e7a65972f831ab96d012da8043ad1e8cf23c0fe4674de7fc7b9",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "args": [
+        "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f"
+      ],
+      "readback": {
+        "targetController": "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f"
+      }
+    },
+    "AssuranceKernel.register_target": {
+      "txHash": "0x5a866beff086e721ae54d09d134d97c96abf1b398a8b9a8832165c5f801bd6ae",
+      "consensusStatus": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "args": [
+        "reclose-target-006",
+        "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+        true
+      ],
+      "readback": {
+        "targetAddress": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+        "targetOwner": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+        "targetId": "reclose-target-006",
+        "targetState": 0,
+        "activePolicyKey": "",
+        "registeredAt": 1789298229,
+        "policyGeneration": 0,
+        "authorityRevoked": false,
+        "humanOverrideEnabled": true
+      }
+    }
+  },
+  "liveReadbacks": {
+    "judgeKernel": "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+    "judgeVault": "0x08b127F7B5Ed25702CA44fc9C9f516A7e427AdD2",
+    "judgeModuleVersion": 1,
+    "judgeSourceRegistryHash": "0x85a0a476466daca668641c58857545189becb498514e649774c5eb0b2a59159c",
+    "vaultKernel": "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+    "vaultJudge": "0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6",
+    "targetOwner": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+    "targetController": "0x3bD24B04ae7d8090F22752B9e489A5398E271D4f",
+    "targetId": "reclose-target-006",
+    "targetAddress": "0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2",
+    "targetAuthorityRevoked": false,
+    "providerA": "0x17fb724D936c930f6e42C92283cF51dB661e97f5",
+    "providerAOwner": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+    "providerB": "0x4CD612D701902355836bC3C182eac724B1487A4f",
+    "providerBOwner": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd"
+  },
+  "policy": {
+    "status": "compiled-not-on-chain",
+    "policyKey": "policy-r1-007",
+    "version": 1,
+    "targetId": "reclose-target-006",
+    "judgeAddress": "0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6",
+    "manifestHash": "0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c",
+    "apmSource": "deployment/61997/apm-r1-final.json",
+    "compiledCalls": "deployment/61997/apm-r1-final-compiled.json",
+    "activation": "pending",
+    "executionState": {
+      "status": "BLOCKED_ON_SIGNER_CREDENTIAL",
+      "blockedAt": "begin_policy",
+      "accountAlias": "reclose-deployer",
+      "accountAddress": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+      "cliVersion": "0.40.0-rc.3",
+      "attempt": {
+        "feeEstimateSucceeded": true,
+        "feeValueWei": "613836000010352",
+        "signerPromptedForKeystorePassword": true,
+        "result": "Invalid password; no transaction hash returned; no begin_policy transaction submitted"
+      },
+      "nextOperation": "Unlock reclose-deployer in the pinned CLI or provide its keystore password; re-estimate begin_policy, submit, require FINALIZED plus FINISHED_WITH_RETURN, then read back the pending policy before continuing."
+    }
+  },
+  "evidence": {
+    "transactionsQueriedReadOnly": true,
+    "allSevenDeploymentAndWiringTransactionsFinalized": true,
+    "executionResult": "FINISHED_WITH_RETURN",
+    "contractViewsSuccessfullyRead": true,
+    "policyWriteAttemptSubmitted": false,
+    "signerCredentialRequired": true
+  }
+}

@@ -64,3 +64,15 @@
 - CLAUDE.md's full ruleset applies (never fabricate evidence, never self-author an audit PASS, additive-only contract changes preferred, real transaction evidence required for any "done" claim).
 - Current audit-status label to preserve: `AWAITING EXTERNAL REVIEW — OWNER EXECUTION OVERRIDE` — never write PASS anywhere.
 - `docs/execution/Current Phase.md` has the full, detailed, chronological history of every finding/fix/live-proof from this session, including the critical correction above — read it in full before continuing.
+
+
+## 2026-09-13 continuation: fresh final deployment reconstructed; policy signer handoff
+
+- Branch: `claude/r1-product-final`; prior HEAD: `c564895787992c391f7ec27d24a1c20f69941e9b`.
+- Fresh live deployment on Studio-dev / chain 61997 is valid by receipts and authoritative reads. Kernel `0x3bD24B04ae7d8090F22752B9e489A5398E271D4f`; Protocol/target `0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2` / `reclose-target-006`; Judge `0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6`; Vault `0x08b127F7B5Ed25702CA44fc9C9f516A7e427AdD2`; providers A/B `0x17fb724D936c930f6e42C92283cF51dB661e97f5` / `0x4CD612D701902355836bC3C182eac724B1487A4f`.
+- Exact deploy/wiring hashes and readbacks are in `deployment/61997/r1-final-working-manifest.json`. All seven deploy/wiring transactions are `FINALIZED` + `FINISHED_WITH_RETURN`. Live Judge registry hash equals current source registry hash `0x85a0a476466daca668641c58857545189becb498514e649774c5eb0b2a59159c`.
+- New canonical APM `policy-r1-007` targets `reclose-target-006`, binds new Judge/version 1, JCS/Keccak hash `0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c`; compiler validation passed. It is NOT on chain; no policy write was submitted.
+- CLI 0.40.0-rc.3 is configured for Studio-dev 61997 and active `reclose-deployer` matches target owner. `begin_policy` fee estimate succeeded. Signing requested the keystore password, returned `Invalid password`, and emitted no tx hash. Exact human action: unlock/provide the `reclose-deployer` keystore credential. Resume by re-estimating `begin_policy`, submitting, and requiring finalized + successful execution and per-call readback.
+- Checks: frontend product 10/10; frontend remediation 66/66; policy compiler passed; evidence builder passed; canonical `pytest tests/` 218/218 passed. Broad `pytest -q` also collected one archival fixture outside `tests/` referencing absent root `smoke_contract.py`; it is excluded by `scripts/py-verify.sh`.
+- Reporter nonce: not read; incident/report work not started. Last successful transaction: `register_target`, `0x5a866beff086e721ae54d09d134d97c96abf1b398a8b9a8832165c5f801bd6ae`. Last attempted policy operation: signer failure on `begin_policy`, no tx hash.
+- Pre-existing untracked `.claude/settings.local.json` was present initially and is preserved, not committed.

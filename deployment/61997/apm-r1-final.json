@@ -1,0 +1,88 @@
+{
+  "schema": "reclose-apm-v1",
+  "policyId": "policy-r1-007",
+  "version": 1,
+  "target": {
+    "targetId": "reclose-target-006"
+  },
+  "authority": {},
+  "protectedResources": [
+    "provider_a",
+    "provider_b"
+  ],
+  "judgeModules": [
+    {
+      "moduleId": "judge-r1",
+      "address": "0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6",
+      "version": 1
+    }
+  ],
+  "semanticRules": [
+    {
+      "ruleId": "PROVIDER_COMPROMISE_V1",
+      "judgeModuleId": "judge-r1",
+      "ruleKind": "INCIDENT",
+      "provisionalAllowed": true,
+      "reportBond": "0",
+      "confirmedBounty": "0",
+      "effects": [
+        {
+          "actionType": "RESTRICT",
+          "resourceId": "provider_a",
+          "releasePhase": "REMEDIATION_CONFIRMED"
+        },
+        {
+          "actionType": "ENTER_SAFE_MODE",
+          "resourceId": "",
+          "releasePhase": "REMEDIATION_CONFIRMED"
+        }
+      ]
+    },
+    {
+      "ruleId": "REMEDIATION_CONFIRMED_V1",
+      "judgeModuleId": "judge-r1",
+      "ruleKind": "REMEDIATION",
+      "provisionalAllowed": false,
+      "reportBond": "0",
+      "confirmedBounty": "0",
+      "effects": [
+        {
+          "actionType": "ENTER_RECOVERY",
+          "resourceId": "",
+          "releasePhase": "REMEDIATION_CONFIRMED"
+        }
+      ]
+    },
+    {
+      "ruleId": "RECOVERY_VALIDATED_V1",
+      "judgeModuleId": "judge-r1",
+      "ruleKind": "RECOVERY_VALIDATION",
+      "provisionalAllowed": false,
+      "reportBond": "0",
+      "confirmedBounty": "0",
+      "effects": [
+        {
+          "actionType": "RESTORE",
+          "resourceId": "",
+          "releasePhase": "RECOVERY_VALIDATED"
+        }
+      ]
+    }
+  ],
+  "sourcePolicies": {},
+  "capabilities": {},
+  "actionBounds": {},
+  "stateMachine": {},
+  "provisionalContainment": {},
+  "recovery": {},
+  "reporting": {},
+  "crossChain": {},
+  "humanOverride": false,
+  "evolutionEnvelope": {},
+  "activation": {},
+  "metadata": {
+    "generation": "r1-final-working",
+    "basedOnHistoricalPolicy": "policy-r1-006",
+    "sourceCommit": "c564895787992c391f7ec27d24a1c20f69941e9b"
+  }
+}

@@ -660,3 +660,14 @@ session. Full per-item results reported to the owner in chat; one real gap found
 
 `npm run verify:js` passes in full after this pass's single change. No file under `contracts/`,
 `deployment/`, or `release-evidence/` was touched.
+
+
+## Current continuation state (2026-09-13)
+
+Fresh `r1-final-working` deployment on Studio-dev/61997 is reconstructed and readback-verified. Contract addresses, seven successful deploy/wiring hashes, provider reuse, source-registry hash, and readbacks are recorded in `deployment/61997/r1-final-working-manifest.json`. The fresh APM compiles to `policy-r1-007` for `reclose-target-006`, Judge `0xD96eBeF28EbdAB25A70Ba7bcd2F4A5fa7EFf56A6`, hash `0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c`; it is not on chain.
+
+Pinned CLI 0.40.0-rc.3 is configured for Studio-dev 61997 and active account `reclose-deployer` matches target owner `0x24fAe7cD031Ed702Be63BDeA8912141805B996bd`. The `begin_policy` fee estimate succeeded, but signing prompted for the keystore password and returned `Invalid password`. No policy write was submitted and no tx hash exists. Exact resume prerequisite: unlock/provide the `reclose-deployer` keystore credential. Then re-estimate and submit `begin_policy`; require `FINALIZED` and `FINISHED_WITH_RETURN` plus per-item readback before advancing.
+
+A2-C01 and the missing-`snapshotRef` root cause remain closed per the latest user instruction. Frontend tri-state provider status and accessibility work are present. Verification in this continuation: frontend product 10/10, frontend remediation 66/66, policy compiler and evidence-builder passed, canonical `pytest tests/` 218/218. A broader `pytest -q` collected one archival `release-evidence/r1/g0` test outside canonical `tests/` that references a missing root `smoke_contract.py`; it is excluded by `scripts/py-verify.sh`.
+
+No Reporter nonce has been read. No E1 Run A/B, H1, final A3 packet, A4 reconciliation, final fee profile, or release candidate branch has been completed. The old `r1r2` generation/policy must not be represented as final.

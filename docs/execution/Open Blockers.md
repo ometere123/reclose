@@ -93,3 +93,17 @@ Coverage tooling and final-address templates exist, but the final release fee pr
 `A3-H01..H12 remediation -> exact-target CI -> browser evidence -> A3 attempt 2 -> final live fee profile -> OB-005 retest -> two clean E1 runs -> canonical ledger reconciliation -> A4 -> R1/S1`
 
 No blocker in this file authorises weakening the locked architecture, product requirements or security invariants to make the demo easier.
+
+
+## OB-008 - Fresh final policy signing requires deployer keystore unlock [OPEN / HUMAN CREDENTIAL]
+
+**Opened:** 2026-09-13<br>
+**Phase:** C1 / E1<br>
+**Deployment:** `r1-final-working`, Studio-dev chain 61997<br>
+**Policy:** `policy-r1-007`, target `reclose-target-006`, hash `0x078ee18645dd95b5a7268b1c12e314c5046d018866d5dd244727f02eceee855c`
+
+Pinned CLI 0.40.0-rc.3 is configured for Studio-dev; active `reclose-deployer` matches target owner. The authoritative `begin_policy` fee estimate succeeded. Signing then prompted for the keystore password and returned `Invalid password`; no transaction hash was returned and no chain write was submitted. Unlock the CLI account or provide its keystore password.
+
+**Exact next operation:** re-run the canonical `begin_policy` fee estimate, submit through the pinned CLI, require transaction `FINALIZED` and execution `FINISHED_WITH_RETURN`, then read back the pending policy before the next compiled call. Continue per-item readback, seal, genuine timelock, fresh activation, and live verification.
+
+This does not reopen A2-C01 or the old missing-`snapshotRef` investigation.

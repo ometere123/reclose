@@ -49,3 +49,8 @@ and `Threat Status.csv`. Status values: `NOT STARTED`, `IN PROGRESS`, `DONE`, `B
 | 67-71 | E1/H1 | canonical live scenario x2, 60-scenario benchmark, hardening | NOT STARTED - blocked on A3 decision per FINAL_REMEDIATION.md Section 17, and on A2-C01 (Judge->Kernel live child dispatch) | | | | | |
 | 72-77 | A4/R1 | pre-release audit, docs, requirements/threat closure, claim-to-evidence, deployment freeze | NOT STARTED | | | | | |
 | 78-87 | S1 | release candidate branch, submission materials, final verification, final report | NOT STARTED | | | | | |
+
+
+## Continuation checkpoint — 2026-09-13
+
+The fresh deployment is verified live and its manifest is `deployment/61997/r1-final-working-manifest.json`. E1/H1/A3/A4/release package remain incomplete. The current policy is compiled but not on chain because CLI signing needs the existing `reclose-deployer` keystore unlocked; no policy transaction was submitted. Resume from `begin_policy` after credential unlock. Do not create the final release branch or claim completion until every specified live and repository gate passes.
