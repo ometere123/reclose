@@ -309,7 +309,8 @@ legend { padding: 0 7px; font-weight: 640; }
 /* Landing / marketing page                                                */
 /* ---------------------------------------------------------------------- */
 
-.landing { min-height: 100vh; background: var(--bg); color: var(--ink); }
+#app.landing-root { display: block; min-height: 100vh; }
+.landing { min-height: 100vh; background: var(--bg); color: var(--ink); width: 100%; }
 .landing-nav {
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--space-4) var(--space-7);

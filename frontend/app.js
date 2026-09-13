@@ -727,11 +727,13 @@ function isLandingHash() {
 
 async function render() {
   if (isLandingHash()) {
+    app.className = "landing-root";
     app.innerHTML = renderLanding();
     document.title = "Reclose · Runtime assurance for autonomous systems";
     requestAnimationFrame(() => document.getElementById("main")?.focus({ preventScroll: true }));
     return;
   }
+  app.className = "app-shell";
   const { route, parts } = routeFromHash();
   state.loading = true;
   state.error = null;
