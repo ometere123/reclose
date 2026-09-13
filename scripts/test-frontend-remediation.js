@@ -177,29 +177,58 @@ async function main() {
   await test("protocol-sdk buildTargetRegistration produces a real register_target draft and enforces the owner handshake", async () => {
     const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
     const sdk = require(sdkDist);
-    const transport = {
-      async getChainId() { return 61997; },
-      async getBlockNumber() { return 0; },
-      async readContract() { throw new Error("not used by buildTargetRegistration"); },
-      async getTransaction() { throw new Error("not used"); },
-      async getTriggeredTransactionIds() { return []; },
-      async estimateTransactionFeesForWrite() { return { feeValue: "42", distribution: null }; },
-    };
-    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
-    const { report } = await client.buildTargetRegistration({ targetId: "target-1", targetAddress: "0x" + "1".repeat(40), humanOverrideEnabled: true });
+    const kernelAddress = "0xKernel";
+    const targetAddress = "0x" + "1".repeat(40);
+    function makeTransport({ owner = "0x" + "3".repeat(40), controller = kernelAddress, reportedTargetId = "target-1", revoked = false } = {}) {
+      return {
+        async getChainId() { return 61997; },
+        async getBlockNumber() { return 0; },
+        async readContract({ functionName }) {
+          if (functionName === "get_assurance_owner") return owner;
+          if (functionName === "get_assurance_controller") return controller;
+          if (functionName === "get_assurance_target_id") return reportedTargetId;
+          if (functionName === "is_assurance_authority_revoked") return revoked;
+          throw new Error(`unexpected readContract ${functionName}`);
+        },
+        async getTransaction() { throw new Error("not used"); },
+        async getTriggeredTransactionIds() { return []; },
+        async estimateTransactionFeesForWrite() { return { feeValue: "42", distribution: null }; },
+      };
+    }
+    const client = sdk.createRecloseClient({ transport: makeTransport(), addresses: { kernel: kernelAddress, judge: "0xJudge" } });
+    const { report } = await client.buildTargetRegistration({ targetId: "target-1", targetAddress, humanOverrideEnabled: true });
     assert.strictEqual(report.functionName, "register_target");
     assert.strictEqual(report.contractAddress, "0xKernel");
-    assert.deepStrictEqual(report.args, ["target-1", "0x" + "1".repeat(40), true]);
+    assert.deepStrictEqual(report.args, ["target-1", targetAddress, true]);
     assert.match(report.reviewHash, /^0x[0-9a-f]{64}$/);
+    assert.strictEqual(report.expectedSigner, "0x" + "3".repeat(40), "expectedSigner must default to the target's REAL reported owner when no expectedOwner is supplied");
 
     await assert.rejects(
-      () => client.buildTargetRegistration({
-        targetId: "target-1", targetAddress: "0x" + "1".repeat(40), humanOverrideEnabled: true,
-        expectedOwner: "0x" + "2".repeat(40),
-        targetReadContract: { async getOwner() { return "0x" + "3".repeat(40); } },
-      }),
+      () => sdk.createRecloseClient({ transport: makeTransport({ owner: "0x" + "3".repeat(40) }), addresses: { kernel: kernelAddress, judge: "0xJudge" } })
+        .buildTargetRegistration({ targetId: "target-1", targetAddress, humanOverrideEnabled: true, expectedOwner: "0x" + "2".repeat(40) }),
       /handshake failed/i,
       "registration must not be preparable when the target reports a different owner than expected"
+    );
+
+    // Item 4 (owner-directed remediation pass): the controller/target-id/revoked checks are now
+    // UNCONDITIONAL - no optional injection parameter can be omitted to skip them.
+    await assert.rejects(
+      () => sdk.createRecloseClient({ transport: makeTransport({ controller: "0x" + "9".repeat(40) }), addresses: { kernel: kernelAddress, judge: "0xJudge" } })
+        .buildTargetRegistration({ targetId: "target-1", targetAddress, humanOverrideEnabled: true }),
+      /controller/i,
+      "registration must fail when the target does not recognize this Kernel as controller"
+    );
+    await assert.rejects(
+      () => sdk.createRecloseClient({ transport: makeTransport({ reportedTargetId: "some-other-id" }), addresses: { kernel: kernelAddress, judge: "0xJudge" } })
+        .buildTargetRegistration({ targetId: "target-1", targetAddress, humanOverrideEnabled: true }),
+      /target ID/i,
+      "registration must fail when the target's own reported target_id does not match"
+    );
+    await assert.rejects(
+      () => sdk.createRecloseClient({ transport: makeTransport({ revoked: true }), addresses: { kernel: kernelAddress, judge: "0xJudge" } })
+        .buildTargetRegistration({ targetId: "target-1", targetAddress, humanOverrideEnabled: true }),
+      /revoked/i,
+      "registration must fail when the target reports assurance authority already revoked"
     );
   });
 
@@ -838,7 +867,150 @@ async function main() {
     assert.notStrictEqual(bondLongId1.bondId, bondVariant.bondId, "target_ids differing only in a tail character must not collide");
   });
 
-  const total = 51;
+  await test("Owner-directed remediation item 1: feePreview estimates a payable call (open_bond) against its REAL non-zero value, never a flat 0n, and preserves the complete fee detail", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const seenEstimateCalls = [];
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, false, false];
+        if (functionName === "get_policy_header") return [1, "0x" + "a".repeat(64), true, true, false];
+        if (functionName === "get_policy_counts") return [1, 0, 0];
+        if (functionName === "get_policy_rule_id_at") return "PROVIDER_COMPROMISE_V1";
+        if (functionName === "get_policy_rule") return ["0xJudge", 1, 1, true, true];
+        if (functionName === "get_policy_rule_economics") return ["500", "0"];
+        if (functionName === "get_reporter_nonce") return 0;
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite(args) {
+        seenEstimateCalls.push(args);
+        return {
+          feeValue: 99n,
+          distribution: { totalMessageFees: "1" },
+          messageAllocations: [{ messageType: 0, onAcceptance: true, parentIndex: -1n, recipient: "0xJudge", callKey: "0xaa", budget: 7n, feeParams: "0x" }],
+        };
+      },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge", vault: "0xVault" } });
+    const { report, feePreview } = await client.buildOpenBond({ targetId: "target-001", ruleId: "PROVIDER_COMPROMISE_V1", reporterAddress: "0x" + "1".repeat(40) });
+    const bondCall = seenEstimateCalls.find((c) => c.address === "0xVault");
+    assert.ok(bondCall, "open_bond must be estimated against the Vault address");
+    assert.strictEqual(bondCall.value, 500n, "open_bond must be estimated with its REAL non-zero bond value, never a flat 0n");
+    assert.strictEqual(report.valueWei, "500");
+    assert.ok(feePreview.fullFeeDetail, "the complete fee detail must be preserved, not discarded down to distributionSummary alone");
+    assert.strictEqual(feePreview.fullFeeDetail.feeValue, "99");
+    assert.strictEqual(feePreview.fullFeeDetail.messageAllocations.length, 1);
+    assert.strictEqual(feePreview.fullFeeDetail.messageAllocations[0].budget, "7", "bigint budget must be JSON-safe normalized to a decimal string");
+    assert.strictEqual(feePreview.fullFeeDetail.messageAllocations[0].parentIndex, "-1");
+    assert.match(feePreview.feeConfigHash, /^0x[0-9a-f]{64}$/, "a fee-config hash must be derivable over the full fee detail");
+  });
+
+  await test("Owner-directed remediation item 1: genlayerWriter passes the full fee detail (distribution + restored bigint messageAllocations) through to writeContract, never the lossy distributionSummary alone when fullFeeDetail is present", () => {
+    const writer = read("frontend/lib/genlayerWriter.js");
+    assert.match(writer, /fullFeeDetail/, "genlayerWriter must read draft.feeEstimate.fullFeeDetail");
+    assert.match(writer, /restoreAllocationNode/, "messageAllocations must be restored to real bigint budget/parentIndex before writeContract");
+  });
+
+  await test("Owner-directed remediation item 2: buildIncidentReport/buildRecoveryReport reject a bondId whose reporter nonce no longer matches, explaining why", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName, args }) {
+        if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, false, false];
+        if (functionName === "get_policy_header") return [1, "0x" + "a".repeat(64), true, true, false];
+        if (functionName === "get_policy_counts") return [2, 1, 2];
+        if (functionName === "get_policy_rule_id_at") return args[1] === 0 ? "PROVIDER_COMPROMISE_V1" : "RECOVERY_VALIDATED_V1";
+        if (functionName === "get_policy_rule") return ["0xJudge", 1, 1, true, true];
+        if (functionName === "get_policy_rule_economics") return ["500", "0"]; // both rules share the same non-zero bond for this test
+        if (functionName === "get_policy_resource_at") return "provider_a";
+        if (functionName === "get_policy_effect_at") return args[1] === 0
+          ? ["PROVIDER_COMPROMISE_V1", 3, "provider_a", "0", "", 1, true]
+          : ["RECOVERY_VALIDATED_V1", 10, "", "0", "", 2, true];
+        if (functionName === "get_reporter_nonce") return 9; // the CURRENT nonce, different from when the bond was opened
+        if (functionName === "get_incident_detail") return ["target-001", "policy-1", 1, "PROVIDER_COMPROMISE_V1", "provider_a", "0x" + "1".repeat(40), "0xJudge", "0x" + "a".repeat(64), "0x0", 0, 0, 0, 0, 0];
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge", vault: "0xVault" } });
+    const reporterAddress = "0x" + "1".repeat(40);
+    const staleBondId = "bond:" + "0".repeat(64); // opened under a since-changed nonce
+    await assert.rejects(
+      () => client.buildIncidentReport({ targetId: "target-001", ruleId: "PROVIDER_COMPROMISE_V1", resourceId: "provider_a", reporterAddress, bondId: staleBondId, evidenceSources: [{ sourceId: "s1", url: "https://example.com/a", sourceClass: "INDEPENDENT_PUBLIC", fetchedAt: "2026-01-01T00:00:00.000Z", availability: "AVAILABLE" }] }),
+      /Bond mismatch/i,
+      "buildIncidentReport must reject a bondId whose reporter nonce no longer matches"
+    );
+    await assert.rejects(
+      () => client.buildRecoveryReport({ incidentId: "target-001:" + reporterAddress.toLowerCase() + ":0", reporterAddress, bondId: staleBondId, evidenceSources: [{ sourceId: "s1", url: "https://example.com/a", sourceClass: "INDEPENDENT_PUBLIC", fetchedAt: "2026-01-01T00:00:00.000Z", availability: "AVAILABLE" }] }),
+      /Bond mismatch/i,
+      "buildRecoveryReport must reject a bondId whose reporter nonce no longer matches, generalizing the same gating buildIncidentReport already had"
+    );
+  });
+
+  await test("Owner-directed remediation item 3: buildPreparedWriteForCall/buildPolicyActivationWrite bind expectedSigner to the target's LIVE-read owner when a targetId is supplied", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    let ownerReads = 0;
+    const transport = {
+      async getChainId() { return 61997; },
+      async getBlockNumber() { return 0; },
+      async readContract({ functionName }) {
+        if (functionName === "get_target_details") { ownerReads++; return ["0xTargetAddr", "0xLiveOwner", 0, "policy-1", 0, 0, false, false]; }
+        throw new Error(`unexpected readContract ${functionName}`);
+      },
+      async getTransaction() { throw new Error("not used"); },
+      async getTriggeredTransactionIds() { return []; },
+      async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+    };
+    const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    const { report } = await client.buildPreparedWriteForCall({ functionName: "seal_policy", args: ["target-1", "policy-1"] }, { semanticKind: "POLICY_CONSTRUCTION_STEP", targetId: "target-1" });
+    assert.strictEqual(report.expectedSigner, "0xLiveOwner", "a policy-construction step must bind expectedSigner to the target's live-read owner, never leave it unset");
+    assert.ok(ownerReads >= 1, "the owner must be read live (getTarget), not a cached value");
+  });
+
+  await test("Owner-directed remediation item 3: the policy journey rebuilds its signer binding on every wallet account/chain change, never carrying forward a stale in-progress journey", () => {
+    const app = read("frontend/app.js");
+    assert.match(app, /state\.policyJourney\s*=\s*null/, "wireWalletEvents must reset the in-progress policy journey, not just clear drafts");
+    assert.match(app, /buildPolicyConstructionStep\(j\.calls\[j\.currentIndex\],\s*j\.targetId\)/, "each construction step must be built with the journey's targetId so the SDK can bind the live owner");
+  });
+
+  await test("Owner-directed remediation item 5: getProviderAvailabilityTriState exposes an explicit AVAILABLE/UNAVAILABLE/UNKNOWN tri-state, additive alongside the frozen getEffectiveProviderStatus", async () => {
+    const sdkDist = path.join(ROOT, "packages", "protocol-sdk", "dist", "index.js");
+    const sdk = require(sdkDist);
+    function makeTransport({ authorityRevoked = false, restrictionCount = 0 } = {}) {
+      return {
+        async getChainId() { return 61997; },
+        async getBlockNumber() { return 0; },
+        async readContract({ functionName }) {
+          if (functionName === "get_target_details") return ["0xTargetAddr", "0xOwner", 0, "policy-1", 0, 0, authorityRevoked, false];
+          if (functionName === "get_resource_restriction_count") return restrictionCount;
+          throw new Error(`unexpected readContract ${functionName}`);
+        },
+        async getTransaction() { throw new Error("not used"); },
+        async getTriggeredTransactionIds() { return []; },
+        async estimateTransactionFeesForWrite() { return { feeValue: "1", distribution: null }; },
+      };
+    }
+    const revokedClient = sdk.createRecloseClient({ transport: makeTransport({ authorityRevoked: true }), addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    assert.strictEqual((await revokedClient.getProviderAvailabilityTriState("t1", "provider_a")).status, "UNKNOWN", "authority-revoked must map to UNKNOWN, never AVAILABLE or UNAVAILABLE");
+    const restrictedClient = sdk.createRecloseClient({ transport: makeTransport({ restrictionCount: 1 }), addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    assert.strictEqual((await restrictedClient.getProviderAvailabilityTriState("t1", "provider_a")).status, "UNAVAILABLE", "an active restriction must map to UNAVAILABLE, distinct from UNKNOWN");
+    const availableClient = sdk.createRecloseClient({ transport: makeTransport({ restrictionCount: 0 }), addresses: { kernel: "0xKernel", judge: "0xJudge" } });
+    assert.strictEqual((await availableClient.getProviderAvailabilityTriState("t1", "provider_a")).status, "AVAILABLE");
+    // getEffectiveProviderStatus's frozen return shape must remain completely unchanged.
+    const effective = await availableClient.getEffectiveProviderStatus("t1", "provider_a");
+    assert.strictEqual(typeof effective.available, "boolean", "the frozen method's available field must remain a strict boolean, never replaced by the tri-state");
+  });
+
+  const total = 59;
   console.log(`\n${total - failures}/${total} frontend A3-remediation checks passed.`);
   if (failures) process.exit(1);
 }
