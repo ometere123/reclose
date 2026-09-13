@@ -254,6 +254,42 @@ def test_remediation_is_final_only(judge_harness, direct_vm):
     assert [item for item in log if "decision_stage" in item][-1]["decision_stage"] == 2
 
 
+def test_recovery_lineage_views_expose_parent_child_chain(judge_harness, direct_vm):
+    """Owner-directed remediation pass, item 9: additive recovery-lineage views. Confirms the new
+    get_incident_parent/get_incident_target_id/get_incident_rule_id/get_incident_reporter/
+    get_incident_evidence_hash/get_parent_child_count/get_parent_child_at views report real state
+    populated by submit_incident + submit_remediation, and never fabricate a child for an
+    unrelated/root incident."""
+    judge, gl, log, config = judge_harness
+    root_id = submit(judge, gl, config, direct_vm, code="CREDENTIAL_COMPROMISE")
+
+    # Root incident: no parent, and zero children until a remediation is submitted.
+    assert judge.get_incident_parent(root_id) == ""
+    assert judge.get_incident_target_id(root_id) == "target-001"
+    assert judge.get_incident_rule_id(root_id) == "PROVIDER_COMPROMISE_V1"
+    assert judge.get_incident_reporter(root_id).as_hex.lower() == gl.message.sender_address.as_hex.lower()
+    assert int(judge.get_parent_child_count(root_id)) == 0
+
+    direct_vm.clear_mocks()
+    config["rule_kind"] = 2  # REMEDIATION_CONFIRMED_V1
+    remediation = make_eap(gl, config, rule_id="REMEDIATION_CONFIRMED_V1")
+    direct_vm.mock_web(EAP_URL, {"method": "GET", "status": 200, "body": "remediation evidence"})
+    direct_vm.mock_llm(".*", json.dumps({"condition_code": "REMEDIATION_VERIFIED"}))
+    child_id = judge.submit_remediation(root_id, "policy-1", remediation["artifactHash"], canonical_json(remediation), 1, "")
+
+    assert judge.get_incident_parent(child_id) == root_id
+    assert judge.get_incident_target_id(child_id) == "target-001"
+    assert judge.get_incident_rule_id(child_id) == "REMEDIATION_CONFIRMED_V1"
+    assert judge.get_incident_evidence_hash(child_id) == remediation["artifactHash"]
+    assert int(judge.get_parent_child_count(root_id)) == 1
+    assert judge.get_parent_child_at(root_id, 0) == child_id
+    # Resolving the child must never fabricate a SECOND child under the same parent, and an
+    # unrelated/unknown parent must report zero children rather than erroring.
+    assert judge.get_parent_child_at(root_id, 1) == ""
+    assert int(judge.get_parent_child_count("unrelated-incident")) == 0
+    assert judge.get_incident_parent("unknown-incident") == ""
+
+
 def test_max_length_target_incident_identity_is_within_bound(judge_harness):
     judge, gl, _log, _config = judge_harness
     incident_id = judge._derive_incident_id("t" * 96, gl.message.sender_address, (1 << 64) - 1)

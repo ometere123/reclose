@@ -202,6 +202,16 @@ def _normalize_str_arg(value):
     return value
 
 
+def _ck_local(*parts: str) -> str:
+    # Mirrors contracts/assurance_kernel.py::_ck exactly - length-prefixed concatenation avoids
+    # delimiter-collision ambiguity in composite keys (a raw "a:b" separator could collide across
+    # differently-split parts; length-prefixing cannot).
+    out = []
+    for p in parts:
+        out.append(f"{len(p)}:{p}")
+    return "".join(out)
+
+
 _HASH_FIELD_NAMES = {"policyHash", "contentHash", "artifactHash"}
 _HASH_LIST_FIELD_NAMES = {"contentHashes"}
 
@@ -369,6 +379,12 @@ class IncidentJudgeV1(gl.contract.Contract):
     reporter_nonces: gl.storage.TreeMap[str, gl.u64]
     incidents: gl.storage.TreeMap[str, IncidentRecordLocal]
     source_authorities: gl.storage.TreeMap[str, SourceAuthorityRecord]
+    # Owner-directed remediation pass, item 9: parent -> child incident reverse index. Populated
+    # ONLY in _submit_final_only (the remediation/recovery-validation path, the only path where a
+    # new IncidentRecordLocal carries a non-empty parent_incident_id) - purely additive, does not
+    # touch submit_incident's root-incident path or change any existing decision semantics.
+    parent_child_count: gl.storage.TreeMap[str, gl.u32]
+    parent_child_at: gl.storage.TreeMap[str, str]
 
     def __init__(
         self,
@@ -778,6 +794,12 @@ class IncidentJudgeV1(gl.contract.Contract):
         record.condition_code = condition_code
         record.outcome = outcome
         self.incidents[incident_id] = record
+        # Item 9: index this new child record under its parent - _submit_final_only is the only
+        # path that ever sets a non-empty parent_incident_id, so this is always a genuine
+        # remediation/recovery-validation child being recorded, never a duplicate of the root.
+        child_idx = int(self.parent_child_count[parent_incident_id]) if parent_incident_id in self.parent_child_count else 0
+        self.parent_child_at[_ck_local(parent_incident_id, str(child_idx))] = incident_id
+        self.parent_child_count[parent_incident_id] = gl.u32(child_idx + 1)
         gl.contract.get_at(self.kernel).emit(on="finalized").receive_decision(
             incident_id, parent_incident_id, target_id, policy_key, policy_version, policy_hash,
             rule_id, resource_id, reporter, evidence_hash, int(outcome), condition_code,
@@ -798,3 +820,53 @@ class IncidentJudgeV1(gl.contract.Contract):
         reporter = gl.Address(reporter)
         key = reporter.as_hex
         return self.reporter_nonces[key] if key in self.reporter_nonces else gl.u64(0)
+
+    # --- Owner-directed remediation pass, item 9: additive recovery-lineage views -------------
+    # These expose IncidentRecordLocal fields that were previously write-only/unreadable, and the
+    # new parent->child reverse index populated above in _submit_final_only. No existing method's
+    # signature or behavior changes.
+
+    @gl.public.view
+    def get_incident_parent(self, incident_id: str) -> str:
+        if incident_id not in self.incidents:
+            return ""
+        return self.incidents[incident_id].parent_incident_id
+
+    @gl.public.view
+    def get_incident_target_id(self, incident_id: str) -> str:
+        if incident_id not in self.incidents:
+            return ""
+        return self.incidents[incident_id].target_id
+
+    @gl.public.view
+    def get_incident_policy_key(self, incident_id: str) -> str:
+        if incident_id not in self.incidents:
+            return ""
+        return self.incidents[incident_id].policy_key
+
+    @gl.public.view
+    def get_incident_rule_id(self, incident_id: str) -> str:
+        if incident_id not in self.incidents:
+            return ""
+        return self.incidents[incident_id].rule_id
+
+    @gl.public.view
+    def get_incident_reporter(self, incident_id: str) -> gl.Address:
+        if incident_id not in self.incidents:
+            return gl.Address("0x" + "0" * 40)
+        return self.incidents[incident_id].reporter
+
+    @gl.public.view
+    def get_incident_evidence_hash(self, incident_id: str) -> str:
+        if incident_id not in self.incidents:
+            return ""
+        return self.incidents[incident_id].evidence_hash
+
+    @gl.public.view
+    def get_parent_child_count(self, parent_incident_id: str) -> gl.u32:
+        return self.parent_child_count[parent_incident_id] if parent_incident_id in self.parent_child_count else gl.u32(0)
+
+    @gl.public.view
+    def get_parent_child_at(self, parent_incident_id: str, index: gl.u32) -> str:
+        key = _ck_local(parent_incident_id, str(int(index)))
+        return self.parent_child_at[key] if key in self.parent_child_at else ""
