@@ -1,6 +1,8 @@
 import { keccak256Hex, type RuleId } from "@reclose/protocol-sdk";
 import { buildCandidateReport, type CandidateReportContext } from "./candidateEap";
 import { SentinelMonitor, type HealthMetrics, type SourceCheckResult } from "./monitor";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 export interface SentinelSubmissionContext {
   targetId: string;
@@ -154,4 +156,41 @@ export class InMemorySentinelStateStore implements SentinelStateStore {
   private value: SentinelState | null = null;
   async load(): Promise<SentinelState | null> { return this.value ? JSON.parse(JSON.stringify(this.value)) as SentinelState : null; }
   async save(state: SentinelState): Promise<void> { this.value = JSON.parse(JSON.stringify(state)) as SentinelState; }
+}
+
+/**
+ * Durable, atomic, file-based SentinelStateStore. Persists seen-candidate keys, pending tx IDs
+ * and last-submission/cooldown timestamps so a process restart resumes pending transactions
+ * without duplicate submission (CLAUDE.md Section 33/36 liveness + replay-safety requirements).
+ *
+ * Uses plain Node fs with the write-temp-then-rename pattern for atomicity: a crash mid-write
+ * never leaves a half-written state file, since rename() is atomic on the same filesystem. No
+ * external DB dependency is introduced - none is used elsewhere in this repo for this purpose.
+ */
+export class FileSentinelStateStore implements SentinelStateStore {
+  constructor(private readonly filePath: string) {}
+
+  async load(): Promise<SentinelState | null> {
+    try {
+      const raw = await fs.promises.readFile(this.filePath, "utf8");
+      if (!raw.trim()) return null;
+      const parsed = JSON.parse(raw) as SentinelState;
+      return {
+        seenCandidateKeys: parsed.seenCandidateKeys ?? {},
+        pendingTransactions: parsed.pendingTransactions ?? {},
+        lastSubmissionAtByRule: parsed.lastSubmissionAtByRule ?? {},
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  }
+
+  async save(state: SentinelState): Promise<void> {
+    const dir = path.dirname(this.filePath);
+    await fs.promises.mkdir(dir, { recursive: true });
+    const tmpPath = `${this.filePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+    await fs.promises.writeFile(tmpPath, JSON.stringify(state, null, 2), "utf8");
+    await fs.promises.rename(tmpPath, this.filePath);
+  }
 }

@@ -2,6 +2,8 @@
 "use strict";
 const assert = require("node:assert/strict");
 const path = require("node:path");
+const fs = require("node:fs");
+const os = require("node:os");
 const {
   checkSource,
   checkAllSources,
@@ -9,6 +11,7 @@ const {
   buildCandidateReport,
   SentinelRunner,
   InMemorySentinelStateStore,
+  FileSentinelStateStore,
 } = require(path.join(__dirname, "..", "packages", "sentinel", "dist", "index.js"));
 
 let failures = 0;
@@ -127,6 +130,89 @@ async function main() {
     await runner.resumePending();
     assert.equal(submitCount, 0);
     assert.ok((await store.load()).pendingTransactions["0xold"]);
+  });
+
+  await test("FileSentinelStateStore persists state atomically and reloads it", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reclose-sentinel-"));
+    const file = path.join(dir, "state.json");
+    const store = new FileSentinelStateStore(file);
+    assert.equal(await store.load(), null);
+    await store.save({
+      seenCandidateKeys: { key1: "0xabc" },
+      pendingTransactions: { "0xabc": { submittedAt: new Date().toISOString(), candidateKey: "key1" } },
+      lastSubmissionAtByRule: { PROVIDER_COMPROMISE_V1: new Date().toISOString() },
+    });
+    assert.ok(fs.existsSync(file));
+    const reloaded = await store.load();
+    assert.ok(reloaded.pendingTransactions["0xabc"]);
+    // No leftover temp files after a successful save (write-temp-then-rename).
+    const leftovers = fs.readdirSync(dir).filter((f) => f.endsWith(".tmp"));
+    assert.deepEqual(leftovers, []);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  await test("FileSentinelStateStore: pending tx resumes after simulated process restart", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reclose-sentinel-"));
+    const file = path.join(dir, "state.json");
+    const storeA = new FileSentinelStateStore(file);
+    await storeA.save({
+      seenCandidateKeys: { key1: "0xabc" },
+      pendingTransactions: { "0xabc": { submittedAt: new Date().toISOString(), candidateKey: "key1" } },
+      lastSubmissionAtByRule: {},
+    });
+    // A brand new store instance pointed at the same file simulates a fresh process.
+    const storeB = new FileSentinelStateStore(file);
+    const resumed = await storeB.load();
+    assert.ok(resumed.pendingTransactions["0xabc"]);
+
+    let submitCount = 0;
+    const runner = new SentinelRunner({
+      monitor: new SentinelMonitor([], async () => { throw new Error("unused"); }),
+      reporter: {
+        async getReporterAddress() { return "0x1111111111111111111111111111111111111111"; },
+        async getNextReporterNonce() { return 1; },
+        async submitIncident() { submitCount++; return { txId: "0xnew" }; },
+      },
+      store: storeB,
+      tracker: { async track() {}, async poll(txId) { assert.equal(txId, "0xabc"); throw new Error("RPC timeout"); } },
+      context: { targetId: "target-1", policyKey: "policy-1", policyHash: "0x" + "2".repeat(64), ruleId: "PROVIDER_COMPROMISE_V1", resourceId: "provider_a", subject: "x" },
+    });
+    // A polling failure during resume must never trigger resubmission.
+    await runner.resumePending();
+    assert.equal(submitCount, 0);
+    assert.ok((await storeB.load()).pendingTransactions["0xabc"]);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  await test("FileSentinelStateStore: pending tx cleared and not duplicated once finalized across restart", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reclose-sentinel-"));
+    const file = path.join(dir, "state.json");
+    const storeA = new FileSentinelStateStore(file);
+    await storeA.save({
+      seenCandidateKeys: { key1: "0xabc" },
+      pendingTransactions: { "0xabc": { submittedAt: new Date().toISOString(), candidateKey: "key1" } },
+      lastSubmissionAtByRule: {},
+    });
+    const storeB = new FileSentinelStateStore(file);
+    let submitCount = 0;
+    const runner = new SentinelRunner({
+      monitor: new SentinelMonitor([], async () => { throw new Error("unused"); }),
+      reporter: {
+        async getReporterAddress() { return "0x1111111111111111111111111111111111111111"; },
+        async getNextReporterNonce() { return 1; },
+        async submitIncident() { submitCount++; return { txId: "0xnew" }; },
+      },
+      store: storeB,
+      tracker: { async track() {}, async poll() { return { lifecycle: { derived: { isFinal: true }, rawStatus: "ACCEPTED" } }; } },
+      context: { targetId: "target-1", policyKey: "policy-1", policyHash: "0x" + "2".repeat(64), ruleId: "PROVIDER_COMPROMISE_V1", resourceId: "provider_a", subject: "x" },
+    });
+    await runner.resumePending();
+    assert.equal(submitCount, 0);
+    const after = await storeB.load();
+    assert.equal(after.pendingTransactions["0xabc"], undefined);
+    // The seen-candidate key survives, so a duplicate candidate is still suppressed post-restart.
+    assert.equal(after.seenCandidateKeys["key1"], "0xabc");
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   if (failures) process.exit(1);
