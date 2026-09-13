@@ -44,6 +44,26 @@ export function runRecoveryPrepare(
   return result(() => sdk.buildRecoveryReport(input));
 }
 
+/** Remediation (REMEDIATION_CONFIRMED_V1) is a distinct on-chain entrypoint from recovery
+ * validation (RECOVERY_VALIDATED_V1) - see contracts/incident_judge_v1.py::submit_remediation vs
+ * submit_recovery_validation - so this is a separate CLI command, not an alias for recovery. */
+export function runRemediationPrepare(
+  sdk: RecloseSDK,
+  input: { incidentId: string; evidenceSources: EvidenceSource[] },
+): Promise<CommandResult> {
+  return result(() => (sdk as unknown as { buildRemediationReport: (i: typeof input) => Promise<unknown> }).buildRemediationReport(input));
+}
+
+/** Reads the real get_policy_lifecycle Kernel view (owner-directed remediation pass item 6) so a
+ * caller can verify a policy's on-chain seal/activation-timing state before building an activation
+ * draft, without needing the frontend. */
+export function runPolicyVerifyReadback(
+  sdk: RecloseSDK,
+  policyKey: string,
+): Promise<CommandResult> {
+  return result(() => (sdk as unknown as { getPolicyLifecycle: (k: string) => Promise<unknown> }).getPolicyLifecycle(policyKey));
+}
+
 export async function runAuditExport(
   sdk: RecloseSDK,
   input: { targetId: string; incidentIds?: string[] },

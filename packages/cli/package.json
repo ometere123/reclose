@@ -16,7 +16,8 @@
     "@reclose/protocol-sdk": "0.1.0",
     "@reclose/policy-compiler": "0.1.0",
     "@reclose/evidence-builder": "0.1.0",
-    "@reclose/transaction-tracker": "0.1.0"
+    "@reclose/transaction-tracker": "0.1.0",
+    "@reclose/sentinel": "0.1.0"
   },
   "devDependencies": {
     "typescript": "5.9.3",

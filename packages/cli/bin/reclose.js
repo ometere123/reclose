@@ -18,14 +18,26 @@ function usage() {
     "  reclose policy diff <from.json> <to.json>",
     "  reclose policy compile <apm.json>",
     "  reclose policy inspect <targetId>",
+    "  reclose policy verify-readback <policyKey>",
     "  reclose evidence build <eap-input.json>",
     "  reclose incident prepare <incident-report-input.json>",
     "  reclose incident inspect <incidentId>",
+    "  reclose remediation prepare <remediation-report-input.json>",
     "  reclose recovery prepare <recovery-report-input.json>",
     "  reclose decision inspect <decisionId>",
     "  reclose tx track <txId>",
     "  reclose action trace <actionId>",
     "  reclose audit export <targetId> [incidentId ...]",
+    "  reclose sentinel run <sentinel-config.json>",
+    "",
+    "`sentinel run` starts a long-lived SentinelRunner process using a durable file-based state",
+    "store (packages/sentinel's FileSentinelStateStore) - see the config file's own schema in",
+    "packages/sentinel/README.md. `reclose incident report`/`recovery report`/`remediation report`",
+    "(actual submission, not `prepare`) are intentionally NOT CLI commands: this CLI never custodies",
+    "or uses a private key, so an actual signed submission is a browser-wallet or host-injected-",
+    "writer operation, never a bare CLI one - `prepare` builds the exact reviewable draft/fee",
+    "preview a wallet-backed caller would then sign. `benchmark run` is not a separate CLI command:",
+    "`npm run benchmark:check` (scripts/check-r1-benchmark.js) is the governed equivalent.",
     "",
     "`prepare` commands build canonical SDK report drafts/fee previews only; they never custody or use a private key.",
     "Network options: --rpc <url>. Default: Studio-dev.",
@@ -101,8 +113,10 @@ async function main() {
   if (group === "status" && action) return printAndExit(await cli.runTargetStatus(directSdk(args), action));
   if (group === "target" && action === "inspect") return printAndExit(await cli.runTargetInspect(directSdk(args), rest[0]));
   if (group === "policy" && action === "inspect") return printAndExit(await cli.runPolicyInspect(directSdk(args), rest[0]));
+  if (group === "policy" && action === "verify-readback") return printAndExit(await cli.runPolicyVerifyReadback(directSdk(args), rest[0]));
   if (group === "incident" && action === "prepare") return printAndExit(await cli.runIncidentReportPrepare(directSdk(args), jsonFile(rest[0])));
   if (group === "incident" && action === "inspect") return printAndExit(await cli.runIncidentInspect(directSdk(args), rest[0]));
+  if (group === "remediation" && action === "prepare") return printAndExit(await cli.runRemediationPrepare(directSdk(args), jsonFile(rest[0])));
   if (group === "recovery" && action === "prepare") return printAndExit(await cli.runRecoveryPrepare(directSdk(args), jsonFile(rest[0])));
   if (group === "decision" && action === "inspect") return printAndExit(await cli.runDecisionInspect(directSdk(args), rest[0]));
   if (group === "action" && action === "trace") return printAndExit(await cli.runActionTrace(directSdk(args), rest[0]));
@@ -110,6 +124,38 @@ async function main() {
     const [targetId, ...incidentIds] = rest.filter((x) => x !== "--rpc" && x !== rpcFrom(rest));
     if (!targetId) throw new Error("audit export requires targetId");
     return printAndExit(await cli.runAuditExport(directSdk(args), { targetId, incidentIds }));
+  }
+
+  if (group === "sentinel" && action === "run") {
+    const configPath = rest[0];
+    if (!configPath) throw new Error("sentinel run requires a config JSON file - see `reclose --help`");
+    const config = jsonFile(configPath);
+    const sentinelModule = require(path.join(__dirname, "..", "..", "sentinel", "dist", "index.js"));
+    const rpc = config.rpc || STUDIO_DEV_RPC;
+    const client = clientFor(["--rpc", rpc]);
+    sdkModule.assertCanonicalChainId(Number(await client.getChainId()));
+    const runner = cli.buildSentinelRunnerFromConfig(config, {
+      SentinelMonitor: sentinelModule.SentinelMonitor,
+      SentinelRunner: sentinelModule.SentinelRunner,
+      FileSentinelStateStore: sentinelModule.FileSentinelStateStore,
+      getNextReporterNonce: async () => {
+        const reporterAddress = config.reporterAddress;
+        if (!reporterAddress) throw new Error("sentinel config must set reporterAddress to read the live reporter nonce");
+        return Number(await client.readContract({ address: config.judgeAddress, functionName: "get_reporter_nonce", args: [reporterAddress] }));
+      },
+    });
+    const intervalSeconds = config.intervalSeconds ?? 60;
+    const maxTicks = config.maxTicks ?? 0; // 0 = run forever
+    await runner.resumePending();
+    let tick = 0;
+    for (;;) {
+      const result = await runner.runOnce();
+      console.log(JSON.stringify({ tick, ...result }));
+      tick += 1;
+      if (maxTicks > 0 && tick >= maxTicks) break;
+      await new Promise((resolve) => setTimeout(resolve, intervalSeconds * 1000));
+    }
+    process.exit(0);
   }
 
   console.error(usage());
