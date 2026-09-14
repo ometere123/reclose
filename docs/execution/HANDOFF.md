@@ -235,3 +235,11 @@ Exact-target CI for fee-evidence checkpoint `917ae2c3a3d9d539daa8f197cf53806c755
 Pushed source commit: `7522927cd2a94aed3a0b860bf948bf618b44f269` on `claude/r1-product-final`. Exact GitHub Actions run `34797526119` passed (`npm ci`, requirements install, and full `npm run verify`). This CI includes the new `requirements:reconciliation` check. The previous note about CI being pending is superseded. Repository changes contain no live Studio-dev request or transaction. `.claude/settings.local.json` remains untracked and excluded.
 
 Resume from this verified commit by checking A3/A4 packet readiness against the current candidate without self-authoring PASS, then complete independent release docs and evidence review. Do not repeat OB-014 accepted-message simulation or submit an incident; E1 Run A/B and H1 remain blocked.
+
+## 2026-09-14 requirements-map correction and current counts
+
+The earlier reconciliation pass initially added generic NOT STARTED gaps without joining the existing A3 attempt-2 mapping. That was incomplete and is superseded. The generator now joins the A3 map's test-backed source rows, preserves the current lifecycle-specific refs where the A3 map is stale, and lowers `PRD-POL-005` to IN PROGRESS because its full UI construction sequence remains open.
+
+Canonical RTM now reads 156 total: 10 VERIFIED, 27 IN PROGRESS, 13 IMPLEMENTED / UNVERIFIED, 106 NOT STARTED. All VERIFIED rows have implementation/test/evidence/commit refs; all open rows have blockers. The 106 NOT STARTED rows have no test-backed implementation mapped in either source map. All 82 threat records remain listed with their current residual risks, not promoted to closed.
+
+The generator and CSV/report correction are local and need a new push plus exact-SHA CI. Prior checkpoint `7522927cd2a94aed3a0b860bf948bf618b44f269` passed run `34797526119`, but that run predates this correction. No Studio-dev request or write was made. Preserve `.claude/settings.local.json` untracked/unstaged. OB-014 still blocks E1; do not rerun the accepted-message probe.

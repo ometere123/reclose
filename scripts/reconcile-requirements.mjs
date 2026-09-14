@@ -6,9 +6,12 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const statusPath = path.join(root, 'docs/execution/Requirements Status.csv');
 const matrixPath = path.join(root, 'docs/governance/Requirements Traceability Matrix.md');
+const a3MapPath = path.join(root, 'docs/execution/audit-packets/A3-attempt-2/requirements.csv');
 const threatPath = path.join(root, 'docs/security/Threat Status.csv');
 const reportPath = path.join(root, 'docs/execution/Requirements Reconciliation.md');
 const writeMode = process.argv.includes('--write');
+const candidateCommit = '7522927cd2a94aed3a0b860bf948bf618b44f269';
+const candidateCiRun = '34797526119';
 
 function parseCsvLine(line) {
   const cells = [];
@@ -43,6 +46,13 @@ const records = csvLines.slice(1).map((line) => {
   const values = parseCsvLine(line);
   return Object.fromEntries(headers.map((header, i) => [header, values[i] ?? '']));
 });
+const a3Lines = fs.readFileSync(a3MapPath, 'utf8').split(/\r?\n/).filter(Boolean);
+const a3Headers = parseCsvLine(a3Lines[0]);
+const a3Requirements = new Map(a3Lines.slice(1).map((line) => {
+  const values = parseCsvLine(line);
+  const row = Object.fromEntries(a3Headers.map((header, i) => [header, values[i] ?? '']));
+  return [row.requirement_id, row];
+}));
 const threatLines = fs.readFileSync(threatPath, 'utf8').split(/\r?\n/).filter(Boolean);
 const threatHeaders = parseCsvLine(threatLines[0]);
 const threats = threatLines.slice(1).map((line) => {
@@ -72,6 +82,9 @@ const statusIds = new Set(records.map((row) => row.requirement_id));
 if (statusIds.size !== 156 || [...matrix.keys()].some((id) => !statusIds.has(id))) {
   throw new Error('Requirement IDs do not match uniquely between the canonical matrix and status ledger.');
 }
+for (const id of a3Requirements.keys()) {
+  if (!statusIds.has(id)) throw new Error(`A3 requirement map contains unlocked ID ${id}.`);
+}
 const threatIds = new Set(threats.map((row) => row.threat_id));
 if (threats.length !== 82 || threatIds.size !== 82) throw new Error(`Expected 82 unique threat rows, found ${threats.length}.`);
 for (const row of threats) {
@@ -80,8 +93,37 @@ for (const row of threats) {
   }
 }
 
+const statusRank = { 'NOT STARTED': 0, 'IN PROGRESS': 1, 'IMPLEMENTED / UNVERIFIED': 2, VERIFIED: 3, BLOCKED: 0, 'DEFERRED BY RELEASE DECISION': 0 };
+const appendUnique = (current, value) => {
+  if (!value?.trim()) return current;
+  if (current.includes(value.trim())) return current;
+  const parts = current ? current.split('; ').filter(Boolean) : [];
+  if (!parts.includes(value.trim())) parts.push(value.trim());
+  return parts.join('; ');
+};
 for (const row of records) {
   const source = matrix.get(row.requirement_id);
+  const a3 = a3Requirements.get(row.requirement_id);
+  if (a3 && a3.implementation_ref.trim() && a3.test_or_evidence_ref.trim()) {
+    const a3Status = a3.status.trim();
+    if (!(a3Status in statusRank)) throw new Error(`${row.requirement_id} has invalid A3 status ${a3Status}.`);
+    // Prefer an explicit, test-backed A3 map over a stale NOT STARTED row; if the
+    // A3 map is more conservative than the canonical row, lower the broad status.
+    if (row.status === 'NOT STARTED' || statusRank[a3Status] < statusRank[row.status]) row.status = a3Status;
+    if (!row.implementation_ref.trim()) row.implementation_ref = a3.implementation_ref;
+    if (!row.test_ref.trim()) row.test_ref = a3.test_or_evidence_ref;
+    row.evidence_ref = appendUnique(row.evidence_ref, `GitHub Actions run ${candidateCiRun} (full repository verification; test scope is listed in test_ref)`);
+    if (!row.commit.trim()) row.commit = `${candidateCommit} (audited source snapshot; feature-origin commit not inferred)`;
+    if (row.blocker.startsWith('Not started in the delivery ledger. Owner:')) row.blocker = '';
+    if (row.status === 'VERIFIED') {
+      row.blocker = '';
+    } else if (!row.blocker.trim()) {
+      row.blocker = a3.remaining_verification.trim()
+        ? `A3 attempt-2 remaining verification: ${a3.remaining_verification.trim()}`
+        : `A3 attempt-2 maps implementation and tests, but the canonical requirement remains ${row.status}; acceptance evidence is still open.`;
+    }
+    row.last_updated = '2026-09-14';
+  }
   if (row.status === 'NOT STARTED' && !row.blocker.trim()) {
     row.blocker = `Not started in the delivery ledger. Owner: ${source.owner}. Acceptance: ${source.verification}. Required evidence: ${source.evidence}. No implementation, test, evidence, or commit mapping is recorded.`;
   }
@@ -100,11 +142,11 @@ for (const row of records) counts.set(row.status, (counts.get(row.status) ?? 0) 
 const report = [
   '# Requirements reconciliation',
   '',
-  'This report joins every locked requirement in the governance matrix to the delivery status ledger. It preserves recorded statuses and evidence; it does not infer implementation from nearby code or treat repository CI as live deployment proof.',
+  'This report joins every locked requirement in the governance matrix to the delivery status ledger and the existing A3 attempt-2 requirement map. Test-backed A3 implementation mappings are carried into the canonical ledger; statuses are lowered when the A3 map records broader work still open. Repository CI is not treated as live deployment proof.',
   '',
-  `Reconciled rows: **${records.length}/156**. Status counts: ${[...counts].map(([status, count]) => `${status}: ${count}`).join('; ')}.`,
+  `Reconciled rows: **${records.length}/156**. Status counts: ${[...counts].map(([status, count]) => `${status}: ${count}`).join('; ')}. A3 map joined: ${a3Requirements.size} rows, including ${[...a3Requirements.values()].filter((row) => row.implementation_ref.trim() && row.test_or_evidence_ref.trim()).length} rows with implementation and test references.`,
   '',
-  'A non-VERIFIED status is an open requirement. For NOT STARTED rows, the blocker records the owner and acceptance evidence from the canonical matrix and states that no delivery mapping is recorded. IN PROGRESS and IMPLEMENTED / UNVERIFIED rows retain their specific recorded blockers. VERIFIED rows are rejected by this generator unless implementation, test, evidence, and commit references are all present.',
+  'A non-VERIFIED status is open. NOT STARTED means neither the canonical ledger nor the A3 map records a tested implementation. Where the A3 map records implementation and tests, those refs and its remaining-verification note are shown. A3 rows that predate the latest protocol fixes are not allowed to overwrite newer canonical refs. VERIFIED rows are rejected unless implementation, test, evidence, and commit references are all present.',
   '',
   '| Requirement | Area | Priority / release | Status | Owner | Required verification | Required evidence | Current delivery mapping / open gap |',
   '|---|---|---|---|---|---|---|---|',
@@ -118,8 +160,8 @@ for (const row of records) {
 }
 report.push('', '## Scope and interpretation', '',
   '- This is a traceability reconciliation, not a claim that all requirements are implemented.',
-  '- Rows marked NOT STARTED remain unimplemented/unmapped according to the delivery ledger; their canonical owner, verification method, and required evidence are now visible beside that status.',
-  '- The five VERIFIED rows have all four required refs. Live claims remain bounded by the evidence cited in those rows.',
+  '- Rows marked NOT STARTED have no test-backed implementation mapping in either joined delivery map; each carries its canonical owner, verification method, and required evidence.',
+  `- ${counts.get('VERIFIED') ?? 0} VERIFIED rows have all four required refs. Evidence scope remains bounded by the cited tests and deployments.`,
   '- The accepted-message simulation limitation remains an external blocker for E1 Run A; this report does not close E1, H1, A3/A4, or the release candidate gates.',
   '',
   '## Threat reconciliation',
@@ -140,7 +182,15 @@ if (writeMode) {
   console.log(`Updated open-gap entries for ${records.filter((row) => row.status === 'NOT STARTED').length} NOT STARTED requirements and wrote ${records.length}-row reconciliation report.`);
 } else {
   if (serialized !== fs.readFileSync(statusPath, 'utf8')) {
-    throw new Error('Requirements Status.csv needs reconciliation; run npm run rtm:reconcile.');
+    const actual = fs.readFileSync(statusPath, 'utf8');
+    const expectedLines = serialized.split('\n');
+    const actualLines = actual.split(/\r?\n/);
+    const mismatch = expectedLines.findIndex((line, i) => line !== actualLines[i]);
+    const expectedLine = expectedLines[mismatch] ?? '';
+    const actualLine = actualLines[mismatch] ?? '';
+    let charAt = 0;
+    while (charAt < expectedLine.length && expectedLine[charAt] === actualLine[charAt]) charAt += 1;
+    throw new Error(`Requirements Status.csv needs reconciliation at line ${mismatch + 1}, column ${charAt + 1}; expectedLength=${expectedLine.length}, actualLength=${actualLine.length}, expected=${JSON.stringify(expectedLine.slice(Math.max(0, charAt - 50), charAt + 100))}, actual=${JSON.stringify(actualLine.slice(Math.max(0, charAt - 50), charAt + 100))}; run npm run rtm:reconcile.`);
   }
   if (report.join('\n') !== fs.readFileSync(reportPath, 'utf8')) {
     throw new Error('Requirements Reconciliation.md is stale; run npm run rtm:reconcile.');

@@ -852,3 +852,11 @@ Current blockers are unchanged: OB-014 is the reproduced Studio-dev accepted-mes
 ## 2026-09-14 exact CI result
 
 Reconciliation checkpoint `7522927cd2a94aed3a0b860bf948bf618b44f269` passed exact-target GitHub Actions run `34797526119` (`npm ci` and full `npm run verify`, including the new 156/82 reconciliation check). The earlier pending-CI note is superseded. Resume with A3/A4 packet readiness and independent release-document review; do not retry OB-014 or claim E1/H1 completion.
+
+## 2026-09-14 requirements-map correction
+
+Correction to the preceding reconciliation note: the A3 attempt-2 requirements map already contained test-backed frontend/SDK implementations that the canonical ledger had not yet joined. The reconciliation generator now imports those mappings, carries forward their remaining-verification text, and preserves newer canonical refs where the A3 map contains superseded protocol names. `PRD-POL-005` was downgraded from VERIFIED to IN PROGRESS because the A3 map says the complete UI construction sequence remains unfinished.
+
+Current canonical counts: 156 total; 10 VERIFIED; 27 IN PROGRESS; 13 IMPLEMENTED / UNVERIFIED; 106 NOT STARTED. Every VERIFIED row has implementation, test, evidence, and commit refs. Every open row has an explicit blocker; non-VERIFIED implementation rows also have mapped implementation/test/evidence/commit references. NOT STARTED rows are the 106 with no test-backed implementation mapping in either the canonical or A3 map. The full report still covers all 82 threats without changing their risk status.
+
+The previously pushed checkpoint `7522927cd2a94aed3a0b860bf948bf618b44f269` passed CI run `34797526119`, but this correction changes the reconciliation generator and ledger. Run exact-target CI after pushing this correction. No Studio-dev RPC or write occurred. OB-014 and all E1/H1 release blockers remain unchanged; do not repeat the accepted-message simulation.
