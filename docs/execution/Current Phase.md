@@ -848,3 +848,7 @@ The generated `docs/execution/Requirements Reconciliation.md` also lists all 82 
 Validation run locally: `node scripts/reconcile-requirements.mjs --check`, `node scripts/a0-integrity-check.js`, and `git diff --check` pass. The local npm shim cannot resolve its configured npm-cli path, so full `npm run verify` needs exact-target CI after this checkpoint is pushed. No Studio-dev RPC request or write was made. Preserve and exclude `.claude/settings.local.json`.
 
 Current blockers are unchanged: OB-014 is the reproduced Studio-dev accepted-message `SystemError: 2: inval`; no Run A incident was submitted, no Reporter nonce exists, Run B/H1 are not run, and final fee-profile lifecycle writes are unavailable. Do not repeat the same accepted-message probe. After exact CI, continue the open requirement implementation/evidence backlog and other independent release documentation; do not mark the 137 NOT STARTED rows or remaining risks complete.
+
+## 2026-09-14 exact CI result
+
+Reconciliation checkpoint `7522927cd2a94aed3a0b860bf948bf618b44f269` passed exact-target GitHub Actions run `34797526119` (`npm ci` and full `npm run verify`, including the new 156/82 reconciliation check). The earlier pending-CI note is superseded. Resume with A3/A4 packet readiness and independent release-document review; do not retry OB-014 or claim E1/H1 completion.

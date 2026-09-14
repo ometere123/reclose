@@ -229,3 +229,9 @@ Exact-target CI for fee-evidence checkpoint `917ae2c3a3d9d539daa8f197cf53806c755
 - Generator/check: `scripts/reconcile-requirements.mjs`; `npm run requirements:reconciliation` is wired into `verify:js`. Direct checks `node scripts/reconcile-requirements.mjs --check` and `node scripts/a0-integrity-check.js` pass. Exact-target CI is pending for this new checkpoint. Local npm shim path is broken, but the preceding checkpoint CI passed full verification.
 - No Studio-dev request or write was made. OB-014 remains the accepted-message `SystemError: 2: inval`; do not retry it, submit an incident, or claim E1/H1 success. Preserve `.claude/settings.local.json` untracked and unstaged.
 - Next action: stage only the intended reconciliation/script/package/docs files, commit and push `claude/r1-product-final`, then wait for exact-SHA CI. After that continue open release artifacts and requirement implementation/evidence gaps; Run B/H1 and release-candidate gates remain blocked by OB-014.
+
+## 2026-09-14 exact verification for reconciliation checkpoint
+
+Pushed source commit: `7522927cd2a94aed3a0b860bf948bf618b44f269` on `claude/r1-product-final`. Exact GitHub Actions run `34797526119` passed (`npm ci`, requirements install, and full `npm run verify`). This CI includes the new `requirements:reconciliation` check. The previous note about CI being pending is superseded. Repository changes contain no live Studio-dev request or transaction. `.claude/settings.local.json` remains untracked and excluded.
+
+Resume from this verified commit by checking A3/A4 packet readiness against the current candidate without self-authoring PASS, then complete independent release docs and evidence review. Do not repeat OB-014 accepted-message simulation or submit an incident; E1 Run A/B and H1 remain blocked.
