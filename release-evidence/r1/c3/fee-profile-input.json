@@ -51,7 +51,12 @@
     "args": [],
     "value": "0",
     "notes": "Active Judge address. Accepted/provisional explicit-allocation simulation is blocked by the retained Studio-dev minimal reproduction; do not submit a write.",
-    "deploymentGeneration": "r1-lifecycle-split-run-a"
+    "deploymentGeneration": "r1-lifecycle-split-run-a",
+    "knownFailure": {
+      "status": "ESTIMATION_FAILED",
+      "error": "SystemError: 2: inval",
+      "evidenceRef": "release-evidence/r1/diagnostics/accepted-message-repro/simulation-results.json"
+    }
   },
   {
     "id": "kernel-to-target-one-effect",

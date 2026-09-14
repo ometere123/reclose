@@ -816,3 +816,9 @@ Validation: fee-profile checker self-tests pass 6/6; full `npm run verify:js` pa
 - All 82 threat rows now contain control, implementation, test, evidence, residual risk and commit fields. Nine rows explicitly state partial/missing direct implementation or test evidence; the shared CI references prove the repository check only, not all live controls. Keep those threats OPEN/UNVERIFIED as recorded; critical/high residual risk is not accepted.
 - `TM-AUTH-007` remains downgraded to MITIGATED / UNVERIFIED pending live revocation evidence.
 - Requirements rows: 156 total; 5 VERIFIED with complete refs, 13 IN PROGRESS, 1 IMPLEMENTED / UNVERIFIED, 137 NOT STARTED. The broad RTM is not yet substantively reconciled.
+
+## 2026-09-14 fee-profiler fail-closed checkpoint
+
+The fee profiler validates all inputs before any Studio-dev request. It rejects the four unsupported deploy-estimate entries and the seven write entries with empty real arguments, while preserving the known accepted-message `SystemError: 2: inval` from its saved evidence without retry. The six-case guard test is part of `verify:js`. Full `npm run verify:js` passed; exact CI for prior checkpoint `5f5a53ae286525966c476ad16a82bc8a646dd18b` passed (run `34793768972`). The current fee-guard edits and this note remain local and need a new exact-target CI run after commit.
+
+Do not repeat the accepted-stage preflight or submit an incident. E1 A/B and H1 live scenarios remain blocked by the reproduced Studio-dev behavior. Current fee profiles are not final: deployment estimation is unsupported and real call arguments for the remaining eight write profiles do not exist yet. The full RTM, A3/A4, final candidate branch and fresh-checkout release verification remain open. Preserve and exclude `.claude/settings.local.json`.

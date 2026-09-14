@@ -18,6 +18,7 @@
 import { createClient, chains, deriveInternalMessageCallKey } from "genlayer-js";
 import { writeFileSync } from "node:fs";
 import { installStudioDevRpcThrottle } from "./studio-dev-rpc-throttle.mjs";
+import { validateFeeProfileInputs } from "./fee-profile-input.mjs";
 
 const STUDIO_DEV_CHAIN_ID = 61997;
 const STUDIO_DEV_RPC = "https://studio-dev.genlayer.com/api";
@@ -42,6 +43,13 @@ function jsonSafe(value) {
 async function main() {
   const { profilePath, outPath } = parseArgs(process.argv.slice(2));
   const profiles = JSON.parse(await (await import("node:fs")).promises.readFile(profilePath, "utf8"));
+  const generation = profiles?.[0]?.deploymentGeneration;
+  const inputErrors = validateFeeProfileInputs(profiles, generation);
+  if (inputErrors.length) {
+    console.error("FEE PROFILE PREFLIGHT FAILED (no Studio-dev RPC request sent):");
+    for (const error of inputErrors) console.error(`- ${error}`);
+    process.exit(2);
+  }
 
   // Fee profiling performs multiple Studio-dev simulations. Keep them on the same serialized,
   // bounded RPC queue used by the incident preflight and transaction polling scripts.
@@ -69,6 +77,14 @@ async function main() {
       deploymentGeneration: profile.deploymentGeneration ?? null,
       notes: profile.notes ?? null,
     };
+    if (profile.knownFailure) {
+      entry.status = profile.knownFailure.status;
+      entry.error = profile.knownFailure.error;
+      entry.evidenceRef = profile.knownFailure.evidenceRef;
+      results.push(entry);
+      console.log(`${entry.status}  ${entry.name} (retained from evidence; no RPC retry)`);
+      continue;
+    }
     if (["receive_provisional_decision", "receive_final_decision"].includes(profile.functionName)) {
       entry.lifecyclePhase = profile.functionName === "receive_provisional_decision" ? "accepted/provisional" : "finalized";
       entry.internalMessageCallKey = deriveInternalMessageCallKey(profile.functionName);
