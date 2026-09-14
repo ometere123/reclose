@@ -25,7 +25,7 @@ Do not claim any of the following until the listed release evidence exists:
 
 | Prohibited premature claim | Why it is not yet supported | Required evidence |
 |---|---|---|
-| "Reclose is fully live end to end on Studio-dev" | Judge -> Kernel triggered child still fails with `fee no_matching_allocation # internal`. | successful E1 child path + two clean runs |
+| "Reclose is fully live end to end on Studio-dev" | A minimal explicit-allocation accepted Parent→Child simulation fails with `SystemError: 2: inval`; the finalized control succeeds. No Run A incident was submitted. | successful accepted-path simulation, E1 child path + two clean runs |
 | "The canonical incident automatically restricted Provider A live" | no successful live Judge -> Kernel -> Target action on the current evidence path | E1 target post-state |
 | "Live recovery/restoration is proven" | remediation/recovery child path is not live-proven | E1 recovery sequence |
 | "All benchmark scenarios passed" | live cases remain BLOCKED_EXTERNAL/NOT_RUN | benchmark report after live execution |
@@ -39,7 +39,7 @@ Do not claim any of the following until the listed release evidence exists:
 
 Acceptable:
 
-> The Judge-side live path is proven through governed evidence fetch and GenLayer semantic judgment. The current Studio-dev build still hits an internal fee-allocation failure on the triggered Judge-to-Kernel child, so downstream live execution is shown as failed rather than being presented as completed.
+> A read-only preflight on the current Studio-dev build found that a minimal explicit-allocation accepted Parent-to-Child message fails with `SystemError: 2: inval`; the finalized control succeeds. We stopped before submitting the incident, so this deployment has no live containment result.
 
 Unacceptable:
 

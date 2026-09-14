@@ -116,34 +116,38 @@ Do not substitute stable Studionet `61999` for the Agent Tank R1 evidence path.
 
 ## Current final R1 deployment addresses
 
-The current fresh deployment record is `deployment/61997/r1-manifest.json`.
+The current fresh lifecycle-split deployment record is `deployment/61997/r1-lifecycle-split-run-a-working-manifest.json`.
 
 | Component | Address |
 |---|---|
-| ProviderStubA | `0x088430851fBFD581DA329A262FD9C0aEd7b4AD2E` |
-| ProviderStubB | `0x4b55607312E045FcAd21b836702247F6d65844A8` |
-| AssuranceKernel | `0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621` |
-| ReferenceAgentProtocol | `0x7B423D9787aeACC303467dE82A2D193D77155f0f` |
-| IncidentJudgeV1 | `0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0` |
-| IncentiveVault | `0xB3476a8881e8866a6d92c8252a840a08004d02c3` |
+| ProviderStubA | `0x02Be7242eb5ef13984590F86662B139384E20B70` |
+| ProviderStubB | `0x1f12906AF34143C804f5AeeeF0AcDF408e816d0a` |
+| AssuranceKernel | `0x5A271CB03b4833aA485ff13035844ba500c4E536` |
+| ReferenceAgentProtocol / target `reclose-target-007` | `0xdf68B59C5f5Fb8929Ab6360B0024f34aec7a0353` |
+| IncidentJudgeV1 | `0x43c6061FEde8372a3e4c3AB513D32abcfA956e89` |
+| IncentiveVault | `0x10451Cd05cDeD4CE0f40983f4f87FFE42968E701` |
 
-Policy: `policy-r1-004`  
-Target: `reclose-target-003`
+Policy: `policy-r1-009`, version 1, active, manifest hash `0xb5ac60c955e3bc052531e07b9c351738e7c27d80fb286b702f1f6e2e8ee83953`
+
+Deployment generation: `r1-lifecycle-split-run-a`
+Full deployment and policy transaction/readback record: [working manifest](deployment/61997/r1-lifecycle-split-run-a-working-manifest.json)
 
 ## Current live-evidence boundary
 
-The Judge-side Studio-dev path has executed real canonical evidence binding, public-source fetch and semantic judgment. The current fresh deployment still records a downstream triggered-child failure on Judge -> Kernel:
+The active lifecycle-split deployment has verified contract deployment/wiring, immutable-source registry binding, policy item readbacks, seal, timelock and activation. Its read-only explicit fee preflight found a Studio-dev accepted-message simulation failure. A minimal Parent→Child reproduction using a valid explicit allocation fails for `on="accepted"` with `SystemError: 2: inval`, while the otherwise equivalent `on="finalized"` simulation succeeds. No incident write was submitted on this deployment.
 
 ```text
-fee no_matching_allocation # internal
+accepted Parent -> Child.noop: SystemError: 2: inval
+finalized Parent -> Child.noop: successful estimate
 ```
 
-That failure is treated as an execution failure, not hidden as a successful containment action. Therefore the repository **does not currently claim** the canonical Judge -> Kernel -> Target incident/recovery lifecycle is end-to-end live-proven.
+This is currently classified as an accepted-message simulation limitation of the deployed Studio-dev execution environment; the exact backend source SHA is not exposed. Therefore the repository **does not claim** the canonical Judge -> Kernel -> Target incident/recovery lifecycle is end-to-end live-proven. E1 Run A has not submitted an incident; Run B and H1 have not run.
 
 E1 remains evidence-bound until two independent clean 61997 runs succeed. See:
 
-- `release-evidence/r1/e1/README.md`
-- `docs/execution/External Execution Handoff.md`
+- `release-evidence/r1/diagnostics/accepted-message-repro/`
+- `docs/execution/Open Blockers.md`
+- `docs/execution/HANDOFF.md`
 - `docs/execution/R1 Release Readiness Checklist.md`
 - `docs/execution/R1 Release Claim Matrix.md`
 
@@ -223,7 +227,7 @@ Developers and agents should prefer the SDK/CLI to scraping the web product. Dir
 
 Audit history is preserved under `docs/execution/audit-packets/`.
 
-The current product/integration packet is A3 and remains **AWAITING EXTERNAL REVIEW** until real browser/accessibility evidence is attached and an external reviewer issues a decision. A4 is pre-staged but explicitly **NOT READY FOR EXTERNAL REVIEW**.
+The available A3 attempt-2 packet targets an older source SHA and is not the final candidate packet. A3 must be refinalized against the eventual immutable substantive SHA with its required browser/accessibility evidence. A4 remains **NOT READY FOR EXTERNAL REVIEW**. Current status is **AWAITING EXTERNAL REVIEW — OWNER EXECUTION OVERRIDE** where applicable; no PASS is self-authored.
 
 ## Non-goals for R1
 

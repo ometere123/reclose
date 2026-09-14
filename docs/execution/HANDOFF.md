@@ -175,3 +175,13 @@ Repo still needs full E1 A+B, H1, A3/A4, 156/82 reconciliation, docs/submission 
 - Deployed Studio version is documented as `v0.123.0-rc.6`; exact backend SHA remains unexposed. Do not claim exact source SHA correspondence.
 - Fee helper source/tests (`scripts/studio-dev-fee-allocation.mjs`, `scripts/r1-final-run-a-incident-prepare.mjs`, `scripts/test-studio-dev-fee-allocation.mjs`) remain modified after `02f24aee`; diagnostic contracts/scripts, evidence, manifests, and docs are also local. `.claude/settings.local.json` is excluded.
 - Immediate next work: run targeted JS tests and diff/security review; update Open Blockers and the execution ledger to close funding and track the reproduced Studio limitation; commit/push only valid files and obtain exact-target CI. Continue independent final packaging work while E1 remains blocked. Do not submit either Run A or Run B incident until the complete explicit accepted/finalized fee preflight succeeds on a supported Studio build.
+
+## 2026-09-14 continuation: checkpoint pushed; release documentation updated
+
+The accepted-message reproduction and associated source/evidence are committed and pushed at `74ac584892594f948479cff6956699c558c9b5b2`; exact-target CI run `34791729354` succeeded. Current blocker remains OB-014: explicit accepted Parent→Child message simulation fails with `SystemError: 2: inval`, while finalized control succeeds. No Run A incident was submitted; Run B and H1 are not run.
+
+The Run A target treasury is verified at 0.20 GEN. Its wallet transaction hash remains unavailable because the user-provided screenshot truncated it. Current active deployment is `r1-lifecycle-split-run-a`, target `reclose-target-007`, policy `policy-r1-009` v1, hash `0xb5ac60c955e3bc052531e07b9c351738e7c27d80fb286b702f1f6e2e8ee83953`. The deployment manifest status now reflects the accepted-message blocker.
+
+This continuation corrected stale README and benchmark/runbook claims and created security, integration, SDK, policy, Sentinel, benchmark, demo, operations, closure, claim-matrix and submission draft documents. These drafts accurately retain the live limitation. Full requirements/threat reconciliation, A3/A4 against a final immutable source SHA, H1/E1, final fee profile, and fresh-checkout release verification remain open. Do not treat documentation completion as release completion.
+
+Current branch/HEAD must be read with `git branch --show-current` and `git rev-parse HEAD` at resume. Preserve `.claude/settings.local.json` and never stage it. Continue row-level requirements/threat audit and targeted verification; only then commit/push valid work.

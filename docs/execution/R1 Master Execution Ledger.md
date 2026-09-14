@@ -58,3 +58,10 @@ The first fresh contract set is live and its deployment record is `deployment/61
 ## Registry/source verification update — 2026-09-13
 
 The current Judge is not valid for E1's immutable-source requirement. Its `reclose-reference-evidence` source authority was live-read as mutable boilerplate `main/`, and the fetched README is unrelated. Corrected registry hash is `0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386`; immutable fixture commit is `ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6`. Keep the current sealed policy inactive; deploy corrected Judge/Vault and a new policy before E1.
+
+## 2026-09-14 continuation status
+
+- E1 Run A deployment/policy is active and treasury funding is verified. The required incident action is **blocked before submission** by OB-014, reproduced independently with a minimal accepted/finalized message control. Do not record E1 success.
+- E1 Run B and H1 have not run. No benchmark metrics are reported.
+- Documentation/submission drafts were added and stale descriptions corrected. Row-level 156 requirement / 82 threat reconciliation and exact evidence references remain incomplete.
+- A3/A4 are not externally approved. Do not self-author PASS.

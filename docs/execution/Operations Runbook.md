@@ -41,14 +41,14 @@ Runs the **targeted** `genlayer estimate-fees <address> <method> --args ...` sim
 discovers any cross-contract `messageAllocations` tree the call needs), then writes with exactly
 that fee object.
 
-**Known limitation (carry forward, do not silently route around):** a write whose execution
-triggers an internal cross-contract message (e.g. `IncidentJudgeV1.submit_incident` dispatching
-`AssuranceKernel.receive_decision`) has been confirmed, on live Studio-dev, to fail with
-`SystemError: 2: inval` on `EmitInternalMessage` - this reproduces identically whether the write
-uses a bare baseline fee object OR the targeted message-allocation-discovery simulation itself.
-See `docs/execution/C2 Live Proof Evidence.md` Finding 2 for the full live evidence. Do not spend
-further time re-probing `--fees`/`--fee-value` combinations for this specific failure mode - it is
-a GenVM/Studio-dev runtime-level constraint, not a fee-flag-guessing problem.
+**Current Studio-dev limitation:** a read-only simulation of a correctly encoded explicit mode-2
+allocation for an `on="accepted"` Parent→Child internal message fails with
+`SystemError: 2: inval` at `wasi.gl_call`; the phase-matched `on="finalized"` control succeeds.
+This was reproduced with a minimal Parent and Child, independently of Reclose policy semantics.
+The exact diagnostic source, inputs, receipts and redacted structured response are in
+`release-evidence/r1/diagnostics/accepted-message-repro/`. Do not retry the same accepted-message
+preflight or submit the incident until the simulation works on Studio-dev. Do not replace the
+estimator-produced allocation with guessed fee values.
 
 ## 3. Compiling and deploying a policy
 

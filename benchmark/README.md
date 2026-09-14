@@ -31,6 +31,6 @@ These are not marketing claims of defect-free software.
 
 ## Current live status
 
-At the time the matrix was created, `LIVE-01` through `LIVE-05` are `BLOCKED_EXTERNAL` by the observed Studio-dev triggered-child failure `fee no_matching_allocation # internal`. `LIVE-06` through `LIVE-08` are `NOT_RUN` against the latest clean deployment.
+The canonical corpus currently contains 78 scenarios (check `benchmark/r1-scenarios.json` and `npm run benchmark:check` for the integrity result). No complete H1 execution has been recorded. Run A is blocked before incident submission by a reproducible accepted-message simulation failure in the deployed Studio-dev environment; Run B and all H1 live scenarios remain `NOT_RUN` or `BLOCKED`, never passes. The minimized evidence is in `release-evidence/r1/diagnostics/accepted-message-repro/`.
 
 The live statuses may only be changed from captured transaction/deployment evidence.

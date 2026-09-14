@@ -73,11 +73,11 @@ Canonical environment:
 
 ## Current evidence boundary
 
-The current Studio-dev evidence records a runtime fee-allocation failure on the triggered Judge -> Kernel child:
+The current Studio-dev evidence records a read-only accepted-message simulation failure, reproduced independently of Reclose policy logic:
 
-`fee no_matching_allocation # internal`
+`SystemError: 2: inval` for an explicit-allocation accepted Parent -> Child message; the phase-matched finalized control succeeds.
 
-Reclose intentionally shows this as a downstream execution failure instead of presenting the semantic judgment as completed containment. The repository therefore does not claim the canonical incident/recovery sequence is fully live end-to-end until the required child path and two clean E1 runs succeed.
+No incident was submitted on the current Run A deployment. Reclose therefore does not claim a live semantic judgment, containment, fallback or recovery from this generation. The canonical E1 A+B sequence and H1 remain incomplete.
 
 If that blocker is resolved before submission, replace this section with the exact successful E1 transaction/evidence references. Do not simply delete the limitation without evidence.
 

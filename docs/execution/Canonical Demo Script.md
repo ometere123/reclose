@@ -68,9 +68,9 @@ If the live child path is fixed and E1 evidence exists:
 
 > GenLayer decision: provider compromise confirmed. Policy consequence: Provider A restricted and safe mode entered. The child execution and resulting target state are verified here.
 
-If the known blocker still exists:
+For the current deployment, show the minimized accepted-message reproduction and finalized control:
 
-> The Judge-side semantic path completed, but the Studio-dev triggered child failed with `fee no_matching_allocation # internal`. Reclose shows that downstream execution failure explicitly rather than pretending the confirmed judgment changed target state.
+> The read-only fee preflight stopped before incident submission. On this Studio-dev build, a minimal explicit-allocation accepted Parent→Child message fails with `SystemError: 2: inval`, while the finalized control succeeds. We do not claim this deployment contained a live incident.
 
 Do not use wording such as “Reclose automatically contained Provider A live” while the child remains failed.
 
@@ -82,7 +82,7 @@ This is the defining product moment:
 
 > Assurance does not have to mean stopping everything. The target can continue through a pre-authorized safe fallback while the compromised resource stays restricted.
 
-If E1 is not complete, show the reference/Direct Mode proof and label it accurately.
+If E1 is not complete, show reference/Direct Mode behavior only and label it accurately. Do not imply live Provider B fallback on the current generation.
 
 ## 8. Recovery
 
