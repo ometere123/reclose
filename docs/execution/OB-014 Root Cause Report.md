@@ -1,8 +1,8 @@
 # OB-014 root-cause report
 
-**As of:** 2026-09-14  
-**Repository candidate:** `main` at `6602e3a1c323dd992f74c0bf1fc8b3e64bc64015`  
-**Network evidence:** GenLayer Studio-dev, chain 61997; UI-reported version `v0.123.0-rc.6`  
+**As of:** 2026-09-14
+**Repository candidate:** `main` at `6602e3a1c323dd992f74c0bf1fc8b3e64bc64015`
+**Network evidence:** GenLayer Studio-dev, chain 61997; UI-reported version `v0.123.0-rc.6`
 **Disposition:** Accepted-message simulation failure reproduced outside Reclose policy logic; inner host-side rejection is not identified. No code change or further live write is justified by the available evidence.
 
 ## Facts established by retained evidence
