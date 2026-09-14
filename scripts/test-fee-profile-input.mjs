@@ -12,6 +12,7 @@ const base = {
 };
 
 assert.deepEqual(validateFeeProfileInputs([base], "run-a"), []);
+assert.match(validateFeeProfileInputs([{ ...base, deploymentGeneration: undefined }], undefined)[0], /active deployment generation is required/);
 assert.match(validateFeeProfileInputs([{ ...base, args: [] }], "run-a")[0], /real non-empty args/);
 assert.match(validateFeeProfileInputs([base], "run-b")[0], /does not match/);
 assert.match(validateFeeProfileInputs([{ ...base, id: "kernel-deploy" }], "run-a")[0], /deployment fee estimation is not supported/);
@@ -29,4 +30,4 @@ assert.match(validateFeeProfileInputs([{
   args: ["REPLACE_WITH_REAL_INCIDENT"],
 }], "run-a")[0], /placeholder argument is forbidden/);
 
-console.log("Fee-profile input guard: 6/6 passed");
+console.log("Fee-profile input guard: 7/7 passed");

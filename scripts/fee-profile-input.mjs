@@ -5,6 +5,7 @@ const DECIMAL = /^\d+$/;
 export function validateFeeProfileInputs(profiles, expectedGeneration) {
   const errors = [];
   if (!Array.isArray(profiles) || profiles.length === 0) return ["profile input must be a non-empty array"];
+  if (!String(expectedGeneration ?? "").trim()) errors.push("active deployment generation is required");
   const seen = new Set();
 
   for (const profile of profiles) {
