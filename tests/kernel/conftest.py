@@ -69,6 +69,10 @@ class FakeTargetProxy:
         return True
 
     def emit(self, **kwargs):
+        phase = kwargs.get("on")
+        if phase not in {"decided", "finalized"}:
+            raise ValueError(f"phase {phase!r} is not accepted by the pinned EmitInternalMessage ABI")
+        self._dispatch_log.emit_phases.append(phase)
         return self
 
     def apply_assurance_action(self, action_id, incident_id, policy_key, action_type, resource_id, param_u256, param_str, decision_stage):
@@ -117,6 +121,7 @@ def kernel_harness(direct_deploy, direct_owner):
         pass
 
     dispatch_log = DispatchLog()
+    dispatch_log.emit_phases = []
     dispatch_log.revoked_flag = [False]
     dispatch_log.controller_addr = [kernel.address]
     dispatch_log.unsupported_actions = set()
@@ -148,6 +153,7 @@ def fresh_kernel_with_proxy(direct_deploy, direct_owner):
         pass
 
     dispatch_log = DispatchLog()
+    dispatch_log.emit_phases = []
     dispatch_log.revoked_flag = [False]
     dispatch_log.controller_addr = [kernel.address]
     dispatch_log.target_id = ["target-001"]

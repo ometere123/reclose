@@ -84,6 +84,7 @@ def test_confirmed_incident_dispatches_provisional_and_final_when_allowed(judge_
     assert decisions[0]["decision_stage"] == 1
     assert decisions[1]["decision_stage"] == 2
     assert all(item["outcome"] == 1 for item in decisions)
+    assert config["emit_phases"] == ["decided", "finalized"]
     assert incident_id.endswith(":0")
 
 

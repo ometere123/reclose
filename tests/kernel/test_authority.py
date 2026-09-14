@@ -59,11 +59,13 @@ def test_lifecycle_specific_entrypoints_force_their_decision_stage(kernel_harnes
     )
     kernel.receive_provisional_decision(*args)
     assert dispatch_log[-1]["decision_stage"] == STAGE_PROVISIONAL
+    assert dispatch_log.emit_phases[-1] == "decided"
     with pytest.raises(Exception):
         kernel.receive_provisional_decision(*args, STAGE_FINAL)
 
     kernel.receive_final_decision(*args)
     assert dispatch_log[-1]["decision_stage"] == STAGE_FINAL
+    assert dispatch_log.emit_phases[-1] == "finalized"
     with pytest.raises(Exception):
         kernel.receive_final_decision(*args, STAGE_PROVISIONAL)
 

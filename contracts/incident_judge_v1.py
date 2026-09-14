@@ -826,7 +826,7 @@ class IncidentJudgeV1(gl.contract.Contract):
 
         kernel_contract = gl.contract.get_at(self.kernel)
         if provisional_allowed and int(outcome) == int(DECISION_OUTCOME_CONFIRMED):
-            kernel_contract.emit(on="accepted").receive_provisional_decision(
+            kernel_contract.emit(on="decided").receive_provisional_decision(
                 incident_id, "", target_id, policy_key, policy_version, policy_hash,
                 rule_id, resource_id, reporter, evidence_hash, int(outcome), condition_code,
                 int(self.module_version),

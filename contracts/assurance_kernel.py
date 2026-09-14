@@ -999,7 +999,10 @@ class AssuranceKernel(gl.contract.Contract):
             record.param_str = param_str
             record.dispatch_attempts = gl.u32(attempts + 1)
             self.action_dispatch_records[action_id] = record
-        on = "accepted" if int(decision_stage) == int(DECISION_STAGE_PROVISIONAL) else "finalized"
+        # The pinned py-genlayer runner exposes the executor ABI phases as
+        # "decided" and "finalized". "accepted" is not a valid EmitInternalMessage
+        # wire value and fails in wasi.gl_call before child dispatch.
+        on = "decided" if int(decision_stage) == int(DECISION_STAGE_PROVISIONAL) else "finalized"
         gl.contract.get_at(target.target_address).emit(on=on).apply_assurance_action(action_id, incident_id, policy_key, int(action_type), resource_id, param_u256, param_str, int(decision_stage))
 
     def _restriction_still_active(self, incident: IncidentRecord, action_type: gl.u8, resource_id: str) -> bool:

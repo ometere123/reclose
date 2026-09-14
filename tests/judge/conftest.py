@@ -114,7 +114,10 @@ class FakeKernelVaultProxy:
         return bool(self.config["bond_valid"]) and int(expected_amount) == int(self.config["report_bond"])
 
     def emit(self, **kwargs):
-        self._last_emit = kwargs
+        phase = kwargs.get("on")
+        if phase not in {"decided", "finalized"}:
+            raise ValueError(f"phase {phase!r} is not accepted by the pinned EmitInternalMessage ABI")
+        self.config.setdefault("emit_phases", []).append(phase)
         return self
 
     def mark_bond_consumed(self, bond_id, incident_id):
@@ -166,6 +169,7 @@ def judge_harness(direct_deploy, direct_owner, direct_alice):
         "report_bond": 0,
         "confirmed_bounty": 0,
         "bond_valid": True,
+        "emit_phases": [],
     }
     proxy = FakeKernelVaultProxy(config, judge.address, decision_log)
     original = gl.contract.get_at
