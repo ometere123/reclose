@@ -45,6 +45,7 @@
     "studio-dev-fee-allocation:selftest": "node scripts/test-studio-dev-fee-allocation.mjs",
     "contracts:lint": "node scripts/list-deployable-contracts.js",
     "contracts:lint:selftest": "node scripts/test-list-deployable-contracts.js",
+    "kernel-deploy-args:test": "node scripts/test-kernel-deployment-args.mjs",
     "genvm-lint-wrapper:selftest": "node scripts/test-genvm-lint-wrapper.js",
     "verify:py": "bash scripts/py-verify.sh",
     "a0-integrity": "node scripts/a0-integrity-check.js",

@@ -7,6 +7,8 @@ RPC: `https://studio-dev.genlayer.com/api`
 
 This envelope is a planning cap only. It was produced without deployment, wiring, funding, activation, simulation, or wallet submission. Every operation is capped at the authoritative network baseline `100000000000010352` wei (`0.100000000000010352 GEN`). That baseline is a conservative cap, not an exact quote for each operation.
 
+The corrected Kernel deployment command must pass constructor values as `--args 1 60`; the literal type-marker form `--args int 1 int 60` is invalid and caused the stopped deployment recorded in the evidence.
+
 ## Operation order
 
 | # | Operation | Transaction? | Maximum fee cap |
