@@ -56,4 +56,20 @@ Corrected Kernel, Target, Judge, and Vault deployment fee distributions and maxi
 
 ## Result
 
-Deployment is not yet approved or feasible to price exactly from the saved artifacts. A separate read-only estimator run is required to produce authoritative corrected-stack distributions and total exposure. Deployment remains blocked pending that report and owner approval.
+## Read-only estimator result (2026-09-14)
+
+Command used (no contract address/method, therefore no simulation or write):
+
+```text
+node C:\Users\USER\AppData\Roaming\npm\node_modules\genlayer\dist\index.js estimate-fees --rpc https://studio-dev.genlayer.com/api --json
+```
+
+Tool versions: GenLayer CLI `0.40.0-rc.3`; `genlayer-js` `2.0.0-rc.1`. The authoritative Studio-dev fee-manager baseline returned:
+
+```json
+{"distribution":{"leaderTimeunitsAllocation":"100","validatorTimeunitsAllocation":"200","appealRounds":"0","executionBudgetPerRound":"25000000000000000","executionConsumed":"0","totalMessageFees":"0","rotations":["3"],"maxPriceGenPerTimeUnit":"2","storageFeeMaxGasPrice":"300000000","receiptFeeMaxGasPrice":"300000000"},"feeValue":"100000000000010352"}
+```
+
+That is `0.100000000000010352 GEN` and is a network baseline, not a per-contract deployment quote. The pinned CLI exposes deployment as a write command and exposes `estimate-fees` for an existing contract/method or the network baseline; it has no read-only corrected-contract deployment estimator. Consequently, exact corrected Kernel/Target/Judge/Vault deployment distributions and total maximum deployment exposure remain **UNAVAILABLE**, rather than guessed from the superseded generation.
+
+Deployment remains blocked pending an authoritative per-deployment quote path and owner approval.
