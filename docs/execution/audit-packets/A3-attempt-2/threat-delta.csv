@@ -23,7 +23,7 @@ A3 does not mass-promote canonical `Threat Status.csv` rows to VERIFIED. Product
 
 No new security threat was discovered by the product implementation itself.
 
-The existing live infrastructure limitation remains open: Studio-dev Judge -> Kernel triggered-child fee allocation fails with `fee no_matching_allocation # internal`. It is not reclassified as a product/UI defect and is not hidden by product state.
+Current live limitation is OB-014: an explicitly allocated accepted Parent -> Child simulation on Studio-dev returns `SystemError: 2: inval`; the finalized control succeeds. The earlier `fee no_matching_allocation # internal` attribution is historical and superseded. It remains an execution-platform limitation under investigation, not a product/UI defect.
 
 ## Verification boundary
 

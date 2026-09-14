@@ -6,6 +6,8 @@
 
 This directory exists to make the final release boundary explicit. Its presence does **not** mean A4 has been reached or passed.
 
+Current candidate-scoped readiness is recorded in [`candidate-preparation.md`](candidate-preparation.md); status remains **NOT READY FOR EXTERNAL REVIEW**.
+
 ## Entry conditions
 
 Do not change this packet to `AWAITING EXTERNAL REVIEW` until all of the following are true:

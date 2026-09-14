@@ -1,18 +1,8 @@
-98b98cc6ddc3d36292914e79c8fe4c8bc0d48209
+7d308374cb6c634660b0e70ca389618198496503
 branch: claude/r1-product-final
-CI: GitHub Actions run 34715269007 - SUCCESS (https://github.com/ometere123/reclose/actions/runs/34715269007)
+status: immutable substantive A3 candidate snapshot; subsequent packet/handoff changes are documentation-only
+CI: GitHub Actions run 34798352450 - SUCCESS (https://github.com/ometere123/reclose/actions/runs/34798352450)
 
-Fourth and final A3-attempt-2 remediation sub-pass, completing the final source-remediation
-directive in full: real genlayer-js@2.0.0-rc.1 browser write runtime (injected provider -> write
-client -> writeContract(), no Snap/custom signer/host-writer requirement), signer-identity binding
-(expectedSigner checked against the connected account immediately before every signature, with
-accountsChanged/chainChanged invalidating all drafts), a strict sequential policy construction/
-activation state machine, judgeVersion preserved end-to-end in the kernel-equivalent policy diff,
-the non-zero Reporter bond journey (IncentiveVault.open_bond gating submit_incident), an additive
-indexer-based recovery-lineage hook, and the getEffectiveProviderStatus authority-revoked fix. See
-known-limitations.md for what remains genuinely open.
+Previous A3 attempt-2 candidate, now superseded: 98b98cc6ddc3d36292914e79c8fe4c8bc0d48209 (CI 34715269007 - SUCCESS). Earlier remediation sub-pass SHAs and results are retained in requirements-at-98b98cc.csv, the prior browser-evidence index, and findings-closure.md history.
 
-Supersedes the prior checkpoint fa76e8409940dc836bc12fc0dc1144196d2531ee (CI 34710541702); earlier
-checkpoints in order: ad38a3920892c5c0681e4d603afc8ef07254228d
-(CI 34707671490), 7f032af5921eff258c4c69a2f381861b003bd898 (CI 34686497909),
-7d1bf1eb317761c2b660e2e5c3b1b39b41d8388e (CI 34684832850). All on branch claude/r1-product-final.
+Attempt 1 remains preserved unchanged as FAIL at ../A3/AUDIT_DECISION.md.

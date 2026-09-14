@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const statusPath = path.join(root, 'docs/execution/Requirements Status.csv');
 const matrixPath = path.join(root, 'docs/governance/Requirements Traceability Matrix.md');
-const a3MapPath = path.join(root, 'docs/execution/audit-packets/A3-attempt-2/requirements.csv');
+// The packet's requirements.csv is the canonical 156-row ledger. Keep using the
+// preserved A3-specific source map as enrichment input so refreshing the packet
+// cannot make this reconciliation check parse its own output as the old schema.
+const a3MapPath = path.join(root, 'docs/execution/audit-packets/A3-attempt-2/requirements-at-98b98cc.csv');
 const threatPath = path.join(root, 'docs/security/Threat Status.csv');
 const reportPath = path.join(root, 'docs/execution/Requirements Reconciliation.md');
 const writeMode = process.argv.includes('--write');

@@ -75,6 +75,20 @@ and the getEffectiveProviderStatus authority-revoked fix.)
     was not attempted this pass.
 12. No automated axe-core/Lighthouse accessibility scan was run against this exact SHA; no full
     manual screen-reader pass was performed.
-13. A2-C01 (Studio-dev Judge -> Kernel `fee no_matching_allocation # internal`) remains open,
-    unchanged, and continues to block both E1/R1 closure and live proof of A3-H04's second hop.
+13. The older A2-C01 nested allocation defect is CLOSED and remains live-verified. Current blocker
+    OB-014 is different: on Studio-dev v0.123.0-rc.6, an explicitly allocated accepted
+    Parent->Child message fails read-only simulation with `SystemError: 2: inval`, while the
+    matching finalized control succeeds. The minimal reproduction is preserved under
+    `release-evidence/r1/diagnostics/accepted-message-repro/`. This blocks E1/R1 closure and live
+    proof of A3-H04's complete second hop; do not retry the same simulation or submit an incident.
 14. E1/H1-live/A4/R1/S1 work was not attempted, per FINAL_REMEDIATION.md Section 17.
+
+## 2026-09-14 candidate refresh correction
+
+The current immutable candidate and exact CI are recorded in `AUDIT_TARGET_SHA.txt` and
+`candidate-refresh.md`. The old 98b candidate's browser screenshots remain historical and are not
+represented as captures against the refreshed candidate. Current-candidate production browser,
+connected-wallet signing, keyboard/screen-reader, and responsive evidence remain NOT CAPTURED.
+The live Run A treasury readback proves 0.20 GEN, but its funding transaction hash remains
+unavailable in the active manifest because the screenshot ID was truncated. See the exact
+diagnostic and deployment manifest; no value or hash is inferred.

@@ -1,7 +1,29 @@
 # A3 Attempt 2 - Browser Evidence Index
 
-**Exact candidate SHA:** `ad38a3920892c5c0681e4d603afc8ef07254228d` (branch `claude/r1-product-final`)
-**CI at this SHA:** GitHub Actions run `34707671490` - **SUCCESS**
+## Refinalized candidate `7d308374cb6c634660b0e70ca389618198496503` — current evidence status
+
+**Exact-target CI:** run `34798352450`, SUCCESS.
+
+**Current-candidate browser/product evidence:** **NOT CAPTURED.**
+**Current-candidate wallet signing evidence:** **NOT CAPTURED.**
+
+On 2026-09-14 the available local Reclose page was inspected in the user browser. It showed the
+`MockProductAdapter` fixture banner, a connected wallet on chain 61999 (wrong network), and the
+stale `reclose-target-004` route. That observation is recorded only to explain why the open page
+cannot serve as evidence for the active Run A deployment or connected-wallet proof. No screenshot
+from that stale/fixture page is used as current-candidate evidence. The historical capture passes
+below remain tied to their stated older SHAs and do not satisfy the refreshed candidate capture
+set.
+
+Capture of the deployed live product, owner/reporting wallet journeys, keyboard/accessibility
+review, responsive widths, and policy/incident/recovery states remains open. The active Studio-dev
+accepted-message blocker also prevents a truthful live Incident Explorer execution/recovery
+journey. Do not replace these gaps with fixture screenshots or mark them as passing.
+
+### Historical capture record — not the refinalized candidate
+
+**Exact candidate SHA for this historical pass:** `ad38a3920892c5c0681e4d603afc8ef07254228d` (branch `claude/r1-product-final`)
+**CI at this historical SHA:** GitHub Actions run `34707671490` - **SUCCESS**
 (https://github.com/ometere123/reclose/actions/runs/34707671490)
 
 The sections below through "Delta pass against `7f032af...`" were captured against earlier
@@ -18,19 +40,21 @@ selection changes. Both are real interactive Browser-pane sessions, not descript
 connected in this pass.
 **Date:** 2026-09-12
 
-This is a real, interactive inspection pass performed against the exact SHA above - not a
-description of expected behavior. Every observation below reflects what was actually rendered.
+This is a real, interactive inspection pass performed against the historical SHA noted in the
+preceding packet revision - not a description of expected behavior. These are historical fixture-
+mode observations, not current-candidate browser or live-wallet evidence. Current evidence status
+is recorded in `candidate-refresh.md`.
 
 ## 1440px desktop
 
 | Route | Observation |
 |---|---|
-| `#/overview` | Renders cleanly; fixture-mode banner, metric strip, known-live-limitation notice (fee no_matching_allocation), targets table (SAFE_MODE + NORMAL markers, shape-differentiated), recent incidents table (CONFIRMED green / UNDETERMINED amber). |
+| `#/overview` | Historical fixture-mode capture: renders cleanly; fixture-mode banner, metric strip, known-live-limitation notice (then reported as fee no_matching_allocation), targets table (SAFE_MODE + NORMAL markers, shape-differentiated), recent incidents table (CONFIRMED green / UNDETERMINED amber). This does not describe the current OB-014 diagnosis. |
 | `#/targets` | Registered targets table; SAFE_MODE target and NORMAL target both render with distinct marker shapes. |
 | `#/targets/reclose-target-004` | Target detail: assurance state SAFE_MODE, active restrictions=2, effective capabilities=1, policy version=4, full identity/authority record. |
 | `#/incidents` | Incident list; CONFIRMED (green) and UNDETERMINED (amber) outcomes visually distinct, never collapsed to one status color. |
 | `#/incidents/reclose-target-004:...:11` (CONFIRMED) | Full five-band Incident Explorer: (01) claim & evidence with two sources; (02) GenLayer judgment showing FINAL/CONFIRMED/CONFIRMED_CREDENTIAL_COMPROMISE/FINALIZED/MAJORITY_AGREE/SUCCESS·FINISHED_WITH_RETURN; (03) bounded effects table (RESTRICT provider_a, ENTER_SAFE_MODE target-wide, both PROVISIONAL/SUCCESS); (04) real 4-hop parent/child trace (REPORT_SUBMISSION -> JUDGE_DECISION -> KERNEL_EFFECT -> TARGET_ACTION, all FINALIZED/SUCCESS/FINISHED_WITH_RETURN). |
-| `#/incidents/reclose-target-004:...:12` (UNDETERMINED / child failure) | Confirmed the required "successful semantic judgment + failed child execution" case: a red "Execution failure is downstream of judgment" banner reads "JUDGE_DECISION finalized with FINISHED_WITH_ERROR: fee no_matching_allocation # internal. The semantic decision is not rewritten as failed." - execution failure is visually separated from and never overwrites the semantic outcome. |
+| `#/incidents/reclose-target-004:...:12` (UNDETERMINED / child failure) | Historical fixture-mode capture of the then-reported `fee no_matching_allocation # internal` child failure. It confirms semantic and execution outcomes were displayed separately in that fixture; it is not evidence for the current OB-014 simulation result. |
 | `#/policies/reclose-target-004` | Policy identity (version 4, manifest hash, active=yes, human override=enabled) and authority diff showing `ACTION_ADDED` rows for RESTRICT/ENTER_SAFE_MODE with plain-language descriptions - expansion is visually prominent, not buried. |
 | `#/report` | Incident report form (target/rule/resource/URL/source class) plus, after "Preview fee & bond": a Signing boundary panel showing network/estimated fee/reporter bond/estimate flag, and an explicit "Preview only - Fixture mode will not sign or submit this report" notice (I1 control visually confirmed, not just source-asserted). |
 | `#/recover` | Recovery evidence form plus a Recovery boundary panel stating restoration requires a final recovery validation decision and the absence of conflicting restrictions - never implies a timer alone restores authority. |
@@ -79,7 +103,7 @@ clear blue focus outline appears on the third focusable element, the "demo-payme
 ## Not captured this pass (honest gap, not fabricated)
 
 - A3-H04's live Kernel -> Target second hop (`trackKernelToTargetChild`) was not exercised in the
-  Browser pane - it has no live network available to trigger it (A2-C01 means the Judge -> Kernel
+  Browser pane - it has no live network available to trigger it (the current OB-014 accepted
   hop itself still fails first), and fixture mode's synthetic trace fixture is unaffected by this
   code path. Proven only at the unit level (`scripts/test-frontend-remediation.js`).
 - The "Export audit trail" control (A3-H08) was not exercised in this Browser pass - no live

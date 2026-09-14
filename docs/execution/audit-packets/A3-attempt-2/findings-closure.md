@@ -1,5 +1,27 @@
 # A3 Attempt 2 - Findings Closure (A3-H01 through A3-H12)
 
+## Refinalized-candidate addendum — `7d308374cb6c634660b0e70ca389618198496503`
+
+Exact-target CI run `34798352450` passed the full repository verification. The current candidate
+disposition is recorded in `candidate-refresh.md`; older sub-pass notes below are retained as
+history and must not be read as evidence for this newer SHA.
+
+The A3-H09 traceability finding is now **CLOSED FOR TRACEABILITY**: the canonical requirements
+ledger is joined against the governance matrix and the A3 implementation map for all 156 locked
+IDs, statuses are reconciled, and each VERIFIED row has implementation, test, evidence, and commit
+references. This closes the mapping/status-integrity defect, not the requirements backlog: 106
+requirements remain NOT STARTED, 27 IN PROGRESS, and 13 IMPLEMENTED / UNVERIFIED.
+
+The current Studio-dev blocker is OB-014, not the historical A2-C01 allocation issue. A correctly
+allocated accepted Parent→Child noop simulation returns `SystemError: 2: inval`; its finalized
+control succeeds. That independently reproduced behavior blocks H04's full live causal trace,
+E1 and the live-incident-dependent benchmark cases. No incident write or Reporter nonce was
+created. Exact diagnostics are under `release-evidence/r1/diagnostics/accepted-message-repro/`.
+
+The previous browser/accessibility screenshots are historical fixture-mode captures against old
+candidate SHAs. The current browser index marks live product/wallet captures NOT CAPTURED for this
+candidate. Do not promote those historical captures into current proof.
+
 ## Third sub-pass addendum - response to an independent audit against `ad38a39...`
 
 An independent audit of checkpoint `ad38a3920892c5c0681e4d603afc8ef07254228d` correctly found that
@@ -115,7 +137,7 @@ closure of "all twelve findings with live proof" - see `known-limitations.md`.
 - Remaining risk: no live-wallet browser screenshot of the actual blocked-signing error banner
   exists yet (requires a connected writer stub in the browser, not just unit tests).
 
-## A3-H04 (HIGH) - live Incident Explorer causal trace - **CLOSED (code-complete); live proof blocked by A2-C01**
+## A3-H04 (HIGH) - live Incident Explorer causal trace - **CODE-COMPLETE; live proof blocked by OB-014**
 
 - Fix (original sub-pass): `SdkProductAdapter.getIncident` no longer unconditionally returns
   `trace: []` in live mode; it reconstructs the real Judge-parent lifecycle from `decisionView`
@@ -132,12 +154,12 @@ closure of "all twelve findings with live proof" - see `known-limitations.md`.
   reconstruction"; "live getIncident attempts Kernel -> Target reconstruction, not only Judge ->
   Kernel" (both against a fake transport in `scripts/test-frontend-remediation.js`).
 - Remaining risk, reported honestly: this is code-complete and unit-tested, but NOT live-proven.
-  The one live network available (Studio-dev) cannot exercise the second hop at all, because the
-  first hop (Judge -> Kernel `receive_decision`) still fails live with `fee
-  no_matching_allocation # internal` (A2-C01) - a failed first hop means the second hop's dispatch
-  never fires on the only live environment this program has access to. The fixture-mode Incident
-  Explorer continues to render the complete four/five-hop trace from synthetic fixture data, which
-  was never blocked by this limitation and is unchanged.
+  The current explicit-allocation accepted Parent -> Child simulation on Studio-dev returns
+  `SystemError: 2: inval`; the finalized control succeeds. This is tracked as OB-014. A failed
+  accepted first hop means the second hop's dispatch cannot yet be live-proven. The earlier
+  `fee no_matching_allocation # internal` diagnosis was superseded by the minimal reproduction.
+  The fixture-mode Incident Explorer continues to render the complete four/five-hop trace from
+  synthetic fixture data, which is independent of this live limitation.
 
 ## A3-H05 (HIGH) - canonical EAP in product - **CLOSED (architecturally)**
 
