@@ -1,0 +1,24 @@
+
+Error:
+_ResourceNotFoundRpcError: Requested resource not found.
+
+Details: Transaction 0x27e3aead3a85a6a9f98aeb53aed036d7f36be8a7b9a0728f8cf42926670f1428 not found
+Version: viem@2.37.2
+    at withRetry.delay.count.count (file:///C:/Users/USER/AppData/Roaming/npm/node_modules/genlayer/dist/index.js:27057:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async attemptRetry (file:///C:/Users/USER/AppData/Roaming/npm/node_modules/genlayer/dist/index.js:25488:22) {
+  details: 'Transaction 0x27e3aead3a85a6a9f98aeb53aed036d7f36be8a7b9a0728f8cf42926670f1428 not found',
+  docsPath: undefined,
+  metaMessages: undefined,
+  shortMessage: 'Requested resource not found.',
+  version: '2.37.2',
+  code: -32001,
+  [cause]: {
+    code: -32001,
+    message: 'Transaction 0x27e3aead3a85a6a9f98aeb53aed036d7f36be8a7b9a0728f8cf42926670f1428 not found',
+    data: {
+      hash: '0x27e3aead3a85a6a9f98aeb53aed036d7f36be8a7b9a0728f8cf42926670f1428'
+    }
+  }
+}
+
