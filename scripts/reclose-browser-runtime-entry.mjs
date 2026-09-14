@@ -13,6 +13,7 @@ import { SdkProductAdapter } from "../frontend/lib/adapters.js";
 
 const DEPLOYMENT = __RECLOSE_DEPLOYMENT__;
 const RPC_SPACING_MS = 2600;
+const RPC_TIMEOUT_MS = 15000;
 let requestQueue = Promise.resolve();
 let nextStudioRequestAt = 0;
 let rpcSequence = 0;
@@ -38,11 +39,22 @@ function createHttpRpcProvider(endpoint) {
   return {
     request({ method, params = [] }) {
       return scheduleStudioRequest(async () => {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcSequence, method, params }),
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
+        let response;
+        try {
+          response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcSequence, method, params }),
+            signal: controller.signal,
+          });
+        } catch (error) {
+          if (error?.name === "AbortError") throw new Error(`Studio-dev RPC timed out after ${RPC_TIMEOUT_MS / 1000}s (${method}). Check the network or RPC availability and retry.`);
+          throw new Error(`Studio-dev RPC request failed (${method}): ${error?.message ?? String(error)}`);
+        } finally {
+          clearTimeout(timeout);
+        }
         if (!response.ok) throw new Error(`Studio-dev RPC HTTP ${response.status}`);
         const payload = await response.json();
         if (payload.error) {
