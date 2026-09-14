@@ -31,14 +31,14 @@ Record browser/version, viewport, exact commit SHA and defects found. If a defec
 
 The fee-profile input is now bound to the final R1 addresses but intentionally contains empty dynamic arguments where a fresh incident/action/claim must exist.
 
-Final addresses:
+Current Run A addresses (read from `deployment/61997/r1-lifecycle-split-run-a-working-manifest.json`):
 
-- AssuranceKernel: `0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621`
-- IncidentJudgeV1: `0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0`
-- IncentiveVault: `0xB3476a8881e8866a6d92c8252a840a08004d02c3`
-- ReferenceAgentProtocol: `0x7B423D9787aeACC303467dE82A2D193D77155f0f`
+- AssuranceKernel: `0x5A271CB03b4833aA485ff13035844ba500c4E536`
+- IncidentJudgeV1: `0x43c6061FEde8372a3e4c3AB513D32abcfA956e89`
+- IncentiveVault: `0x10451Cd05cDeD4CE0f40983f4f87FFE42968E701`
+- ReferenceAgentProtocol: `0xdf68B59C5f5Fb8929Ab6360B0024f34aec7a0353`
 
-Generate fresh valid branch arguments from the clean deployment/scenario rather than copying stale nonces or incident IDs.
+Generation: `r1-lifecycle-split-run-a`; active target `reclose-target-007`; policy `policy-r1-009` v1. These are the current recorded addresses, not proof that all fee branches are profileable. Generate fresh valid branch arguments from current state rather than copying stale nonces or incident IDs.
 
 Run the live estimator/profile and write the result to:
 
@@ -51,13 +51,15 @@ npm run fee-profile:coverage
 npm run fee-profile:final-check
 ```
 
-`fee-profile:final-check` is expected to fail before the live profile is genuinely complete. Fix the evidence, not the checker.
+`fee-profile:final-check` reads the active deployment manifest and binds both input and output to its generation and contract addresses. The currently retained fee report is stale and must not be presented as final. Re-profile only branches permitted by the serialized throttle; do not repeat the accepted-message preflight that is already proven to fail.
 
 ## 3. Studio-dev Judge -> Kernel child blocker
 
-Known failure:
+Historical failure (superseded):
 
 `fee no_matching_allocation # internal`
+
+Current disposition: the former shared call-key collision was fixed with lifecycle-specific Kernel entrypoints. The remaining blocker is different: an explicit-allocation accepted Parent→Child minimal simulation fails with `SystemError: 2: inval`, while the finalized control succeeds. See `release-evidence/r1/diagnostics/accepted-message-repro/`; do not repeat the same accepted preflight or submit an incident.
 
 Known facts already established:
 

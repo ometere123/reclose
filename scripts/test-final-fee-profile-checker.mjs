@@ -13,11 +13,12 @@ const temp = fs.mkdtempSync(path.join(os.tmpdir(), "reclose-fee-check-"));
 let failures = 0;
 
 const FINAL = {
-  judge: "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
-  kernel: "0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621",
-  vault: "0xB3476a8881e8866a6d92c8252a840a08004d02c3",
-  target: "0x7B423D9787aeACC303467dE82A2D193D77155f0f",
+  judge: "0x0000000000000000000000000000000000000011",
+  kernel: "0x0000000000000000000000000000000000000022",
+  vault: "0x0000000000000000000000000000000000000033",
+  target: "0x0000000000000000000000000000000000000044",
 };
+const GENERATION = "test-r1-generation";
 
 const ids = [
   "kernel-deploy", "judge-deploy", "vault-deploy", "target-deploy",
@@ -39,8 +40,8 @@ function validInput() {
     "reference-agent-provider-payment": FINAL.target,
   };
   return ids.map((id) => {
-    if (id.endsWith("-deploy")) return { id, name: id, notes: "clean deployment fee estimate" };
-    return { id, name: id, address: addressById[id], functionName: "example_method", args: ["real-dynamic-arg"], value: "0", notes: "fresh live branch" };
+    if (id.endsWith("-deploy")) return { id, name: id, deploymentGeneration: GENERATION, notes: "clean deployment fee estimate" };
+    return { id, name: id, address: addressById[id], functionName: "example_method", args: ["real-dynamic-arg"], value: "0", deploymentGeneration: GENERATION, notes: "fresh live branch" };
   });
 }
 
@@ -49,9 +50,11 @@ function validReport() {
   return {
     network: "studio-dev",
     chainId: 61997,
+    deploymentGeneration: GENERATION,
     generatedAt: "2026-09-12T00:30:00.000Z",
     profiles: ids.map((id, index) => ({
       name: id,
+      deploymentGeneration: GENERATION,
       address: addresses[index % addresses.length],
       functionName: id.endsWith("-deploy") ? "deploy" : "example_method",
       status: "ESTIMATED",
@@ -68,8 +71,23 @@ function write(name, value) {
   return file;
 }
 
-function invoke(input, report) {
-  return spawnSync(process.execPath, [checker, input, report], { cwd: ROOT, encoding: "utf8" });
+function validManifest() {
+  return {
+    network: "studio-dev",
+    chainId: 61997,
+    generation: GENERATION,
+    policy: { status: "active" },
+    contracts: {
+      IncidentJudgeV1: { address: FINAL.judge },
+      AssuranceKernel: { address: FINAL.kernel },
+      IncentiveVault: { address: FINAL.vault },
+      ReferenceAgentProtocol: { address: FINAL.target },
+    },
+  };
+}
+
+function invoke(input, report, manifest = validManifest()) {
+  return spawnSync(process.execPath, [checker, input, report, write("manifest.json", manifest)], { cwd: ROOT, encoding: "utf8" });
 }
 
 function test(name, fn) {
@@ -117,9 +135,16 @@ try {
     const p = invoke(inputFile, write("report-missing-error.json", badReport));
     if (p.status === 0 || !p.stderr.includes("has no exact error")) throw new Error("missing estimation error was not rejected");
   });
+
+  test("deployment manifest must be Studio-dev 61997", () => {
+    const bad = validManifest();
+    bad.chainId = 61999;
+    const p = invoke(inputFile, reportFile, bad);
+    if (p.status === 0 || !p.stderr.includes("deployment manifest is not bound to studio-dev chain 61997")) throw new Error("wrong deployment network was not rejected");
+  });
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
 }
 
-console.log(`\n${5 - failures}/5 final fee-profile checker self-tests passed.`);
+console.log(`\n${6 - failures}/6 final fee-profile checker self-tests passed.`);
 if (failures) process.exit(1);

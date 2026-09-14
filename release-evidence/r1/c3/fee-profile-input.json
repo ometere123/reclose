@@ -2,102 +2,115 @@
   {
     "id": "kernel-deploy",
     "name": "AssuranceKernel deploy",
-    "notes": "REQUIRES LIVE RE-RUN - deploy estimates use scripts/fee-profile.mjs/genlayer deployment estimation against Studio-dev. Do not reuse a historical deployment fee as the final profile."
+    "notes": "REQUIRES LIVE RE-RUN - deploy estimates use scripts/fee-profile.mjs/genlayer deployment estimation against Studio-dev. Do not reuse a historical deployment fee as the final profile.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "judge-deploy",
     "name": "IncidentJudgeV1 deploy",
-    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final Judge source."
+    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final Judge source.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "vault-deploy",
     "name": "IncentiveVault deploy",
-    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final Vault source."
+    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final Vault source.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "target-deploy",
     "name": "ReferenceAgentProtocol deploy",
-    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final target source."
+    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final target source.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "judge-report-no-provisional",
     "name": "IncidentJudgeV1.submit_incident (REMEDIATION_CONFIRMED_V1 - provisional_allowed=false)",
-    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
+    "address": "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
     "functionName": "submit_incident",
     "args": [],
     "value": "0",
-    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED: construct a valid current remediation-kind report against policy-r1-004; empty args intentionally make this profile incomplete rather than fabricating a call."
+    "notes": "Active Judge address in r1-lifecycle-split-run-a. Fresh remediation-kind report arguments required; no incident currently exists.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "judge-report-with-provisional",
     "name": "IncidentJudgeV1.submit_incident (PROVIDER_COMPROMISE_V1 - provisional_allowed=true)",
-    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
+    "address": "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
     "functionName": "submit_incident",
     "args": [],
     "value": "0",
-    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED from a fresh canonical compromise report; do not copy stale nonce/evidence arguments."
+    "notes": "Active Judge address in r1-lifecycle-split-run-a. Fresh canonical compromise report and current nonce required; no incident submitted.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "judge-to-kernel",
     "name": "IncidentJudgeV1.submit_incident (Judge -> Kernel cross-contract dispatch branch)",
-    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
+    "address": "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
     "functionName": "submit_incident",
     "args": [],
     "value": "0",
-    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED. This is the branch carrying the open `fee no_matching_allocation # internal` Studio-dev finding and must be profiled honestly even if estimation/execution fails."
+    "notes": "Active Judge address. Accepted/provisional explicit-allocation simulation is blocked by the retained Studio-dev minimal reproduction; do not submit a write.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "kernel-to-target-one-effect",
     "name": "AssuranceKernel -> ReferenceAgentProtocol dispatch, single effect",
-    "address": "0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621",
+    "address": "0x5A271CB03b4833aA485ff13035844ba500c4E536",
     "functionName": "redispatch_final_action",
     "args": [],
     "value": "0",
-    "notes": "FINAL R1 Kernel address. LIVE ARGS REQUIRED from a real current action ID produced by a fresh run."
+    "notes": "Active Kernel address. Requires real current action identity and non-empty arguments from an authorized fresh lifecycle run.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "kernel-to-target-two-effects",
     "name": "AssuranceKernel -> ReferenceAgentProtocol dispatch, two effects on one decision",
-    "address": "0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621",
+    "address": "0x5A271CB03b4833aA485ff13035844ba500c4E536",
     "functionName": "redispatch_final_action",
     "args": [],
     "value": "0",
-    "notes": "FINAL R1 Kernel address. LIVE ARGS REQUIRED from a real current multi-effect action."
+    "notes": "Active Kernel address. Requires real current action identity and non-empty arguments from an authorized fresh lifecycle run.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "remediation",
     "name": "IncidentJudgeV1.submit_remediation",
-    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
+    "address": "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
     "functionName": "submit_remediation",
     "args": [],
     "value": "0",
-    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED after a real CONFIRMED incident exists."
+    "notes": "Active Judge address. Requires a real confirmed parent incident; none exists for the current generation.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "recovery-validation",
     "name": "IncidentJudgeV1.submit_recovery_validation",
-    "address": "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0",
+    "address": "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
     "functionName": "submit_recovery_validation",
     "args": [],
     "value": "0",
-    "notes": "FINAL R1 Judge address. LIVE ARGS REQUIRED after remediation is confirmed and the incident reaches RECOVERY."
+    "notes": "Active Judge address. Requires successful remediation and RECOVERY state; neither exists for the current generation.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "vault-payout",
     "name": "IncentiveVault.claim",
-    "address": "0xB3476a8881e8866a6d92c8252a840a08004d02c3",
+    "address": "0x10451Cd05cDeD4CE0f40983f4f87FFE42968E701",
     "functionName": "claim",
     "args": [],
     "value": "0",
-    "notes": "FINAL R1 Vault address. LIVE ARGS REQUIRED after a non-zero bond/bounty path creates a claimable settlement."
+    "notes": "Active Vault address. Requires a live claimable settlement; no such payout exists for the current generation.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   },
   {
     "id": "reference-agent-provider-payment",
     "name": "ReferenceAgentProtocol.purchase_service (provider payment branch)",
-    "address": "0x7B423D9787aeACC303467dE82A2D193D77155f0f",
+    "address": "0xdf68B59C5f5Fb8929Ab6360B0024f34aec7a0353",
     "functionName": "purchase_service",
     "args": [],
     "value": "0",
-    "notes": "FINAL R1 ReferenceAgentProtocol address. LIVE ARGS/VALUE REQUIRED from the clean E1 run after the target treasury is funded."
+    "notes": "Active target address. Requires fresh purchase arguments and real treasury/provider consequence.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a"
   }
 ]

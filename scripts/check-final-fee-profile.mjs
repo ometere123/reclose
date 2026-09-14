@@ -4,12 +4,8 @@ import path from "node:path";
 
 const DEFAULT_INPUT = "release-evidence/r1/c3/fee-profile-input.json";
 const DEFAULT_REPORT = "release-evidence/r1/c3/fee-profile-report.json";
-const FINAL = {
-  judge: "0x7D9a32BDA22B7C4c1C487Cc2983A816A6f75FFc0".toLowerCase(),
-  kernel: "0x62f0e68c8e2Ab2Ab8afFE1E2D1FCf70197F59621".toLowerCase(),
-  vault: "0xB3476a8881e8866a6d92c8252a840a08004d02c3".toLowerCase(),
-  target: "0x7B423D9787aeACC303467dE82A2D193D77155f0f".toLowerCase(),
-};
+const DEFAULT_MANIFEST = "deployment/61997/r1-lifecycle-split-run-a-working-manifest.json";
+const failures = [];
 
 const requiredIds = [
   "kernel-deploy", "judge-deploy", "vault-deploy", "target-deploy",
@@ -21,25 +17,43 @@ const requiredIds = [
 const args = process.argv.slice(2);
 let inputPath = DEFAULT_INPUT;
 let reportPath = DEFAULT_REPORT;
-if (args.length === 2) {
-  [inputPath, reportPath] = args.map((p) => path.resolve(p));
+let manifestPath = DEFAULT_MANIFEST;
+if (args.length === 2 || args.length === 3) {
+  inputPath = path.resolve(args[0]);
+  reportPath = path.resolve(args[1]);
+  if (args[2]) manifestPath = path.resolve(args[2]);
 } else if (args.length !== 0) {
-  console.error("Usage: node scripts/check-final-fee-profile.mjs [input.json report.json]");
+  console.error("Usage: node scripts/check-final-fee-profile.mjs [input.json report.json [deployment-manifest.json]]");
   process.exit(2);
 }
 
 let input;
 let report;
+let manifest;
 try {
   input = JSON.parse(readFileSync(inputPath, "utf8"));
   report = JSON.parse(readFileSync(reportPath, "utf8"));
+  manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 } catch (error) {
   console.error("FINAL FEE PROFILE NOT READY:");
-  console.error(`- could not read/parse evidence: ${error.message}`);
+  console.error(`- could not read/parse input, report, or deployment manifest: ${error.message}`);
   process.exit(1);
 }
 
-const failures = [];
+const contractAddress = (name) => String(manifest?.contracts?.[name]?.address ?? "").toLowerCase();
+const FINAL = {
+  judge: contractAddress("IncidentJudgeV1"),
+  kernel: contractAddress("AssuranceKernel"),
+  vault: contractAddress("IncentiveVault"),
+  target: contractAddress("ReferenceAgentProtocol"),
+};
+if (manifest?.network !== "studio-dev" || Number(manifest?.chainId) !== 61997) failures.push("deployment manifest is not bound to studio-dev chain 61997");
+if (!manifest?.policy || manifest.policy.status !== "active") failures.push("deployment manifest has no active policy");
+if (!manifest?.generation) failures.push("deployment manifest generation is missing");
+for (const [name, address] of Object.entries(FINAL)) {
+  if (!/^0x[0-9a-f]{40}$/.test(address)) failures.push(`deployment manifest has no valid ${name} address`);
+}
+
 if (!Array.isArray(input)) failures.push("fee-profile input must be an array");
 const byId = new Map((Array.isArray(input) ? input : []).map((x) => [x.id, x]));
 
@@ -60,6 +74,9 @@ for (const [id, expected] of Object.entries(addressExpectations)) {
   const actual = String(byId.get(id)?.address ?? "").toLowerCase();
   if (actual !== expected) failures.push(`${id}: input address ${actual || "<missing>"} != final R1 address ${expected}`);
 }
+for (const [id, item] of byId) {
+  if (item.deploymentGeneration !== manifest.generation) failures.push(`${id}: input generation ${item.deploymentGeneration || "<missing>"} != active deployment generation ${manifest.generation}`);
+}
 
 for (const [id, item] of byId) {
   if (item.functionName && (!Array.isArray(item.args) || item.args.length === 0)) failures.push(`${id}: live call arguments are still empty`);
@@ -67,6 +84,7 @@ for (const [id, item] of byId) {
 }
 
 if (Number(report.chainId) !== 61997 || report.network !== "studio-dev") failures.push("report is not bound to studio-dev chain 61997");
+if (report.deploymentGeneration !== manifest.generation) failures.push(`fee report generation ${report.deploymentGeneration || "<missing>"} != active deployment generation ${manifest.generation}`);
 if (!report.generatedAt || Number.isNaN(Date.parse(report.generatedAt))) failures.push("report generatedAt is missing or invalid");
 if (!Array.isArray(report.profiles) || report.profiles.length < requiredIds.length) failures.push(`report has ${report.profiles?.length ?? 0} profiles; expected at least ${requiredIds.length}`);
 
@@ -77,6 +95,7 @@ for (const expected of Object.values(FINAL)) {
 }
 
 for (const p of profiles) {
+  if (p.deploymentGeneration !== manifest.generation) failures.push(`report profile ${p.name || "<unnamed>"}: deployment generation ${p.deploymentGeneration || "<missing>"} != active deployment generation ${manifest.generation}`);
   if (!p.name) failures.push("report profile has no name");
   if (!p.status) failures.push(`report profile ${p.name || "<unnamed>"} has no explicit status`);
   if (p.status === "ESTIMATED" && !String(p.feeValue ?? "").match(/^\d+$/)) failures.push(`estimated profile ${p.name} has no decimal feeValue`);

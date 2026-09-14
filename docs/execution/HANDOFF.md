@@ -185,3 +185,9 @@ The Run A target treasury is verified at 0.20 GEN. Its wallet transaction hash r
 This continuation corrected stale README and benchmark/runbook claims and created security, integration, SDK, policy, Sentinel, benchmark, demo, operations, closure, claim-matrix and submission draft documents. These drafts accurately retain the live limitation. Full requirements/threat reconciliation, A3/A4 against a final immutable source SHA, H1/E1, final fee profile, and fresh-checkout release verification remain open. Do not treat documentation completion as release completion.
 
 Current branch/HEAD must be read with `git branch --show-current` and `git rev-parse HEAD` at resume. Preserve `.claude/settings.local.json` and never stage it. Continue row-level requirements/threat audit and targeted verification; only then commit/push valid work.
+
+## 2026-09-14 fee-profile checkpoint
+
+The final fee-profile checker previously validated against hard-coded addresses from a superseded deployment. It now resolves all required addresses from the active deployment manifest and binds every input/output profile to that manifest's generation. The profiler installs the shared Studio-dev throttle, serializing its requests with the 2.6-second minimum spacing and bounded backoff. The input template is bound to `r1-lifecycle-split-run-a`; dynamic arguments remain empty until valid current protocol state exists. The retained 3-profile report is stale and fails the checker; no live fee RPC call or write was made in this correction.
+
+Fee checker self-tests: 6/6. Full JavaScript verification: passed. Python tests remain 219/219 from this continuation; Python/contract sources did not change afterward. Fee coverage structure: 13/13. E1 evidence checker: no real Run A/B artifacts, so not closed. Continue traceability and evidence work; do not retry accepted-message preflight.

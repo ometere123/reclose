@@ -11,13 +11,13 @@
 // profile.json shape: [{ "name": "...", "address": "0x...", "functionName": "...",
 //                         "args": [...], "value": "0", "notes": "..." }, ...]
 //
-// A profile entry whose branch is KNOWN to trigger the documented live cross-contract dispatch
-// limitation (docs/execution/C2 Live Proof Evidence.md Finding 2) is still run - this script
-// reports the estimator's exact response/error for that branch rather than skipping it, since an
-// honest fee profile must show what actually happens, not a curated subset.
+// A profile entry whose branch is known to fail a prior read-only simulation is still represented
+// in the output, but do not repeat a stable accepted-message failure merely to regenerate the same
+// result. Retain the exact existing response until the Studio-dev behavior or call path changes.
 
 import { createClient, chains, deriveInternalMessageCallKey } from "genlayer-js";
 import { writeFileSync } from "node:fs";
+import { installStudioDevRpcThrottle } from "./studio-dev-rpc-throttle.mjs";
 
 const STUDIO_DEV_CHAIN_ID = 61997;
 const STUDIO_DEV_RPC = "https://studio-dev.genlayer.com/api";
@@ -43,6 +43,10 @@ async function main() {
   const { profilePath, outPath } = parseArgs(process.argv.slice(2));
   const profiles = JSON.parse(await (await import("node:fs")).promises.readFile(profilePath, "utf8"));
 
+  // Fee profiling performs multiple Studio-dev simulations. Keep them on the same serialized,
+  // bounded RPC queue used by the incident preflight and transaction polling scripts.
+  installStudioDevRpcThrottle();
+
   const chain = { ...chains.studioDevnet, id: STUDIO_DEV_CHAIN_ID, rpcUrls: { default: { http: [STUDIO_DEV_RPC] } } };
   if (chain.id !== STUDIO_DEV_CHAIN_ID) {
     console.error(`REFUSING: expected chain ID ${STUDIO_DEV_CHAIN_ID}, got ${chain.id}`);
@@ -58,7 +62,13 @@ async function main() {
 
   const results = [];
   for (const profile of profiles) {
-    const entry = { name: profile.name, address: profile.address, functionName: profile.functionName, notes: profile.notes ?? null };
+    const entry = {
+      name: profile.name,
+      address: profile.address,
+      functionName: profile.functionName,
+      deploymentGeneration: profile.deploymentGeneration ?? null,
+      notes: profile.notes ?? null,
+    };
     if (["receive_provisional_decision", "receive_final_decision"].includes(profile.functionName)) {
       entry.lifecyclePhase = profile.functionName === "receive_provisional_decision" ? "accepted/provisional" : "finalized";
       entry.internalMessageCallKey = deriveInternalMessageCallKey(profile.functionName);
@@ -85,6 +95,7 @@ async function main() {
   const report = {
     network: "studio-dev",
     chainId: STUDIO_DEV_CHAIN_ID,
+    deploymentGeneration: profiles[0]?.deploymentGeneration ?? null,
     generatedAt: new Date().toISOString(),
     profiles: results,
   };

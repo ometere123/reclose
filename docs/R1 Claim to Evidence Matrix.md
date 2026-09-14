@@ -15,3 +15,5 @@
 | A3/A4 external review | Audit packet status files | Awaiting external review; no self-authored PASS. |
 
 The row-level authoritative ledgers are `docs/execution/Requirements Status.csv` (156 requirements) and `docs/security/Threat Status.csv` (82 threats). Their evidence completeness remains in progress; a valid repository-integrity check is not equivalent to full row-level reconciliation.
+
+At this checkpoint, all 5 VERIFIED requirements have implementation/test/evidence/commit fields. Threat reconciliation is incomplete: 9 threats lack implementation/test references, 65 lack evidence references, 78 lack commit references, and 68 of the 72 CRITICAL/HIGH rows are missing at least one required field. Counts describe ledger completeness, not security pass rates.
