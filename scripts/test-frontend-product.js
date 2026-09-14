@@ -41,6 +41,35 @@ async function main() {
     assert.match(app, /Authority review/);
   });
 
+  await test("Production entry starts live from the committed Studio-dev runtime; fixtures require an explicit preview query", () => {
+    const app = read("frontend/app.js");
+    const runtime = read("scripts/reclose-browser-runtime-entry.mjs");
+    const adapter = read("frontend/lib/adapters.js");
+    assert.match(app, /new URLSearchParams\(location\.search\)\.get\("mode"\) === "preview"/);
+    assert.match(app, /createDefaultProductRuntime\(\)/);
+    assert.doesNotMatch(app, /__RECLOSE_PRODUCT_RUNTIME__/);
+    assert.match(adapter, /throw new Error\("The live runtime is not configured/);
+    assert.match(runtime, /createRecloseClient\(/);
+    assert.match(runtime, /createGenLayerTransport\(/);
+    assert.match(runtime, /61997/);
+    assert.match(runtime, /RPC_SPACING_MS = 2600/);
+  });
+
+  await test("Transaction Kit core and React adapter drive review while the exact Reclose allocation tree is preserved", () => {
+    const runtime = read("scripts/reclose-browser-runtime-entry.mjs");
+    const writer = read("frontend/lib/genlayerWriter.js");
+    const app = read("frontend/app.js");
+    assert.match(runtime, /from "@genlayer\/transaction-kit"/);
+    assert.match(runtime, /from "@genlayer\/transaction-kit-react"/);
+    assert.match(runtime, /baseKit\.estimate/);
+    assert.match(runtime, /messageAllocations/);
+    assert.match(runtime, /trackUntil: "finalized"/);
+    assert.match(writer, /messageAllocations: fullFeeDetail\.messageAllocations\.map/);
+    assert.match(writer, /feeQuote\.feeValue/);
+    assert.match(app, /createTransactionKitSession\(/);
+    assert.match(app, /pendingStore\.save\(record\)/);
+  });
+
   await test("I1 mock mode explicitly refuses writes", () => {
     const adapter = read("frontend/lib/adapters.js");
     assert.match(adapter, /Fixture mode never submits transactions/);

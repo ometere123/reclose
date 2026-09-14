@@ -1,7 +1,7 @@
 # OB-014 root-cause report
 
 **Updated:** 2026-09-14<br>
-**Repository base:** `main` at `a40a5b085d11d1c2b8b8c03c2cc332da5cf510d8`; local changes are not yet committed<br>
+**Repository base for this closeout:** `main` at `67d30e58bca6043b7428ffb30006631aa321c900`; follow-up frontend/release changes are local and not yet committed<br>
 **Network evidence:** GenLayer Studio-dev, chain 61997; UI-reported version `v0.123.0-rc.6`<br>
 **Disposition:** The isolated `decided` message-emission path is live-verified on Studio-dev chain 61997 against the existing Parent using a correctly typed `CalldataAddress` and the saved accepted allocation. The saved simulation result is `SIMULATION_SUCCEEDED` and explicitly records `transactionSubmitted: false`. Its returned fee is an estimate, not a charge. This closes only the isolated phase-emission validation; it does not verify the complete Reclose lifecycle, E1 Run A/B, H1, or final fee coverage.
 
@@ -59,7 +59,7 @@ PASS; 0 network requests; typed 20-byte CalldataAddress decoded as an address, w
 
 The Direct Mode integration test exercises the pinned runner's real encoder; the separate SDK calldata regression proves the harness supplies the Child as a 20-byte `CalldataAddress`, with a plain-string negative control. Neither test by itself establishes the whole protocol lifecycle.
 
-The current environment could not rerun GenVM lint: `genvm-lint` is not installed/on PATH. The prior checkpoint's recorded result remains: Kernel AST lint passed three checks; Judge AST lint reported three unchanged `E010` warnings at `_evaluate_once` LLM calls; SDK semantic validation was unavailable because the cache lacked the pinned runner archive `runners/py-genlayer/5j/ycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng.tar`. Do not treat those earlier AST results as a fresh lint run for this commit. The Direct Mode integration test did load the exact `Depends`-pinned runner for the real encoder test.
+GenVM lint was not rerun for this closeout: `genvm-lint` is not installed/on PATH. The prior checkpoint's recorded result remains: Kernel AST lint passed three checks; Judge AST lint reported three unchanged `E010` warnings at `_evaluate_once` LLM calls; SDK semantic validation was unavailable because the cache lacked the pinned runner archive `runners/py-genlayer/5j/ycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng.tar`. Do not treat those earlier AST results as a fresh lint run. The Direct Mode integration test did load the exact `Depends`-pinned runner for the real encoder test.
 
 ## Live verification and release boundary
 
@@ -69,7 +69,7 @@ This confirms the isolated corrected `decided` emission path can simulate on the
 
 ## Current local verification record
 
-Local verification on the source immediately before this documentation-only update:
+OB-014-focused evidence on the earlier source commit is listed above. The broader submission-closeout worktree was checked separately:
 
 ```text
 python -m pytest tests/test_emit_internal_message_abi.py tests/kernel/test_authority.py tests/judge/test_incident_judge_v1.py -q
@@ -78,11 +78,17 @@ python -m pytest tests/test_emit_internal_message_abi.py tests/kernel/test_autho
 python -m pytest tests/runner/test_emit_internal_message_wire.py -q
 2 passed in 3.26s
 
-node scripts/test-ob014-calldata-address.mjs
-PASS; networkRequestsMade: 0
+npm ci
+PASS; 250 packages installed; audit reported zero vulnerabilities
 
-node node_modules/typescript/bin/tsc -p packages/{protocol-sdk,policy-compiler,evidence-builder,transaction-tracker,sentinel,cli}/tsconfig.json --noEmit
-PASS for all six workspaces (executed as six individual commands)
+npm run verify:js
+PASS; production frontend build, workspace typechecks and all JavaScript/self-test gates passed, including requirements reconciliation and benchmark structure
+
+python -m pytest tests -q
+224 passed
+
+npm run verify
+JS gate passed; verify:py wrapper failed because Windows checkout CRLF broke the WSL Bash script and WSL could not find node. This is an environment wrapper failure, not a pytest failure.
 ```
 
-Lint limitations: `npm run lint` and `npm run typecheck` could not start because the installed npm PowerShell shim resolves a missing global `npm-cli.js`. Repository `lint` is also explicitly a placeholder (no JS/TS rules configured). `genvm-lint check` could not start because `genvm-lint` is not installed/on PATH. The prior checkpoint's AST lint observations are preserved above and are not represented as a fresh pass. The source/evidence commit `dd72f9411d8b7537fd48a1c9b3722fe6f0f50554` passed exact-commit GitHub CI run [34837691854](https://github.com/ometere123/reclose/actions/runs/34837691854); the handoff records this result.
+Lint limitations: repository `npm run lint` is an informational placeholder and `genvm-lint` is not installed/on PATH; no fresh GenVM lint is claimed. The focused OB-014 tests and previously cited exact-commit CI remain evidence for that earlier source, not for these broader uncommitted changes. No exact-commit CI result exists for the current closeout worktree yet.

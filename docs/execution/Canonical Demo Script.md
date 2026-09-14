@@ -68,9 +68,9 @@ If the live child path is fixed and E1 evidence exists:
 
 > GenLayer decision: provider compromise confirmed. Policy consequence: Provider A restricted and safe mode entered. The child execution and resulting target state are verified here.
 
-For the current deployment, show the minimized accepted-message reproduction and finalized control:
+For the current deployment, show the saved typed-address `decided` simulation and keep the deployment parity limit visible:
 
-> The read-only fee preflight stopped before incident submission. On this Studio-dev build, a minimal explicit-allocation accepted Parent→Child message fails with `SystemError: 2: inval`, while the finalized control succeeds. We do not claim this deployment contained a live incident.
+> The isolated read-only `decided` Parent→Child simulation succeeded on Studio-dev using a typed address and the saved allocation. It submitted no transaction; the returned fee was only an estimate. This does not prove the complete Reclose lifecycle. The active policy's Kernel/Judge addresses are from a source commit that predates the `decided` fix, so this deployment remains signing-disabled until source-matched contracts and policy are verified. No live incident or recovery is claimed.
 
 Do not use wording such as “Reclose automatically contained Provider A live” while the child remains failed.
 

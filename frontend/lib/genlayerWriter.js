@@ -11,7 +11,7 @@
 // pinned package's own `createClient`/`studioDevnet` - nothing here reimplements genlayer-js, it
 // only wraps the SAME reviewed `PreparedRecloseWrite` draft into the SDK's own `writeContract`
 // call shape.
-import { createClient, studioDevnet } from "../vendor/genlayer-client.js";
+import { createClient, studioDevnet } from "../vendor/reclose-runtime.js";
 
 /**
  * Creates a real GenLayerJS-backed writer for the connected account/provider. Every named method
@@ -39,7 +39,7 @@ export function createGenLayerWriter({ account, provider }) {
     };
   }
 
-  async function writePreparedDraft(draft) {
+  async function writePreparedDraft(draft, feeQuote = null) {
     if (!draft || typeof draft !== "object" || !draft.contractAddress || !draft.functionName || !Array.isArray(draft.args)) {
       throw new Error("writePreparedDraft requires a complete PreparedRecloseWrite draft (contractAddress/functionName/args)");
     }
@@ -49,9 +49,23 @@ export function createGenLayerWriter({ account, provider }) {
     // Prefer the COMPLETE fullFeeDetail (distribution + messageAllocations) when present; fall back
     // to the lossy distributionSummary-only shape only for a draft built before this remediation.
     const fullFeeDetail = draft.feeEstimate?.fullFeeDetail;
+    if (!fullFeeDetail?.distribution || !fullFeeDetail?.feeValue) {
+      throw new Error("Refusing to sign: the reviewed draft has no complete SDK-produced fee profile.");
+    }
+    const normalized = (value) => {
+      if (typeof value === "bigint") return value.toString();
+      if (Array.isArray(value)) return value.map(normalized);
+      if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((key) => [key, normalized(value[key])]));
+      return value;
+    };
+    if (feeQuote && (BigInt(feeQuote.feeValue) !== BigInt(fullFeeDetail.feeValue)
+      || JSON.stringify(normalized(feeQuote.distribution)) !== JSON.stringify(normalized(fullFeeDetail.distribution)))) {
+      throw new Error("Refusing to sign: Transaction Kit quote does not match the exact SDK-produced Reclose fee profile.");
+    }
     const fees = fullFeeDetail
       ? {
-          distribution: fullFeeDetail.distribution ?? undefined,
+          distribution: feeQuote?.distribution ?? fullFeeDetail.distribution,
+          feeValue: feeQuote?.feeValue ?? BigInt(fullFeeDetail.feeValue),
           ...(Array.isArray(fullFeeDetail.messageAllocations)
             ? { messageAllocations: fullFeeDetail.messageAllocations.map(restoreAllocationNode) }
             : {}),
@@ -70,31 +84,46 @@ export function createGenLayerWriter({ account, provider }) {
     return { txId: typeof txHash === "string" ? txHash : txHash?.hash ?? txHash?.txId ?? String(txHash) };
   }
 
-  // Item 2 (owner-directed remediation pass): a REAL GenLayerJS-client-backed tracker, used so
-  // policy-journey steps get real lifecycle/execution-result confirmation in ordinary browser use
-  // (no host-injected `__RECLOSE_PRODUCT_RUNTIME__.trackTransaction` required). This wraps the
-  // pinned SDK's own `waitForTransactionReceipt` polling - it never reimplements lifecycle
-  // semantics or guesses at a success value; `txExecutionResultName` and `lifecycle.state` are
-  // read verbatim from the client's own response shape.
-  async function trackTransaction(txId) {
+  // The Transaction Kit adapter requires a finality tracker. Use GenLayerJS transaction reads
+  // under the shared 2.6s Studio-dev request gate instead of the kit's fixed two-second poll loop.
+  // Status and execution-result names are read verbatim; timeout never triggers a resubmission.
+  async function trackForTransactionKit(txId, onUpdate = () => {}) {
     if (!txId) throw new Error("trackTransaction requires a transaction hash/ID");
-    const tx = await client.waitForTransactionReceipt({ hash: txId, waitUntil: "decided", fullTransaction: true });
-    const isFinal = tx?.lifecycle?.state === "decided";
-    const executionResult = tx?.txExecutionResultName ?? null;
-    // "FINISHED_WITH_RETURN" is the pinned genlayer-js package's own ExecutionResult enum value
-    // for a successful execution - never a Reclose-invented success string.
-    const success = executionResult === "FINISHED_WITH_RETURN";
-    return {
-      rawStatus: tx?.statusName ?? (tx?.status !== undefined ? String(tx.status) : null),
-      derived: { isFinal, success, executionResult },
-      raw: tx,
-    };
+    for (let poll = 0; poll < 300; poll++) {
+      const tx = await client.getTransaction({ hash: txId });
+      const rawStatus = String(tx?.statusName ?? tx?.status ?? "UNKNOWN").toUpperCase();
+      const executionResult = tx?.txExecutionResultName ?? tx?.executionResultName ?? null;
+      const isFinalized = rawStatus === "FINALIZED" || rawStatus === "CANCELED";
+      const phase = isFinalized ? "finalized" : ["ACCEPTED", "UNDETERMINED", "LEADER_TIMEOUT", "VALIDATORS_TIMEOUT"].includes(rawStatus) ? "decided" : "processing";
+      const status = {
+        phase,
+        genlayerTxId: txId,
+        statusName: rawStatus,
+        executionResultName: executionResult,
+        successful: isFinalized && rawStatus === "FINALIZED" && executionResult === "FINISHED_WITH_RETURN",
+      };
+      onUpdate(status);
+      if (isFinalized) return status;
+      // The runtime's single shared provider gate also spaces GenLayerJS sub-requests at 2.6s.
+      await new Promise((resolve) => setTimeout(resolve, 2600));
+    }
+    throw new Error(`Timed out waiting for finalization of ${txId}; transaction ID remains saved and must not be resubmitted.`);
+  }
+
+  async function trackTransaction(txId) {
+    let last;
+    await trackForTransactionKit(txId, (status) => { last = status; });
+    const isFinal = last?.phase === "finalized";
+    const executionResult = last?.executionResultName ?? null;
+    return { rawStatus: last?.statusName ?? null, derived: { isFinal, success: last?.successful === true, executionResult }, raw: last };
   }
 
   return {
     getConnectedChainId: async () => Number(await client.getChainId()),
     getConnectedAccount: () => account,
+    provider,
     writePreparedDraft,
+    trackForTransactionKit,
     trackTransaction,
     submitIncident: writePreparedDraft,
     submitRecovery: writePreparedDraft,

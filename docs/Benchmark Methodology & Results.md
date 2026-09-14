@@ -8,6 +8,6 @@ For each executed scenario, retain the exact candidate commit, environment, inpu
 
 ## Current result boundary
 
-No full 78-scenario H1 execution has been completed, and no aggregate performance metrics are claimed. Automated checks are run by repository verification and CI. Live E1 Run A is blocked before incident submission by the reproducible Studio-dev accepted-message simulation error in `release-evidence/r1/diagnostics/accepted-message-repro/`; Run B and remaining live categories are not run. `BLOCKED` and `NOT_RUN` are not passes.
+No full 78-scenario H1 execution has been completed, and no aggregate performance metrics are claimed. Automated checks are run by repository verification and CI. The isolated typed-address `emit_decided` Parent→Child simulation succeeded read-only, superseding the historical `accepted`-phase failure. The active immutable Kernel/Judge deployment predates the source correction, so the complete production Judge→Kernel→Target lifecycle remains unverified; E1 Run A/B and remaining H1 live cases are not run. `BLOCKED` and `NOT_RUN` are not passes.
 
 The hard zero-gate scenario definitions remain release targets, not claims that the measured rate is zero. Results must retain original failures and rerun affected categories after a fix.

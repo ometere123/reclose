@@ -165,7 +165,7 @@ report.push('', '## Scope and interpretation', '',
   '- This is a traceability reconciliation, not a claim that all requirements are implemented.',
   '- Rows marked NOT STARTED have no test-backed implementation mapping in either joined delivery map; each carries its canonical owner, verification method, and required evidence.',
   `- ${counts.get('VERIFIED') ?? 0} VERIFIED rows have all four required refs. Evidence scope remains bounded by the cited tests and deployments.`,
-  '- The accepted-message simulation limitation remains an external blocker for E1 Run A; this report does not close E1, H1, A3/A4, or the release candidate gates.',
+  '- The isolated typed-address `decided` message simulation passed read-only and closes only that narrow validation. The active immutable Kernel/Judge deployment predates the source correction; this report does not close the full Judge-to-Target lifecycle, E1 Run A/B, H1, A3/A4, or release gates.',
   '',
   '## Threat reconciliation',
   '',
@@ -184,8 +184,10 @@ if (writeMode) {
   fs.writeFileSync(reportPath, report.join('\n'));
   console.log(`Updated open-gap entries for ${records.filter((row) => row.status === 'NOT STARTED').length} NOT STARTED requirements and wrote ${records.length}-row reconciliation report.`);
 } else {
-  if (serialized !== fs.readFileSync(statusPath, 'utf8')) {
-    const actual = fs.readFileSync(statusPath, 'utf8');
+  const actual = fs.readFileSync(statusPath, 'utf8');
+  // Git checkout settings may materialize this tracked CSV with CRLF on Windows.
+  // Compare logical content independent of the host line-ending convention.
+  if (serialized !== actual.replaceAll('\r\n', '\n')) {
     const expectedLines = serialized.split('\n');
     const actualLines = actual.split(/\r?\n/);
     const mismatch = expectedLines.findIndex((line, i) => line !== actualLines[i]);

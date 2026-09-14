@@ -7,4 +7,4 @@
 - Content-addressed evidence requires immutable snapshot references and independent hash-verified fetching.
 - SDK/CLI/compiler/evidence-builder/transaction-tracker/Sentinel surfaces share canonical schemas and hashes.
 - Transaction truth separates decision outcome, finality, child execution and target post-state.
-- Current accepted-message platform limitation has a minimized reproduction and preserved response.
+- The isolated typed-address `decided` path passed a read-only Studio-dev simulation; the previous `accepted` harness failure is superseded. Full lifecycle evidence remains open because the active deployment predates the source fix.

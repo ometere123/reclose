@@ -16,4 +16,4 @@ Effects are typed actions on registered resource identifiers; do not add arbitra
 
 Use `node packages/cli/bin/reclose.js policy compile <manifest.json>` and inspect the full output. Do not reuse a hash or fee profile after changing any manifest field. Do not activate a policy because a transaction hash exists: require successful execution and readback.
 
-The current active demonstration policy is `policy-r1-009` for `reclose-target-007`, hash `0xb5ac60c955e3bc052531e07b9c351738e7c27d80fb286b702f1f6e2e8ee83953`; this is a Studio-dev demonstration policy, not a production recommendation. Its incident lifecycle remains unproven because accepted-message simulation is blocked.
+The current recorded demonstration policy is `policy-r1-009` for `reclose-target-007`, hash `0xb5ac60c955e3bc052531e07b9c351738e7c27d80fb286b702f1f6e2e8ee83953`; this is a Studio-dev demonstration policy, not a production recommendation. Its immutable Kernel/Judge source predates the `decided` correction, so its production incident lifecycle remains unverified. The isolated typed-address `emit_decided` simulation passed read-only; it does not prove this policy's full Judge→Kernel→Target path.

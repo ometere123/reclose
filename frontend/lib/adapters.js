@@ -120,14 +120,14 @@ export class MockProductAdapter {
 /**
  * Product adapter over the frozen RecloseSDK. It delegates protocol semantics to the SDK and does
  * not recreate policy/Judge logic in the browser. Write methods are deliberately separate from
- * the read SDK because the frozen 14-method RecloseSDK is read/build/track oriented. A host can
- * inject a least-privilege writer that signs with the user's wallet.
+ * the read SDK because the frozen 14-method RecloseSDK is read/build/track oriented. The normal
+ * production entry point attaches a least-privilege browser writer after wallet connection.
  */
 export class SdkProductAdapter {
   mode = "live";
   meta = { mode: "live", label: "Live SDK", note: "Reads are sourced through RecloseSDK on chain 61997." };
 
-  constructor(sdk, writer = null, indexer = null, policyCompiler = null) {
+  constructor(sdk, writer = null, indexer = null, policyCompiler = null, writeBlockReason = null) {
     if (!sdk) throw new Error("SdkProductAdapter requires a RecloseSDK instance");
     this.sdk = sdk;
     this.writer = writer;
@@ -138,6 +138,9 @@ export class SdkProductAdapter {
     // protocol-sdk; the reverse would be circular). This is the ONE canonical compiler
     // implementation, dependency-injected rather than statically imported, never reimplemented.
     this.policyCompiler = policyCompiler;
+    // A manifest may intentionally expose canonical reads while refusing writes when its
+    // immutable deployment source does not match the reviewed source generation.
+    this.writeBlockReason = writeBlockReason;
   }
 
   async getOverview() {
@@ -429,7 +432,8 @@ export class SdkProductAdapter {
    * "Studio-dev" label is never treated as a write guard. Fails closed if the writer cannot
    * report its connected chain ID at all, since an unverifiable network is not a safe network.
    */
-  async submitWrite(kind, payload) {
+  async submitWrite(kind, payload, feeQuote = null) {
+    if (this.writeBlockReason) throw new Error(`Live signing is disabled for this deployment: ${this.writeBlockReason}`);
     if (!this.writer) throw new Error("No wallet writer is connected. Reclose will not simulate a successful submission.");
     if (!payload || typeof payload !== "object" || !payload.reviewHash || !Array.isArray(payload.args)) {
       throw new Error("Refusing to sign: no valid reviewed draft was supplied. Preview the write again.");
@@ -467,20 +471,19 @@ export class SdkProductAdapter {
     }[kind];
     if (method) {
       if (typeof this.writer[method] !== "function") throw new Error(`Writer does not support ${kind}`);
-      return this.writer[method](payload);
+      return this.writer[method](payload, feeQuote);
     }
     // Policy construction steps (kind === "policyConstruction:<n>" or "policyActivate") carry their
     // own real functionName (begin_policy/add_policy_resource/add_policy_rule/add_policy_effect/
     // seal_policy/activate_policy) in the draft itself - dispatch generically through a single
     // `callKernel` writer method (which receives the exact payload, including functionName/args)
     // rather than requiring the writer to pre-declare six more named methods.
-    if (typeof this.writer.callKernel === "function") return this.writer.callKernel(payload);
+    if (typeof this.writer.callKernel === "function") return this.writer.callKernel(payload, feeQuote);
     throw new Error(`Writer does not support ${kind} (no callKernel method for generic Kernel calls)`);
   }
 }
 
-export function selectProductAdapter() {
-  const injected = globalThis.__RECLOSE_PRODUCT_RUNTIME__;
-  if (injected?.sdk) return new SdkProductAdapter(injected.sdk, injected.writer ?? null, injected.indexer ?? null, injected.policyCompiler ?? null);
-  return new MockProductAdapter();
+export function selectProductAdapter(runtime) {
+  if (runtime?.sdk) return new SdkProductAdapter(runtime.sdk, runtime.writer ?? null, runtime.indexer ?? null, runtime.policyCompiler ?? null, runtime.writeBlockReason ?? null);
+  throw new Error("The live runtime is not configured. Use ?mode=preview for explicitly labeled synthetic fixtures.");
 }

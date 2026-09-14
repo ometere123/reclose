@@ -2,14 +2,16 @@ import {
   createDraftRegistry, escapeHtml, executionLabel, formatIso, incidentDisplayStatus, outcomeLabel,
   recordRows, routeFromHash, setLiveMessage, shortHash, stateMarker, CHAIN_ID, NETWORK_NAME
 } from "./lib/domain.js";
-import { selectProductAdapter } from "./lib/adapters.js";
-import { PendingTransactionStore, persistThenTrack } from "./lib/persistence.js";
+import { MockProductAdapter } from "./lib/adapters.js";
+import { PendingTransactionStore } from "./lib/persistence.js";
 import { connectBrowserWallet, switchToStudioDev, walletProviderAvailable } from "./lib/wallet.js";
-import { studioDevnet } from "./vendor/genlayer-client.js";
+import { createDefaultProductRuntime, createTransactionKitSession, mountTransactionKitReview, studioDevnet } from "./vendor/reclose-runtime.js";
 import { createGenLayerWriter } from "./lib/genlayerWriter.js";
 
 const app = document.getElementById("app");
-const adapter = selectProductAdapter();
+const fixturePreview = new URLSearchParams(location.search).get("mode") === "preview";
+const productRuntime = fixturePreview ? null : createDefaultProductRuntime();
+const adapter = fixturePreview ? new MockProductAdapter() : productRuntime.adapter;
 const pendingStore = new PendingTransactionStore();
 
 const NAV = [
@@ -513,12 +515,8 @@ async function submitLiveWriteReturningTxId(kind) {
   const draft = draftRegistry.getDraft(kind);
   if (!draft) return null;
   try {
-    const result = await adapter.submitWrite(kind, draft);
-    if (!result?.txId) throw new Error("Writer returned no transaction ID");
-    draftRegistry.invalidateDraft(kind);
-    await persistThenTrack(pendingStore, { txId: result.txId, kind, incidentId: null }, globalThis.__RECLOSE_PRODUCT_RUNTIME__?.trackTransaction, ({ phase }) => setLiveMessage(`Bond transaction ${phase}: ${shortHash(result.txId)}`));
-    state.pending = pendingStore.loadAll();
-    return result.txId;
+    const outcome = await openTransactionKitReview(kind, draft, { waitForFinalized: true });
+    return outcome?.trackResult?.derived?.success ? outcome.txId : null;
   } catch (error) {
     setLiveMessage(`Bond submission failed: ${error.message}`);
     alert(`Bond submission failed: ${error.message}`);
@@ -874,8 +872,9 @@ async function renderIntegrations() {
   const rows = recordRows([
     ["Adapter mode", escapeHtml(adapter.meta.label) + ` (${adapter.mode})`],
     ["Canonical network", `${NETWORK_NAME} · chain ${CHAIN_ID}`],
-    ["Indexer connection", adapter.mode === "mock" ? "Not applicable in fixture mode (synthetic data requires no indexer)" : (indexerConnected ? "Connected (host-injected index adapter present)" : "Not connected - reads requiring discovery (overview/incident listing) are unavailable")],
+    ["Canonical read adapter", adapter.mode === "mock" ? "Not applicable in fixture mode (synthetic data requires no RPC)" : (indexerConnected ? "Connected (manifest-backed discovery; canonical contract reads)" : "Not connected - reads requiring discovery are unavailable")],
     ["Live writer", adapter.mode === "mock" ? "Not applicable in fixture mode (fixture mode never submits transactions)" : (writerConnected ? "Connected (GenLayerJS-backed writer bound to the connected wallet)" : "Not connected - write flows are unavailable")],
+    ["Signing status", adapter.mode === "mock" ? "Preview only" : (adapter.writeBlockReason || "Available after a wallet connects and the Transaction Kit confirms the fee profile")],
     ...walletRows,
     ["CLI presence", "Not determinable from the browser - the CLI runs as a separate local process this page cannot observe."],
     ["Sentinel presence", "Not determinable from the browser - Sentinel runs as a separate process/service this page cannot observe unless a shared health endpoint is wired, which none currently is."],
@@ -1178,45 +1177,66 @@ async function submitLiveWrite(kind) {
     return false;
   }
   try {
-    // A3-H01: pass EXACTLY the previewed/reviewed draft - never an empty or reconstructed object.
-    const result = await adapter.submitWrite(kind, draft);
-    if (!result?.txId) throw new Error("Writer returned no transaction ID");
-    // A3-H12: persist the transaction ID immediately. The incident identity is known even BEFORE
-    // the writer returns, for incident/recovery writes: `draft.predictedIncidentId` was derived
-    // client-side with the exact formula the IncidentJudge contract itself evaluates
-    // (target_id:reporter:nonce). Prefer it over whatever a writer's return object happens to
-    // carry; fall back to the writer's own value only if no prediction exists (e.g. for writes
-    // that don't mint an incident identity at all).
-    const incidentId = draft.predictedIncidentId?.incidentId ?? result.incidentId ?? null;
-    const record = { txId: result.txId, kind, incidentId, predicted: Boolean(draft.predictedIncidentId) };
-    draftRegistry.invalidateDraft(kind);
-    // Sequential policy-journey steps stay on the policy-author page so the next step can be
-    // prepared in place - only one-shot writes navigate to the pending-transaction tracker.
-    const isPolicyJourneyStep = kind.startsWith("policyStep:") || kind === "policyActivate";
-    // Item 2 (owner-directed remediation pass): for policy-journey steps specifically, track
-    // through the REAL GenLayerJS-client-backed writer.trackTransaction directly (added to
-    // genlayerWriter.js above) rather than only the optional host-injected
-    // __RECLOSE_PRODUCT_RUNTIME__.trackTransaction hook, so ordinary browser use (no host runtime
-    // present) still gets genuine lifecycle/execution-result confirmation before the sequence is
-    // allowed to advance. Non-policy writes keep the existing host-hook-only behaviour unchanged.
-    const tracker = isPolicyJourneyStep && typeof adapter.writer?.trackTransaction === "function"
-      ? (txId) => adapter.writer.trackTransaction(txId)
-      : globalThis.__RECLOSE_PRODUCT_RUNTIME__?.trackTransaction;
-    let trackResult = null;
-    let trackError = null;
-    await persistThenTrack(pendingStore, record, tracker, ({ phase, result: trackedResult, error }) => {
-      if (phase === "tracked") trackResult = trackedResult;
-      if (phase === "tracking-error") trackError = error;
-      setLiveMessage(`Transaction ${phase}: ${shortHash(result.txId)}`);
-    });
-    state.pending = pendingStore.loadAll();
-    if (!isPolicyJourneyStep) location.hash = "#/pending";
-    return { ok: true, txId: result.txId, isPolicyJourneyStep, trackResult, trackError };
+    if (!state.wallet || !adapter.writer || !productRuntime) throw new Error("Connect a supported wallet before opening the Transaction Kit review.");
+    const waitForFinalized = kind.startsWith("policyStep:") || kind === "policyActivate";
+    const result = await openTransactionKitReview(kind, draft, { waitForFinalized });
+    return waitForFinalized ? result : { ok: true, reviewOpened: true };
   } catch (error) {
-    setLiveMessage(`Submission failed: ${error.message}`);
-    alert(`Submission failed: ${error.message}`);
+    setLiveMessage(`Transaction review failed closed: ${error.message}`);
+    alert(`Transaction review failed closed: ${error.message}`);
     return false;
   }
+}
+
+function openTransactionKitReview(kind, draft, { waitForFinalized = false } = {}) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!state.wallet || !adapter.writer || !productRuntime) throw new Error("Connect a supported wallet before opening the Transaction Kit review.");
+      const button = document.querySelector(`[data-action="submit-${kind}"]`);
+      if (!button) throw new Error("The reviewed submit control is no longer available. Preview the write again.");
+      const mount = document.createElement("div");
+      mount.className = "transaction-kit-review";
+      button.replaceWith(mount);
+      let submittedTxId = null;
+      const session = createTransactionKitSession({
+        account: state.wallet.address,
+        provider: adapter.writer.provider,
+        draft,
+        writer: adapter.writer,
+        submitReviewedDraft: (exactDraft, quote) => adapter.submitWrite(kind, exactDraft, quote),
+        onSubmitted: (result) => {
+          submittedTxId = result.txId;
+          const record = {
+            txId: result.txId,
+            kind,
+            incidentId: draft.predictedIncidentId?.incidentId ?? result.incidentId ?? null,
+            predicted: Boolean(draft.predictedIncidentId),
+            status: "SUBMITTED",
+          };
+          pendingStore.save(record);
+          state.pending = pendingStore.loadAll();
+          draftRegistry.invalidateDraft(kind);
+          setLiveMessage(`Transaction submitted: ${shortHash(result.txId)}. Its ID is saved before status tracking.`);
+        },
+      });
+      mountTransactionKitReview(mount, {
+        ...session,
+        writesBlocked: adapter.writeBlockReason,
+        onDone: (status) => {
+          const prior = pendingStore.loadAll().find((item) => item.txId === submittedTxId);
+          if (prior) pendingStore.save({ ...prior, status: status.statusName, executionResult: status.executionResultName, successful: status.successful === true });
+          state.pending = pendingStore.loadAll();
+          setLiveMessage(`Transaction finalized as ${status.statusName || "unknown"}; execution ${status.executionResultName || "unavailable"}. Canonical post-state must still be read back.`);
+          if (waitForFinalized) resolve({ txId: submittedTxId, trackResult: { derived: { isFinal: true, success: status.successful === true, executionResult: status.executionResultName ?? null } } });
+        },
+        onError: (error) => { if (waitForFinalized) reject(error); },
+      });
+      setLiveMessage("The exact reviewed draft is open in the GenLayer Transaction Kit. No wallet prompt appears until the fee review verifies and you confirm.");
+      if (!waitForFinalized) resolve(true);
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 function bindDynamicButtons() {
@@ -1262,7 +1282,7 @@ async function handleConnectWallet() {
     // is required for ordinary browser usage. This is the corrected architecture: injected
     // provider -> genlayer-js write client -> writeContract(), never a fake/throwing stub.
     if (adapter.mode !== "mock") {
-      adapter.writer = createGenLayerWriter({ account: state.wallet.address, provider: state.wallet.provider });
+      adapter.writer = createGenLayerWriter({ account: state.wallet.address, provider: productRuntime.throttleWalletProvider(state.wallet.provider) });
     }
     setLiveMessage(`Wallet connected: ${state.wallet.address} on chain ${state.wallet.chainId}.`);
   } catch (error) {

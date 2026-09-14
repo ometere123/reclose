@@ -1,6 +1,6 @@
 # Known limitations
 
-- The canonical Studio-dev accepted-message simulation fails with `SystemError: 2: inval` in a minimal explicit-allocation Parent→Child reproduction; the finalized control succeeds. Run A stopped before incident submission, so E1 A+B and live recovery are incomplete.
+- The old `on="accepted"` failure is superseded. A typed-address, read-only `emit_decided` simulation passed on Studio-dev chain 61997 with the saved allocation (`transactionSubmitted: false`; fee is an estimate, not a charge). This proves only isolated message emission. The active policy's deployed Kernel/Judge source commit predates the `decided` fix, so live signing is fail-closed pending a source-matched deployment. No full incident lifecycle or recovery is verified; E1 A/B, H1, and final live fee coverage remain incomplete.
 - The deployed Studio version is recorded as `v0.123.0-rc.6`; the service does not expose an exact backend source SHA.
 - The 78-scenario corpus has not completed H1 execution; performance/security rates are not claimed.
 - Requirements (156 rows) and threats (82 rows) are not fully reconciled to implementation, tests, evidence and commits.

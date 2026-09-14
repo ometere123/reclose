@@ -1,5 +1,7 @@
 # External Execution Handoff
 
+> **Superseded status snapshot (2026-09-14).** The isolated typed-address `emit_decided` simulation succeeded read-only on Studio-dev 61997. The old `accepted`-phase failure is historical; the later string-address failure occurred before message emission. The active immutable Kernel/Judge generation predates the correction, so the full lifecycle, E1 Run A/B and H1 remain unverified. Use `HANDOFF.md`, `Current Phase.md` and `Open Blockers.md` for current status.
+
 This document is the boundary between repository work that is complete/prepared and evidence that requires a browser, an unlocked Studio-dev signer, or live GenLayer execution.
 
 Do not redo completed source work unless one of the external checks finds a defect. Do not weaken a gate to make an external failure disappear.
@@ -59,7 +61,7 @@ Historical failure (superseded):
 
 `fee no_matching_allocation # internal`
 
-Current disposition: the former shared call-key collision was fixed with lifecycle-specific Kernel entrypoints. The remaining blocker is different: an explicit-allocation accepted Parent→Child minimal simulation fails with `SystemError: 2: inval`, while the finalized control succeeds. See `release-evidence/r1/diagnostics/accepted-message-repro/`; do not repeat the same accepted preflight or submit an incident.
+Historical disposition at the time this handoff was written: the accepted Parent→Child minimal simulation was reported as failing. That result is superseded by `release-evidence/r1/diagnostics/accepted-message-repro/typed-address-existing-parent/result.json`; the isolated corrected simulation succeeded with typed-address calldata and `transactionSubmitted: false`. Do not repeat the old reproduction. The remaining release blocker is source parity for the active Kernel/Judge deployment and the unverified full lifecycle.
 
 Known facts already established:
 

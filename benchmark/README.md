@@ -31,6 +31,6 @@ These are not marketing claims of defect-free software.
 
 ## Current live status
 
-The canonical corpus currently contains 78 scenarios (check `benchmark/r1-scenarios.json` and `npm run benchmark:check` for the integrity result). No complete H1 execution has been recorded. Run A is blocked before incident submission by a reproducible accepted-message simulation failure in the deployed Studio-dev environment; Run B and all H1 live scenarios remain `NOT_RUN` or `BLOCKED`, never passes. The minimized evidence is in `release-evidence/r1/diagnostics/accepted-message-repro/`.
+The canonical corpus currently contains 78 scenarios (check `benchmark/r1-scenarios.json` and `npm run benchmark:check` for the integrity result). No complete H1 execution has been recorded. The isolated typed-address `emit_decided` Parent→Child simulation succeeded read-only, superseding the historical `accepted`-phase failure report. The active immutable Kernel/Judge deployment predates the source correction, so the production Judge→Kernel→Target path remains unverified; Run A/B and all H1 live scenarios remain `NOT_RUN` or blocked, never passes. The preserved success and historical diagnostic evidence are in `release-evidence/r1/diagnostics/accepted-message-repro/`.
 
 The live statuses may only be changed from captured transaction/deployment evidence.

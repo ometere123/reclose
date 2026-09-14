@@ -25,7 +25,7 @@ Do not claim any of the following until the listed release evidence exists:
 
 | Prohibited premature claim | Why it is not yet supported | Required evidence |
 |---|---|---|
-| "Reclose is fully live end to end on Studio-dev" | A minimal explicit-allocation accepted Parent→Child simulation fails with `SystemError: 2: inval`; the finalized control succeeds. No Run A incident was submitted. | successful accepted-path simulation, E1 child path + two clean runs |
+| "Reclose is fully live end to end on Studio-dev" | An isolated typed-address `emit_decided` Parent→Child simulation succeeded read-only, but the active immutable Kernel/Judge generation predates the source correction. No Run A incident was submitted and the Judge→Kernel→Target path remains unverified. | source-matched deployment, successful E1 child path + two clean runs |
 | "The canonical incident automatically restricted Provider A live" | no successful live Judge -> Kernel -> Target action on the current evidence path | E1 target post-state |
 | "Live recovery/restoration is proven" | remediation/recovery child path is not live-proven | E1 recovery sequence |
 | "All benchmark scenarios passed" | live cases remain BLOCKED_EXTERNAL/NOT_RUN | benchmark report after live execution |
@@ -35,11 +35,11 @@ Do not claim any of the following until the listed release evidence exists:
 | "Production cross-chain protection is deployed" | Safe/Base/Hyperlane production routes are R1 non-goals/unverified | future release evidence |
 | "No bugs / unhackable / perfectly secure" | not a defensible engineering claim | never use absolute security marketing |
 
-## Demo wording for the known Studio-dev limitation
+## Demo wording for the isolated simulation and unverified lifecycle
 
 Acceptable:
 
-> A read-only preflight on the current Studio-dev build found that a minimal explicit-allocation accepted Parent-to-Child message fails with `SystemError: 2: inval`; the finalized control succeeds. We stopped before submitting the incident, so this deployment has no live containment result.
+> A read-only typed-address `emit_decided` Parent-to-Child simulation succeeded on Studio-dev chain 61997 with the saved allocation. No transaction was submitted and the returned fee is only an estimate. This verifies the isolated message-emission path; the active immutable Kernel/Judge contracts predate the source correction, so no full live containment or recovery result is claimed.
 
 Unacceptable:
 

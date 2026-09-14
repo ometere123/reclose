@@ -1,6 +1,6 @@
 # Claude External Execution Prompt
 
-> **Superseded checkpoint prompt.** Its branch, deployment addresses, policy, and `fee no_matching_allocation` diagnosis below refer to an older generation. Do not execute these steps verbatim. The current source of truth is `docs/execution/HANDOFF.md`, `docs/execution/Current Phase.md`, and `deployment/61997/r1-lifecycle-split-run-a-working-manifest.json`. Current Run A is blocked before incident submission by the minimal accepted-message simulation in `release-evidence/r1/diagnostics/accepted-message-repro/`.
+> **Superseded checkpoint prompt.** Its branch, deployment addresses, policy, and `fee no_matching_allocation` diagnosis below refer to an older generation. Do not execute these steps verbatim. The current source of truth is `docs/execution/HANDOFF.md`, `docs/execution/Current Phase.md`, and `deployment/61997/r1-lifecycle-split-run-a-working-manifest.json`. The isolated typed-address `emit_decided` simulation has passed; Run A remains unverified because the active immutable Kernel/Judge source predates that correction.
 
 Copy the text below verbatim into Claude Code after checking out the latest `chatgpt/r1-product-release` branch. This is the remaining environment-dependent work only. Do not redo the architecture or product implementation unless one of these checks proves a defect.
 

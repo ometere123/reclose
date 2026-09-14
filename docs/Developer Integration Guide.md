@@ -38,4 +38,4 @@ Before a write, bind the review hash to the complete semantic payload. Refreshin
 
 ## Network and status
 
-Use only Studio-dev / 61997 for the R1 evidence path. The current accepted-message simulation limitation blocks canonical Run A before incident submission. Do not work around it with guessed fee values or a live incident write. See the [accepted-message reproduction](../release-evidence/r1/diagnostics/accepted-message-repro/) and [current handoff](execution/HANDOFF.md).
+Use only Studio-dev / 61997 for the R1 evidence path. The historical `accepted`-phase failure is superseded: an isolated typed-address `emit_decided` Parent→Child simulation succeeded read-only with the saved allocation. The active immutable Kernel/Judge deployment predates that source correction, so the canonical Judge→Kernel→Target path and E1 Run A remain unverified. Do not work around the mismatch with guessed fees or a live incident write. See the [saved simulation and historical diagnostics](../release-evidence/r1/diagnostics/accepted-message-repro/) and [current handoff](execution/HANDOFF.md).

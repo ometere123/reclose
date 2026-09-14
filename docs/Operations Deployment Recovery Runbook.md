@@ -14,7 +14,7 @@ Compile a new identity against the exact deployed Judge and Kernel. Verify every
 
 ## RPC and fee discipline
 
-Serialize Studio-dev requests using `scripts/studio-dev-rpc-throttle.mjs`, with at least the configured inter-request spacing and bounded backoff. Do not start independent poll/retry loops. Simulate the entire nested message path read-only; use the estimator's complete fee preset and message allocations unchanged. If accepted-message simulation returns the retained `SystemError: 2: inval`, stop before any incident write and preserve the response. Do not guess fees or repeatedly submit writes.
+Serialize Studio-dev requests using `scripts/studio-dev-rpc-throttle.mjs`, with at least the configured inter-request spacing and bounded backoff. Do not start independent poll/retry loops. Simulate the entire nested message path read-only; use the estimator's complete fee preset and message allocations unchanged. The old `on="accepted"` failure is historical and superseded. The corrected isolated `emit_decided` simulation succeeded with typed `CalldataAddress` calldata and the saved allocation; the malformed-string retry failed during argument decoding before message emission. Do not repeat either reproduction. The isolated result does not verify the production Judge→Kernel→Target lifecycle; the active immutable Kernel/Judge source predates the correction. Do not guess fees or submit writes before source parity and transaction approvals are established.
 
 ## Transaction and recovery evidence
 

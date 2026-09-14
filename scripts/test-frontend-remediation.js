@@ -598,11 +598,11 @@ async function main() {
 
   await test("WALLET CORRECTION: the browser write path uses the pinned genlayer-js@2.0.0-rc.1 createClient/writeContract directly - no Snap, no custom signer, no fake throwing writer", () => {
     const writerSource = read("frontend/lib/genlayerWriter.js");
-    assert.match(writerSource, /from ["']\.\.\/vendor\/genlayer-client\.js["']/, "must import the real pinned genlayer-js bundle, not reimplement it");
+    assert.match(writerSource, /from ["']\.\.\/vendor\/reclose-runtime\.js["']/, "must import the real pinned genlayer-js bundle, not reimplement it");
     assert.match(writerSource, /createClient\(/);
     assert.match(writerSource, /writeContract\(/);
     assert.doesNotMatch(writerSource, /wallet_invokeSnap|wallet_requestSnaps|snapId/i, "must not implement an actual MetaMask Snap integration");
-    const entrySource = read("scripts/genlayer-vendor-entry.mjs");
+    const entrySource = read("scripts/reclose-browser-runtime-entry.mjs");
     assert.match(entrySource, /from "genlayer-js"/);
     assert.match(entrySource, /from "genlayer-js\/chains"/);
     const appSource = read("frontend/app.js");
@@ -1071,16 +1071,21 @@ async function main() {
   await test("Owner-directed remediation round 2, item 2: genlayerWriter exposes a real GenLayerJS-client-backed trackTransaction using the pinned SDK's own lifecycle/execution-result fields, never an invented status", async () => {
     const source = read("frontend/lib/genlayerWriter.js");
     assert.match(source, /async function trackTransaction\(txId\)/, "trackTransaction must exist on the real writer");
-    assert.match(source, /client\.waitForTransactionReceipt\(/, "trackTransaction must poll through the pinned genlayer-js client's own waitForTransactionReceipt, never a homemade poller");
+    assert.match(source, /client\.getTransaction\(\{ hash: txId \}\)/, "tracking must read lifecycle through the pinned GenLayerJS client");
+    assert.match(source, /setTimeout\(resolve, 2600\)/, "tracking must stay under the shared Studio-dev request limit");
+    assert.match(source, /rawStatus === "FINALIZED" \|\| rawStatus === "CANCELED"/, "tracking must wait for actual terminal finalization, not the earlier decided phase");
     assert.match(source, /txExecutionResultName/, "success must be read from the client's own txExecutionResultName field");
     assert.match(source, /"FINISHED_WITH_RETURN"/, "success must be compared against the pinned SDK's own ExecutionResult enum spelling, never a Reclose-invented string");
-    assert.match(source, /writePreparedDraft,\s*\n\s*trackTransaction,/, "trackTransaction must be exposed on the writer's returned surface");
+    assert.match(source, /writePreparedDraft,\s*\n\s*trackForTransactionKit,\s*\n\s*trackTransaction,/, "both bounded Transaction Kit and compatibility trackers must be exposed on the writer's returned surface");
   });
 
-  await test("Owner-directed remediation round 2, item 2: submitLiveWrite tracks policy-journey steps through the real writer directly, not only the optional host-injected runtime hook", () => {
+  await test("Transaction Kit review tracks policy construction through verified finality before advancing", () => {
     const app = read("frontend/app.js");
-    assert.match(app, /isPolicyJourneyStep && typeof adapter\.writer\?\.trackTransaction === "function"/, "policy-journey steps must prefer the real writer-backed tracker");
-    assert.match(app, /\(txId\) => adapter\.writer\.trackTransaction\(txId\)/, "the real tracker call must go directly through adapter.writer.trackTransaction");
+    const runtime = read("scripts/reclose-browser-runtime-entry.mjs");
+    assert.match(app, /kind\.startsWith\("policyStep:"\) \|\| kind === "policyActivate"/, "policy journey writes must wait for final transaction status");
+    assert.match(app, /trackResult: \{ derived: \{ isFinal: true/, "the UI must pass the finalized status and execution result to the policy state machine");
+    assert.match(runtime, /trackUntil: "finalized"/, "Transaction Kit flow must track to finalized state");
+    assert.doesNotMatch(app, /__RECLOSE_PRODUCT_RUNTIME__/, "normal app flow cannot require an injected tracker");
   });
 
   await test("Owner-directed remediation round 2, item 2: submitPolicyJourneyStep only advances after BOTH a terminal lifecycle state AND a real FINISHED_WITH_RETURN execution result; a failed/unconfirmed/untracked step must never advance", () => {

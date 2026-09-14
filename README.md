@@ -134,18 +134,18 @@ Full deployment and policy transaction/readback record: [working manifest](deplo
 
 ## Current live-evidence boundary
 
-The active lifecycle-split deployment has verified contract deployment/wiring, immutable-source registry binding, policy item readbacks, seal, timelock and activation. Its read-only explicit fee preflight found a Studio-dev accepted-message simulation failure. A minimal Parent→Child reproduction using a valid explicit allocation fails for `on="accepted"` with `SystemError: 2: inval`, while the otherwise equivalent `on="finalized"` simulation succeeds. No incident write was submitted on this deployment.
+The old `on="accepted"` failure is historical and superseded. The pinned contract runner expects `decided` for the provisional emission. A read-only Studio-dev simulation of `emit_decided` against the existing disposable Parent succeeded on chain 61997 with a typed `CalldataAddress` Child argument and the saved allocation; its evidence records `transactionSubmitted: false`, so the returned fee is an estimate, not a charge. The earlier string-address request failed during calldata decoding before message emission and is not evidence against the phase.
 
 ```text
-accepted Parent -> Child.noop: SystemError: 2: inval
-finalized Parent -> Child.noop: successful estimate
+decided Parent -> Child.noop (typed address): successful read-only simulation
+transactionSubmitted: false
 ```
 
-This is currently classified as an accepted-message simulation limitation of the deployed Studio-dev execution environment; the exact backend source SHA is not exposed. Therefore the repository **does not claim** the canonical Judge -> Kernel -> Target incident/recovery lifecycle is end-to-end live-proven. E1 Run A has not submitted an incident; Run B and H1 have not run.
+This proves only the isolated `decided` message-emission path. It does not prove the full Judge → Kernel → Target incident lifecycle or recovery. The active policy generation's manifest records contract source commit `ac119d78118f2a701312723416b9c150816cd349`, which predates the lifecycle-specific `decided` source fix. The live frontend therefore allows canonical reads but fails closed on signing until a matching deployment is verified. E1 Run A has not submitted an incident; Run B and H1 have not run, and final live fee coverage is incomplete.
 
 E1 remains evidence-bound until two independent clean 61997 runs succeed. See:
 
-- `release-evidence/r1/diagnostics/accepted-message-repro/`
+- `release-evidence/r1/diagnostics/accepted-message-repro/typed-address-existing-parent/result.json`
 - `docs/execution/Open Blockers.md`
 - `docs/execution/HANDOFF.md`
 - `docs/execution/R1 Release Readiness Checklist.md`

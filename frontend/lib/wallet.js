@@ -5,13 +5,9 @@
 // (`window.ethereum`, or `window.genlayer` if a GenLayer-specific provider injects one under that
 // name) to obtain a real connected account address and chain ID.
 //
-// Scope, stated honestly: this proves address + chain ID - the two fields the product's preview/
-// signing-boundary checks (reporterAddress binding, wrong-network blocking) actually need. It does
-// NOT itself implement GenLayer contract-call signing; an actual `submitIncident`/`submitRecovery`
-// etc. writer capable of signing real GenLayer transactions remains a host-injected concern
-// (`globalThis.__RECLOSE_PRODUCT_RUNTIME__.writer`), consistent with CLAUDE.md Section 21 ("Write
-// helpers build/sign through the user's wallet boundary. Do not custody private keys.") - Reclose
-// itself must never hold or proxy a private key.
+// Scope, stated honestly: this module obtains the account and chain identity through EIP-1193.
+// The normal production entry point then binds the account/provider to its GenLayerJS writer and
+// Transaction Kit review; Reclose never holds or proxies a private key.
 
 function detectProvider() {
   if (typeof window === "undefined") return null;

@@ -73,13 +73,13 @@ Canonical environment:
 
 ## Current evidence boundary
 
-The current Studio-dev evidence records a read-only accepted-message simulation failure, reproduced independently of Reclose policy logic:
+The current Studio-dev evidence records a successful read-only typed-address `emit_decided` Parent-to-Child simulation using the saved allocation. The result records `transactionSubmitted: false`; the returned fee is an estimate, not a charge. The historical accepted-phase failure is superseded. A later failed request encoded the Child as a plain string and failed during calldata decoding before message emission:
 
-`SystemError: 2: inval` for an explicit-allocation accepted Parent -> Child message; the phase-matched finalized control succeeds.
+`release-evidence/r1/diagnostics/accepted-message-repro/typed-address-existing-parent/result.json`
 
-No incident was submitted on the current Run A deployment. Reclose therefore does not claim a live semantic judgment, containment, fallback or recovery from this generation. The canonical E1 A+B sequence and H1 remain incomplete.
+The isolated result does not verify the full Judge→Kernel→Target lifecycle. The active immutable Kernel/Judge deployment predates the source correction. No incident was submitted on this Run A deployment, so Reclose does not claim a live semantic judgment, containment, fallback or recovery from this generation. The canonical E1 A+B sequence and H1 remain incomplete.
 
-If that blocker is resolved before submission, replace this section with the exact successful E1 transaction/evidence references. Do not simply delete the limitation without evidence.
+Replace this section with exact successful E1 transaction/evidence references only after the source-matched live lifecycle is completed. Do not simply delete the limitation without evidence.
 
 ## Track fit
 

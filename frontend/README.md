@@ -1,52 +1,30 @@
 # Reclose frontend
 
-The frontend is the Reclose control room, not an enforcement engine. It must never become a second policy/Judge implementation or replace missing protocol truth with optimistic UI state.
+The production entry point is live by default. It loads a bundled runtime from the committed Studio-dev 61997 deployment manifest, reads contract state through the canonical Reclose SDK, and requests a browser wallet only when the reviewer connects it. No host injection or developer-console setup is required.
 
-## Current product surfaces
-
-- Overview / assurance posture
-- Targets list and target detail
-- Policy viewer and authority-diff review
-- Incidents list
-- Five-band Incident Explorer: evidence -> judgment -> consequence -> execution -> recovery
-- Benchmark / release evidence surface
-- Deployment/runtime truth surface
-- Target onboarding review
-- Incident report + fee/bond preview
-- Policy author/review flow
-- Remediation/recovery preview
-- Persistent pending-transaction queue
-
-The app is framework-free by design at R1: standards-based HTML/CSS/ES modules, no browser build dependency and no extra client-side trust layer. `frontend/lib/adapters.js` exposes two modes:
-
-1. `MockProductAdapter` for validated synthetic F1/I1 fixtures. It **cannot submit writes**.
-2. `SdkProductAdapter` for a host-injected frozen `RecloseSDK`, optional index/evidence adapter and least-privilege wallet writer.
-
-A host enables live mode before loading `app.js` by assigning:
-
-```js
-globalThis.__RECLOSE_PRODUCT_RUNTIME__ = {
-  sdk,       // RecloseSDK
-  writer,    // optional wallet-backed bounded write adapter
-  indexer,   // optional discovery/release-evidence convenience adapter
-  trackTransaction // optional tx poll function
-};
-```
-
-Without that object the UI visibly remains in fixture mode. It never silently falls back from a failed live read to mock chain state.
-
-## Run locally
-
-Any static server works, for example:
+## Production build and hosting
 
 ```bash
-python -m http.server 8080 -d frontend
+npm ci
+npm run frontend:build
 ```
 
-Then open `http://localhost:8080/#/overview`.
+The build bundles the pinned `genlayer-js@2.0.0-rc.1`, Reclose protocol SDK/compiler, `@genlayer/transaction-kit@0.1.0-rc.2`, and `@genlayer/transaction-kit-react@0.1.0-rc.2` into `dist/`. `vercel.json` publishes that static directory. Every Studio-dev request shares a FIFO throttle spaced by 2.6 seconds (under 24 requests/minute per browser runtime); calls are serialized and never automatically retried.
 
-## Verification
+The Transaction Kit React adapter supplies the fee review, explicit confirmation, and lifecycle UI. Its current `submit()` omits `messageAllocations`, and its built-in tracker polls every two seconds. Reclose bridges its hook to the exact SDK-prepared write, verifies the root quote equals the estimator-produced distribution and fee value, preserves the full nested allocation tree, saves the transaction ID before tracking, and tracks at a rate below the Studio-dev cap. A mismatch blocks signing. The kit's fee-policy fingerprint covers the root distribution; the UI discloses that nested allocations are carried from the Reclose SDK profile.
 
-`npm run frontend:test` verifies required D1-D4/I1-I2 surfaces, truth separation, XSS-safe evidence rendering, transaction persistence-before-polling and accessibility primitives. It is part of the root `npm run verify:js` gate.
+The active contract generation in the committed manifest predates the `decided` source correction. Canonical reads are available, while all signing currently fails closed until that immutable deployment and policy are replaced by a verified source-matched generation. This is not a claim that the complete incident lifecycle has passed.
 
-Browser screenshots, keyboard walkthroughs and real SDK runtime evidence belong in the A3 packet and must be captured from the deployed product rather than fabricated from fixtures.
+## Fixture preview
+
+Fixtures are available only when explicitly requested with `?mode=preview`. The interface labels this mode as synthetic and its adapter refuses all writes. The ordinary URL always selects live mode; a failed live read never falls back to fixture data.
+
+## Local browser
+
+After the production build, serve `dist/` with any static server, for example:
+
+```bash
+python -m http.server 8080 -d dist
+```
+
+Then open `http://localhost:8080/#/overview`. Browser proof must use the live URL and a wallet configured for chain 61997; a local fixture screenshot is not live evidence.
