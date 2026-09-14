@@ -1,4 +1,18 @@
-# Reclose R1 Handoff (2026-09-13, final update — token budget exhausted)
+# Reclose R1 Handoff
+
+## Current handoff snapshot (2026-09-14)
+
+- Repository: `C:\Users\USER\Downloads\Reclose`; branch `main`; starting HEAD `6602e3a1c323dd992f74c0bf1fc8b3e64bc64015`. `origin/main` is at the same SHA. Preserve the untracked `.claude/settings.local.json`; never stage it.
+- Current release record: exact-target CI for this source is green (run `34799513027`). A3 attempt 2 is assembled and awaiting external review, not self-passed. R1 is not release-ready: no completed live incident lifecycle, no Run A/Run B artifacts, no current-wallet browser proof, and no final fee profile.
+- OB-014: the existing minimal accepted Parent→Child `noop()` simulation fails at `EmitInternalMessage` / `wasi.gl_call` with `SystemError: 2: inval`, while its phase-matched finalized control succeeds using the SDK-estimated explicit allocation. This rules out Reclose policy logic as the cause of this minimal reproduction, but the hosted service does not expose the server-side validation trace or exact backend SHA needed to identify the inner cause. Do not repeat the simulation or submit an incident. Full fact/inference boundary: `docs/execution/OB-014 Root Cause Report.md`; preserved input and responses: `release-evidence/r1/diagnostics/accepted-message-repro/`.
+- No Reporter nonce exists for the current Run A generation. Last successful transaction for that generation is the initial purchase parent `0x1414c3021e901bc7400521c07be271f16bcf19faa81cb19e723013a40db59550`, with Provider A child `0x77708bab52d63943ffc867c24d6a7fe22e685e02fbd85f1865af74cecd673a2a`; both finalized. No incident write was submitted.
+- Next safe action: continue independent documentation and release-evidence review; leave E1/H1 and final fee coverage explicitly blocked/not run pending the missing server-side diagnostic or supported platform behavior. No wallet approval is currently requested.
+
+The remaining sections are a chronological handoff archive. Their branch names and next-step instructions describe older checkpoints and are superseded by this snapshot and `docs/execution/Current Phase.md`.
+
+---
+
+# Archived handoff notes
 
 ## Branch / commit state
 - Branch: `claude/r1-product-final`
