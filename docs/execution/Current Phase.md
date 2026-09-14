@@ -809,3 +809,10 @@ Current state: branch `claude/r1-product-final`, HEAD before this local continua
 Inspection found the final fee-profile checker still hard-coded superseded r1-final addresses. It now reads addresses and generation from `deployment/61997/r1-lifecycle-split-run-a-working-manifest.json`, and rejects inputs/reports from any other generation. `scripts/fee-profile.mjs` now installs the serialized Studio-dev RPC throttle before any estimation. The input template is rebound to the active generation; its live arguments remain empty because the required incidents/actions/claims do not exist, and the retained three-profile report is stale. `node scripts/check-final-fee-profile.mjs` correctly remains NOT READY; no live fee estimate was sent by this correction.
 
 Validation: fee-profile checker self-tests pass 6/6; full `npm run verify:js` passed after the changes. Full Python suite passed 219/219 earlier in this continuation; no Python/contract source changed afterward. `npm run fee-profile:coverage` remains structurally 13/13. E1 evidence check remains open because zero real run artifacts exist. The active Studio-dev accepted-message blocker remains OB-014.
+
+## 2026-09-14 threat-ledger audit update
+
+- Source checkpoint `89b800d03af783c3fa6d1abc8594edd8a809e7a7` passed exact GitHub CI run `34793484235`.
+- All 82 threat rows now contain control, implementation, test, evidence, residual risk and commit fields. Nine rows explicitly state partial/missing direct implementation or test evidence; the shared CI references prove the repository check only, not all live controls. Keep those threats OPEN/UNVERIFIED as recorded; critical/high residual risk is not accepted.
+- `TM-AUTH-007` remains downgraded to MITIGATED / UNVERIFIED pending live revocation evidence.
+- Requirements rows: 156 total; 5 VERIFIED with complete refs, 13 IN PROGRESS, 1 IMPLEMENTED / UNVERIFIED, 137 NOT STARTED. The broad RTM is not yet substantively reconciled.
