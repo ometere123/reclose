@@ -16,7 +16,7 @@
 // result. Retain the exact existing response until the Studio-dev behavior or call path changes.
 
 import { createClient, chains, deriveInternalMessageCallKey } from "genlayer-js";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { installStudioDevRpcThrottle } from "./studio-dev-rpc-throttle.mjs";
 import { validateFeeProfileInputs } from "./fee-profile-input.mjs";
 
@@ -51,32 +51,80 @@ async function main() {
     process.exit(2);
   }
 
-  // Fee profiling performs multiple Studio-dev simulations. Keep them on the same serialized,
-  // bounded RPC queue used by the incident preflight and transaction polling scripts.
-  installStudioDevRpcThrottle();
-
-  const chain = { ...chains.studioDevnet, id: STUDIO_DEV_CHAIN_ID, rpcUrls: { default: { http: [STUDIO_DEV_RPC] } } };
-  if (chain.id !== STUDIO_DEV_CHAIN_ID) {
-    console.error(`REFUSING: expected chain ID ${STUDIO_DEV_CHAIN_ID}, got ${chain.id}`);
-    process.exit(1);
+  const deploymentProfiles = profiles.filter((profile) => profile.kind === "deployment");
+  let deploymentEvidence = new Map();
+  if (deploymentProfiles.length) {
+    const refs = new Set(deploymentProfiles.map((profile) => profile.deploymentEvidenceReport));
+    if (refs.size !== 1) {
+      console.error("FEE PROFILE PREFLIGHT FAILED (no Studio-dev RPC request sent): deployment entries must use one evidence report");
+      process.exit(2);
+    }
+    const evidencePath = [...refs][0];
+    let evidence;
+    try { evidence = JSON.parse(readFileSync(evidencePath, "utf8")); }
+    catch (error) {
+      console.error(`FEE PROFILE PREFLIGHT FAILED (no Studio-dev RPC request sent): deployment evidence report unavailable: ${error.message}`);
+      process.exit(2);
+    }
+    if (evidence.kind !== "fee-profile-partial-evidence" || evidence.partial !== true ||
+        evidence.network !== "studio-dev" || Number(evidence.chainId) !== STUDIO_DEV_CHAIN_ID ||
+        evidence.deploymentGeneration !== generation) {
+      console.error("FEE PROFILE PREFLIGHT FAILED (no Studio-dev RPC request sent): deployment evidence report is not bound to this active generation");
+      process.exit(2);
+    }
+    deploymentEvidence = new Map((evidence.profiles ?? []).map((profile) => [profile.id, profile]));
+    for (const profile of deploymentProfiles) {
+      const saved = deploymentEvidence.get(profile.id);
+      if (!saved || saved.status !== "ESTIMATED" || saved.deploymentGeneration !== generation ||
+          String(saved.address).toLowerCase() !== String(profile.address).toLowerCase() ||
+          saved.functionName !== profile.functionName ||
+          saved.sourceFile !== profile.sourceFile ||
+          saved.evidenceRef !== profile.evidenceRef ||
+          saved.deploymentTxHash !== profile.deploymentTxHash ||
+          JSON.stringify(saved.args) !== JSON.stringify(profile.args) ||
+          String(saved.value) !== String(profile.value) ||
+          !/^\d+$/.test(String(saved.feeValue ?? "")) || !saved.distribution) {
+        console.error(`FEE PROFILE PREFLIGHT FAILED (no Studio-dev RPC request sent): ${profile.id} does not match its successful deployment evidence`);
+        process.exit(2);
+      }
+    }
   }
 
-  const client = createClient({ chain });
-  const reportedChainId = await client.getChainId();
-  if (Number(reportedChainId) !== STUDIO_DEV_CHAIN_ID) {
-    console.error(`REFUSING: RPC reports chain ID ${reportedChainId}, expected ${STUDIO_DEV_CHAIN_ID} (studio-dev, not stable 61999)`);
-    process.exit(1);
+  // Fee profiling performs multiple Studio-dev simulations. Keep them on the same serialized,
+  // bounded RPC queue used by the incident preflight and transaction polling scripts.
+  const writableProfiles = profiles.filter((profile) => profile.kind !== "deployment" && !profile.knownFailure);
+  let client = null;
+  if (writableProfiles.length) {
+    installStudioDevRpcThrottle();
+    const chain = { ...chains.studioDevnet, id: STUDIO_DEV_CHAIN_ID, rpcUrls: { default: { http: [STUDIO_DEV_RPC] } } };
+    if (chain.id !== STUDIO_DEV_CHAIN_ID) {
+      console.error(`REFUSING: expected chain ID ${STUDIO_DEV_CHAIN_ID}, got ${chain.id}`);
+      process.exit(1);
+    }
+    client = createClient({ chain });
+    const reportedChainId = await client.getChainId();
+    if (Number(reportedChainId) !== STUDIO_DEV_CHAIN_ID) {
+      console.error(`REFUSING: RPC reports chain ID ${reportedChainId}, expected ${STUDIO_DEV_CHAIN_ID} (studio-dev, not stable 61999)`);
+      process.exit(1);
+    }
   }
 
   const results = [];
   for (const profile of profiles) {
     const entry = {
+      id: profile.id,
       name: profile.name,
       address: profile.address,
       functionName: profile.functionName,
       deploymentGeneration: profile.deploymentGeneration ?? null,
       notes: profile.notes ?? null,
     };
+    if (profile.kind === "deployment") {
+      const saved = deploymentEvidence.get(profile.id);
+      results.push({ ...saved, name: profile.name, notes: profile.notes ?? null });
+      console.log(`ESTIMATED  ${entry.name} (from current-generation successful deployment evidence; no RPC re-estimation)`);
+      continue;
+    }
     if (profile.knownFailure) {
       entry.status = profile.knownFailure.status;
       entry.error = profile.knownFailure.error;

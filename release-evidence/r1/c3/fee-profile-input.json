@@ -2,26 +2,112 @@
   {
     "id": "kernel-deploy",
     "name": "AssuranceKernel deploy",
-    "notes": "REQUIRES LIVE RE-RUN - deploy estimates use scripts/fee-profile.mjs/genlayer deployment estimation against Studio-dev. Do not reuse a historical deployment fee as the final profile.",
-    "deploymentGeneration": "r1-lifecycle-split-run-a"
+    "notes": "Current r1-lifecycle-split-run-a deployment. Actual constructor args, estimator-produced fee preset, successful transaction and final execution are bound in fee-profile-report.json.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a",
+    "kind": "deployment",
+    "address": "0x5A271CB03b4833aA485ff13035844ba500c4E536",
+    "functionName": "deploy",
+    "args": [
+      1,
+      60
+    ],
+    "value": "0",
+    "sourceFile": "contracts/assurance_kernel.py",
+    "deploymentTxHash": "0xf0be3d586ef87c20307405dcd70b0a418ffe5a3a0771de9ea066e47e1b4aa59c",
+    "evidenceRef": "deployment/61997/r1-lifecycle-split-run-a-kernel-deploy.txt",
+    "deploymentEvidenceReport": "release-evidence/r1/c3/fee-profile-report.json"
   },
   {
     "id": "judge-deploy",
     "name": "IncidentJudgeV1 deploy",
-    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final Judge source.",
-    "deploymentGeneration": "r1-lifecycle-split-run-a"
+    "notes": "Current r1-lifecycle-split-run-a deployment. Actual constructor args, estimator-produced fee preset, successful transaction and final execution are bound in fee-profile-report.json.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a",
+    "kind": "deployment",
+    "address": "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
+    "functionName": "deploy",
+    "args": [
+      "0x5A271CB03b4833aA485ff13035844ba500c4E536",
+      1,
+      "0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386",
+      {
+        "schema": "reclose-source-registry-v1",
+        "sources": [
+          {
+            "sourceId": "genlayer-project-boilerplate",
+            "canonicalOrigin": "https://raw.githubusercontent.com",
+            "canonicalPathPrefix": "/genlayerlabs/genlayer-project-boilerplate/main/",
+            "sourceClass": "INDEPENDENT_PUBLIC",
+            "ruleIds": [
+              "PROVIDER_COMPROMISE_V1",
+              "SERVICE_FAILURE_V1",
+              "REMEDIATION_CONFIRMED_V1",
+              "RECOVERY_VALIDATED_V1"
+            ],
+            "enabled": true
+          },
+          {
+            "sourceId": "reclose-reference-evidence",
+            "canonicalOrigin": "https://raw.githubusercontent.com",
+            "canonicalPathPrefix": "/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/",
+            "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+            "ruleIds": [
+              "PROVIDER_COMPROMISE_V1",
+              "SERVICE_FAILURE_V1",
+              "REMEDIATION_CONFIRMED_V1",
+              "RECOVERY_VALIDATED_V1"
+            ],
+            "enabled": true
+          }
+        ]
+      }
+    ],
+    "value": "0",
+    "sourceFile": "contracts/incident_judge_v1.py",
+    "deploymentTxHash": "0xd24627484d0e7df26252be054bc44774ad68be3a2b41a22809985390c536ed85",
+    "evidenceRef": "deployment/61997/r1-lifecycle-split-run-a-judge-deploy.txt",
+    "deploymentEvidenceReport": "release-evidence/r1/c3/fee-profile-report.json"
   },
   {
     "id": "vault-deploy",
     "name": "IncentiveVault deploy",
-    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final Vault source.",
-    "deploymentGeneration": "r1-lifecycle-split-run-a"
+    "notes": "Current r1-lifecycle-split-run-a deployment. Actual constructor args, estimator-produced fee preset, successful transaction and final execution are bound in fee-profile-report.json.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a",
+    "kind": "deployment",
+    "address": "0x10451Cd05cDeD4CE0f40983f4f87FFE42968E701",
+    "functionName": "deploy",
+    "args": [
+      "0x5A271CB03b4833aA485ff13035844ba500c4E536",
+      "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
+      1
+    ],
+    "value": "0",
+    "sourceFile": "contracts/incentive_vault.py",
+    "deploymentTxHash": "0xf7ab850ef6abadfb12462d166fcffefd3abdf803b6d9d8820405f9daebb704a2",
+    "evidenceRef": "deployment/61997/r1-lifecycle-split-run-a-vault-deploy.txt",
+    "deploymentEvidenceReport": "release-evidence/r1/c3/fee-profile-report.json"
   },
   {
     "id": "target-deploy",
     "name": "ReferenceAgentProtocol deploy",
-    "notes": "REQUIRES LIVE RE-RUN - profile a clean deployment of the final target source.",
-    "deploymentGeneration": "r1-lifecycle-split-run-a"
+    "notes": "Current r1-lifecycle-split-run-a deployment. Actual constructor args, estimator-produced fee preset, successful transaction and final execution are bound in fee-profile-report.json.",
+    "deploymentGeneration": "r1-lifecycle-split-run-a",
+    "kind": "deployment",
+    "address": "0xdf68B59C5f5Fb8929Ab6360B0024f34aec7a0353",
+    "functionName": "deploy",
+    "args": [
+      "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+      "reclose-target-007",
+      "0x02Be7242eb5ef13984590F86662B139384E20B70",
+      "0x1f12906AF34143C804f5AeeeF0AcDF408e816d0a",
+      "1000000000000000000",
+      "100000000000000000",
+      true
+    ],
+    "value": "0",
+    "sourceFile": "contracts/reference_agent_protocol.py",
+    "deploymentTxHash": "0xcd4939b31d597f872462ff1f62fd70418e8f18dd16f40a755c274212cc7694c8",
+    "evidenceRef": "deployment/61997/r1-lifecycle-split-run-a-reference-agent-deploy.txt",
+    "deploymentEvidenceReport": "release-evidence/r1/c3/fee-profile-report.json"
   },
   {
     "id": "judge-report-no-provisional",

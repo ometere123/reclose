@@ -830,3 +830,9 @@ Exact CI for fee-profiler checkpoint `5c755ffa0a7b03c26afe6be86e8e9d6bbac5c0b5` 
 The fee-profiler guard additionally requires a non-empty active deployment generation; its updated self-test passes 7/7. Exact-target CI for the pushed trace correction `99f4c59ad277aaa9ab4fd0d3e781ba43a1206559` passed in run `34794664043` (`npm run verify`, including Python tests). This checkpoint still does not clear the accepted-message blocker or complete E1/H1, the remaining RTM rows, A3/A4 or final-release gates.
 
 Handoff refresh: checkpoint `831edb76272353fb66334cad638eb00979ee5f3f` passed exact-target CI run `34794903234`. The next safe step is independent row-level RTM reconciliation. Do not repeat the already conclusive accepted-message simulation; no E1 incident was submitted.
+
+## 2026-09-14 deployment fee evidence recovery
+
+Four deployment fee profiles were recovered from the active generation's successful CLI deployment logs. The extractor binds each SDK-derived distribution and fee value to its real constructor arguments, current contract address, deployment tx, finalized successful manifest result, and source commit; all four deployed contract files match manifest source commit `ac119d78118f2a701312723416b9c150816cd349`. It made no Studio-dev RPC request. The fee report now contains those four current profiles plus the evidence-backed accepted-stage failure; the other eight write profiles remain unavailable until their lifecycle state and real arguments exist. `npm run fee-profile:final-check` accurately remains NOT READY, without stale-address warnings.
+
+Validation after this update: deployment-fee parser 3/3, input guard 9/9, final-fee checker 7/7, and offline deployment-profile integration 5/5; full `npm run verify:js` passed. Full verification and exact CI remain required for this checkpoint. Do not retry the accepted simulation or submit the incident.

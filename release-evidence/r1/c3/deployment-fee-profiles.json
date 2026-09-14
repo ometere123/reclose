@@ -1,11 +1,11 @@
 {
-  "kind": "fee-profile-partial-evidence",
+  "kind": "deployment-fee-evidence",
   "network": "studio-dev",
   "chainId": 61997,
   "deploymentGeneration": "r1-lifecycle-split-run-a",
   "sourceCommit": "ac119d78118f2a701312723416b9c150816cd349",
   "generatedAt": "2026-09-14T01:35:25.173Z",
-  "partial": true,
+  "evidenceOnly": true,
   "profiles": [
     {
       "id": "kernel-deploy",
@@ -196,27 +196,6 @@
         "lifecycle": "FINALIZED",
         "executionResult": "FINISHED_WITH_RETURN (CLI assertSuccessfulExecution passed)"
       }
-    },
-    {
-      "id": "judge-to-kernel",
-      "name": "IncidentJudgeV1.submit_incident (Judge -> Kernel cross-contract dispatch branch)",
-      "address": "0x43c6061FEde8372a3e4c3AB513D32abcfA956e89",
-      "functionName": "submit_incident",
-      "deploymentGeneration": "r1-lifecycle-split-run-a",
-      "notes": "Active Judge address. Accepted/provisional explicit-allocation simulation is blocked by the retained Studio-dev minimal reproduction; do not submit a write.",
-      "status": "ESTIMATION_FAILED",
-      "error": "SystemError: 2: inval",
-      "evidenceRef": "release-evidence/r1/diagnostics/accepted-message-repro/simulation-results.json"
     }
-  ],
-  "missingProfiles": [
-    "judge-report-no-provisional",
-    "judge-report-with-provisional",
-    "kernel-to-target-one-effect",
-    "kernel-to-target-two-effects",
-    "remediation",
-    "recovery-validation",
-    "vault-payout",
-    "reference-agent-provider-payment"
   ]
 }

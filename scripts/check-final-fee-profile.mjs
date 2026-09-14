@@ -79,7 +79,13 @@ for (const [id, item] of byId) {
 }
 
 for (const [id, item] of byId) {
-  if (item.functionName && (!Array.isArray(item.args) || item.args.length === 0)) failures.push(`${id}: live call arguments are still empty`);
+  if (item.knownFailure) {
+    if (item.knownFailure.status !== "ESTIMATION_FAILED" || !String(item.knownFailure.error ?? "").trim() || !String(item.knownFailure.evidenceRef ?? "").trim()) {
+      failures.push(`${id}: known failure must preserve ESTIMATION_FAILED, exact error and evidenceRef`);
+    }
+  } else if (item.functionName && (!Array.isArray(item.args) || item.args.length === 0)) {
+    failures.push(`${id}: live call arguments are still empty`);
+  }
   if (/PLACEHOLDER|REPLACE_WITH/i.test(JSON.stringify(item))) failures.push(`${id}: placeholder text/value remains`);
 }
 
@@ -100,6 +106,7 @@ for (const p of profiles) {
   if (!p.status) failures.push(`report profile ${p.name || "<unnamed>"} has no explicit status`);
   if (p.status === "ESTIMATED" && !String(p.feeValue ?? "").match(/^\d+$/)) failures.push(`estimated profile ${p.name} has no decimal feeValue`);
   if (p.status === "ESTIMATION_FAILED" && !String(p.error ?? "").trim()) failures.push(`failed profile ${p.name} has no exact error`);
+  if (p.status === "ESTIMATION_FAILED" && !String(p.evidenceRef ?? "").trim()) failures.push(`failed profile ${p.name} has no evidenceRef`);
   if (p.status && !["ESTIMATED", "ESTIMATION_FAILED"].includes(p.status)) failures.push(`report profile ${p.name || "<unnamed>"} has unsupported status ${p.status}`);
 }
 

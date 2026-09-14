@@ -15,7 +15,18 @@ assert.deepEqual(validateFeeProfileInputs([base], "run-a"), []);
 assert.match(validateFeeProfileInputs([{ ...base, deploymentGeneration: undefined }], undefined)[0], /active deployment generation is required/);
 assert.match(validateFeeProfileInputs([{ ...base, args: [] }], "run-a")[0], /real non-empty args/);
 assert.match(validateFeeProfileInputs([base], "run-b")[0], /does not match/);
-assert.match(validateFeeProfileInputs([{ ...base, id: "kernel-deploy" }], "run-a")[0], /deployment fee estimation is not supported/);
+const deploymentProfile = {
+  ...base,
+  id: "kernel-deploy",
+  kind: "deployment",
+  functionName: "deploy",
+  deploymentTxHash: `0x${"a".repeat(64)}`,
+  evidenceRef: "deployment/deploy.txt",
+  deploymentEvidenceReport: "release-evidence/r1/c3/fee-profile-report.json",
+};
+assert.deepEqual(validateFeeProfileInputs([deploymentProfile], "run-a"), []);
+assert.match(validateFeeProfileInputs([{ ...deploymentProfile, deploymentTxHash: undefined }], "run-a")[0], /actual deployment tx hash is required/);
+assert.match(validateFeeProfileInputs([{ ...deploymentProfile, deploymentEvidenceReport: "" }], "run-a")[0], /evidence report references are required/);
 assert.deepEqual(validateFeeProfileInputs([{
   ...base,
   id: "known-accepted-failure",
@@ -30,4 +41,4 @@ assert.match(validateFeeProfileInputs([{
   args: ["REPLACE_WITH_REAL_INCIDENT"],
 }], "run-a")[0], /placeholder argument is forbidden/);
 
-console.log("Fee-profile input guard: 7/7 passed");
+console.log("Fee-profile input guard: 9/9 passed");

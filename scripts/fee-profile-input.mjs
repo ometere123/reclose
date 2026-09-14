@@ -20,8 +20,13 @@ export function validateFeeProfileInputs(profiles, expectedGeneration) {
       errors.push(`${id}: deployment generation ${profile.deploymentGeneration || "<missing>"} does not match ${expectedGeneration || "<missing>"}`);
     }
 
-    if (String(profile.id).endsWith("-deploy")) {
-      errors.push(`${id}: deployment fee estimation is not supported by this write profiler; do not send a generic write estimate as a deploy profile`);
+    if (profile.kind === "deployment") {
+      if (!ADDRESS.test(String(profile.address ?? ""))) errors.push(`${id}: active deployed contract address is required`);
+      if (profile.functionName !== "deploy") errors.push(`${id}: deployment functionName must be deploy`);
+      if (!Array.isArray(profile.args) || profile.args.length === 0) errors.push(`${id}: actual constructor arguments are required`);
+      if (!/^0x[0-9a-fA-F]{64}$/.test(String(profile.deploymentTxHash ?? ""))) errors.push(`${id}: actual deployment tx hash is required`);
+      if (!String(profile.evidenceRef ?? "").trim() || !String(profile.deploymentEvidenceReport ?? "").trim()) errors.push(`${id}: deployment log and extracted evidence report references are required`);
+      if (profile.args && /PLACEHOLDER|REPLACE_WITH/i.test(JSON.stringify(profile.args))) errors.push(`${id}: placeholder constructor argument is forbidden`);
       continue;
     }
 

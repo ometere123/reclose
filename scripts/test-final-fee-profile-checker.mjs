@@ -136,6 +136,24 @@ try {
     if (p.status === 0 || !p.stderr.includes("has no exact error")) throw new Error("missing estimation error was not rejected");
   });
 
+  test("retained blocked simulation needs no invented live args but must carry its exact error and evidence", () => {
+    const blockedInput = validInput();
+    const blocked = blockedInput.find((x) => x.id === "judge-to-kernel");
+    blocked.args = [];
+    blocked.knownFailure = {
+      status: "ESTIMATION_FAILED",
+      error: "SystemError: 2: inval",
+      evidenceRef: "release-evidence/r1/diagnostics/accepted-message-repro/simulation-results.json",
+    };
+    const blockedReport = validReport();
+    const blockedResult = blockedReport.profiles.find((p) => p.name === "judge-to-kernel");
+    blockedResult.status = "ESTIMATION_FAILED";
+    blockedResult.error = blocked.knownFailure.error;
+    blockedResult.evidenceRef = blocked.knownFailure.evidenceRef;
+    const p = invoke(write("input-known-failure.json", blockedInput), write("report-known-failure.json", blockedReport));
+    if (p.status !== 0) throw new Error(p.stderr || p.stdout);
+  });
+
   test("deployment manifest must be Studio-dev 61997", () => {
     const bad = validManifest();
     bad.chainId = 61999;
@@ -146,5 +164,5 @@ try {
   fs.rmSync(temp, { recursive: true, force: true });
 }
 
-console.log(`\n${6 - failures}/6 final fee-profile checker self-tests passed.`);
+console.log(`\n${7 - failures}/7 final fee-profile checker self-tests passed.`);
 if (failures) process.exit(1);
