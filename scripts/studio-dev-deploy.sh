@@ -7,7 +7,7 @@
 # then `genlayer deploy` with exactly that fee object.
 #
 # Also codifies a genuine operational finding from this session: Studio-dev's RPC
-# (https://studio-dev.genlayer.com/api) intermittently returns transient connectivity errors
+# (https://studio-next.genlayer.com/api) intermittently returns transient connectivity errors
 # (ConnectTimeoutError / "fetch failed" / ECONNRESET / ETag HTML instead of JSON) on individual
 # requests - confirmed to recur identically on both `genlayer deploy`'s receipt-polling step and
 # on later unrelated `genlayer write`/`genlayer call` invocations throughout this session, and to

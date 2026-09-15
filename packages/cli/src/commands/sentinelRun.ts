@@ -14,7 +14,7 @@ import type { CommandResult } from "./policyCompile";
  *   "context": { "targetId": "...", "policyKey": "...", "policyHash": "0x...", "ruleId": "PROVIDER_COMPROMISE_V1", "resourceId": "...", "subject": "..." },
  *   "judgeAddress": "0x...",
  *   "reporterAccount": "reclose-deployer",
- *   "rpc": "https://studio-dev.genlayer.com/api",
+ *   "rpc": "https://studio-next.genlayer.com/api",
  *   "stateFile": ".sentinel-state.json",
  *   "cooldownSeconds": 300,
  *   "intervalSeconds": 60,
