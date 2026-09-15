@@ -1,0 +1,951 @@
+{
+  "schema": "reclose-r1-deployment-v1",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "rpc": "https://studio-next.genlayer.com/api",
+  "generation": "r1-fresh-run-a",
+  "deployer": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+  "sourceCommit": "cd5bd13f02e7e1fbcfa741e451708fefb7ff3fe9",
+  "targetId": "reclose-target-r1-run-a",
+  "sourceRegistry": {
+    "canonicalHash": "0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386",
+    "path": "config/source-registry-r1.json"
+  },
+  "contracts": {
+    "ProviderStubA": {
+      "address": "0xd0d402E87fCdc6C91Bc54444fA7E8474c71f0094",
+      "deploymentTx": "0xb2727a02981039977fdbecb1133db98a96b76de01cf96ad2c988cac8655dd052",
+      "status": "FINALIZED",
+      "executionResult": "SUCCESS"
+    },
+    "ProviderStubB": {
+      "address": "0x71e70C8f59c30fDE705A387Fea79310e9d1C407b",
+      "deploymentTx": "0xfe3c1b58b86cdc7c28de950a2af0c96f69c82d80a2b8296f8b8f98e07e348702",
+      "status": "FINALIZED",
+      "executionResult": "SUCCESS"
+    },
+    "ReferenceAgentProtocol": {
+      "address": "0x2Eeb915E4De25ee2258654397B381fdb8a3AB09C",
+      "deploymentTx": "0x1fa17e2f3d213ebc553ec90d6c1fa09f370467f582254dc1b6849d10e70bca20",
+      "status": "FINALIZED",
+      "executionResult": "SUCCESS"
+    },
+    "AssuranceKernel": {
+      "address": "0x6eCCfb2B150F12A1A96B9BaA7B762d1f15DcFfd3",
+      "deploymentTx": "0x46c8d7a91ffeda51e6b372c6a6ed8018653213b7de2fd40bd666324f78b97f31",
+      "status": "FINALIZED",
+      "executionResult": "SUCCESS"
+    },
+    "IncidentJudgeV1": {
+      "address": "0x19b63c9C743862CdDA35eE932293B33E33DF05C8",
+      "deploymentTx": "0xeedf98f088b4ab8be8eeb84677bddba834fe85777df105d434bfa4bceb1a9495",
+      "status": "FINALIZED",
+      "executionResult": "SUCCESS",
+      "sourceRegistryHash": "0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386",
+      "readbacks": {
+        "sourceRegistryHash": "0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386"
+      }
+    },
+    "IncentiveVault": {
+      "address": "0xc010c956311E72cd2930065501D19Db57A12CcED",
+      "deploymentTx": "0xc0dc478b4c0cb00b13490e145431a153812da45249bacc91261f23a50070a34c",
+      "status": "FINALIZED",
+      "executionResult": "SUCCESS"
+    }
+  },
+  "wiring": {
+    "targetControllerTx": "0xd510061aeb71f816354caad62dd37fa5e3451cdcbadc31becbf1e9c309a1cd4a",
+    "targetRegistrationTx": "0x650189c2715d8ba86f22c0ee4a03b2aefc73f93fe39793d5f8870f5c6f3d70c2",
+    "judgeVaultTx": "0x3f985e0f2a9a2f571d836bddd1448bca52e142eff375f56ab5dddfeacd12aa7f"
+  },
+  "policy": {
+    "policyKey": "policy-r1-fresh-run-a",
+    "version": 1,
+    "manifestHash": "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b",
+    "status": "sealed",
+    "steps": [
+      {
+        "index": 1,
+        "functionName": "begin_policy",
+        "args": [
+          "reclose-target-r1-run-a",
+          "policy-r1-fresh-run-a",
+          "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b"
+        ],
+        "estimate": {
+          "feeValue": "613836000010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153459000000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0x3d38b73edec934593fabd3d140bc044409a4b099e1a2a6779204fda486d9e3b7",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "lifecycle": [
+            "reclose-target-r1-run-a",
+            1,
+            "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b",
+            1789496216,
+            0,
+            0,
+            0,
+            false,
+            false,
+            false
+          ],
+          "counts": [
+            0,
+            0,
+            0
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-01-begin_policy-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-01-begin_policy-write.txt"
+        },
+        "completedAt": "2026-09-15T18:17:33.346Z"
+      },
+      {
+        "index": 2,
+        "functionName": "add_policy_resource",
+        "args": [
+          "policy-r1-fresh-run-a",
+          "provider_a"
+        ],
+        "estimate": {
+          "feeValue": "613828800010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153457200000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0x2a5d7ec8bfc63f89629f85e6bccdc975d51327bc7011b508391ba988913892a0",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "index": 0,
+          "resource": "provider_a",
+          "registered": true,
+          "counts": [
+            0,
+            1,
+            0
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-02-add_policy_resource-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-02-add_policy_resource-write.txt"
+        },
+        "completedAt": "2026-09-15T18:18:43.489Z"
+      },
+      {
+        "index": 3,
+        "functionName": "add_policy_resource",
+        "args": [
+          "policy-r1-fresh-run-a",
+          "provider_b"
+        ],
+        "estimate": {
+          "feeValue": "613830000010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153457500000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0xc9b408566c1a3bcb0161bede52cb53ab1c29b55062df8ac7bea1fb880760a313",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "index": 1,
+          "resource": "provider_b",
+          "registered": true,
+          "counts": [
+            0,
+            2,
+            0
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-03-add_policy_resource-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-03-add_policy_resource-write.txt"
+        },
+        "completedAt": "2026-09-15T18:19:50.446Z"
+      },
+      {
+        "index": 4,
+        "functionName": "add_policy_rule",
+        "args": [
+          "policy-r1-fresh-run-a",
+          "PROVIDER_COMPROMISE_V1",
+          "0x19b63c9C743862CdDA35eE932293B33E33DF05C8",
+          1,
+          1,
+          true,
+          "0",
+          "0"
+        ],
+        "estimate": {
+          "feeValue": "613832400010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153458100000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0xdc19d1b54b58f5d96f9ea60e87836bcd9f49609dded0719128cad6186dc5f518",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "ruleId": "PROVIDER_COMPROMISE_V1",
+          "judge": "0x19b63c9c743862cdda35ee932293b33e33df05c8",
+          "judgeVersion": 1,
+          "ruleKind": 1,
+          "provisionalAllowed": true,
+          "enabled": true,
+          "economics": [
+            0,
+            0
+          ],
+          "counts": [
+            1,
+            2,
+            0
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-04-add_policy_rule-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-04-add_policy_rule-write.txt"
+        },
+        "completedAt": "2026-09-15T18:20:59.607Z"
+      },
+      {
+        "index": 5,
+        "functionName": "add_policy_rule",
+        "args": [
+          "policy-r1-fresh-run-a",
+          "REMEDIATION_CONFIRMED_V1",
+          "0x19b63c9C743862CdDA35eE932293B33E33DF05C8",
+          1,
+          2,
+          false,
+          "0",
+          "0"
+        ],
+        "estimate": {
+          "feeValue": "613832400010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153458100000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0x08dad9ec691c2826451bed2d4aa2f6beb1589744b252e4f811b65d2061956690",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "ruleId": "REMEDIATION_CONFIRMED_V1",
+          "judge": "0x19b63c9c743862cdda35ee932293b33e33df05c8",
+          "judgeVersion": 1,
+          "ruleKind": 2,
+          "provisionalAllowed": false,
+          "enabled": true,
+          "economics": [
+            0,
+            0
+          ],
+          "counts": [
+            2,
+            2,
+            0
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-05-add_policy_rule-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-05-add_policy_rule-write.txt"
+        },
+        "completedAt": "2026-09-15T18:22:10.061Z"
+      },
+      {
+        "index": 6,
+        "functionName": "add_policy_rule",
+        "args": [
+          "policy-r1-fresh-run-a",
+          "RECOVERY_VALIDATED_V1",
+          "0x19b63c9C743862CdDA35eE932293B33E33DF05C8",
+          1,
+          3,
+          false,
+          "0",
+          "0"
+        ],
+        "estimate": {
+          "feeValue": "613834800010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153458700000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0xadd37412b475164503043aa965dc5bfc912397eabc4ca63d2d2786d2b9e8ec6e",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "ruleId": "RECOVERY_VALIDATED_V1",
+          "judge": "0x19b63c9c743862cdda35ee932293b33e33df05c8",
+          "judgeVersion": 1,
+          "ruleKind": 3,
+          "provisionalAllowed": false,
+          "enabled": true,
+          "economics": [
+            0,
+            0
+          ],
+          "counts": [
+            3,
+            2,
+            0
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-06-add_policy_rule-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-06-add_policy_rule-write.txt"
+        },
+        "completedAt": "2026-09-15T18:23:20.769Z"
+      },
+      {
+        "index": 7,
+        "functionName": "add_policy_effect",
+        "args": [
+          "policy-r1-fresh-run-a",
+          "PROVIDER_COMPROMISE_V1",
+          3,
+          "provider_a",
+          "0",
+          "",
+          1
+        ],
+        "estimate": {
+          "feeValue": "613832400010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153458100000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0x321a31e53404b7bf6e8a40d6c4b5044b8d12bbbc94e5b2ecdebc7b90ac57ef7b",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "index": 0,
+          "effect": [
+            "PROVIDER_COMPROMISE_V1",
+            3,
+            "provider_a",
+            0,
+            "",
+            1,
+            true
+          ],
+          "counts": [
+            3,
+            2,
+            1
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-07-add_policy_effect-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-07-add_policy_effect-write.txt"
+        },
+        "completedAt": "2026-09-15T18:24:31.246Z"
+      },
+      {
+        "index": 8,
+        "functionName": "add_policy_effect",
+        "args": [
+          "policy-r1-fresh-run-a",
+          "PROVIDER_COMPROMISE_V1",
+          7,
+          "",
+          "0",
+          "",
+          1
+        ],
+        "estimate": {
+          "feeValue": "613831200010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153457800000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0xb509e92a90960c528d0692ec4a84b2df34a72bfb4270a17470c3bae3aa5d034b",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "index": 1,
+          "effect": [
+            "PROVIDER_COMPROMISE_V1",
+            7,
+            "",
+            0,
+            "",
+            1,
+            true
+          ],
+          "counts": [
+            3,
+            2,
+            2
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-08-add_policy_effect-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-08-add_policy_effect-write.txt"
+        },
+        "completedAt": "2026-09-15T18:25:39.044Z"
+      },
+      {
+        "index": 9,
+        "functionName": "add_policy_effect",
+        "args": [
+          "policy-r1-fresh-run-a",
+          "REMEDIATION_CONFIRMED_V1",
+          9,
+          "",
+          "0",
+          "",
+          1
+        ],
+        "estimate": {
+          "feeValue": "613833600010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153458400000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0x0b628e6503eb79994d34b80ab1d96aa89ef5932d52e5ba50d507437305d657ff",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "index": 2,
+          "effect": [
+            "REMEDIATION_CONFIRMED_V1",
+            9,
+            "",
+            0,
+            "",
+            1,
+            true
+          ],
+          "counts": [
+            3,
+            2,
+            3
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-09-add_policy_effect-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-09-add_policy_effect-write.txt"
+        },
+        "completedAt": "2026-09-15T18:26:47.735Z"
+      },
+      {
+        "index": 10,
+        "functionName": "add_policy_effect",
+        "args": [
+          "policy-r1-fresh-run-a",
+          "RECOVERY_VALIDATED_V1",
+          10,
+          "",
+          "0",
+          "",
+          2
+        ],
+        "estimate": {
+          "feeValue": "613832400010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153458100000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0xdcec26632b106f9e6b96ed8701130fbe78cd5582a7659fcc391c5370bfd027ed",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "index": 3,
+          "effect": [
+            "RECOVERY_VALIDATED_V1",
+            10,
+            "",
+            0,
+            "",
+            2,
+            true
+          ],
+          "counts": [
+            3,
+            2,
+            4
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-10-add_policy_effect-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-10-add_policy_effect-write.txt"
+        },
+        "completedAt": "2026-09-15T18:27:59.380Z"
+      },
+      {
+        "index": 11,
+        "functionName": "seal_policy",
+        "args": [
+          "policy-r1-fresh-run-a"
+        ],
+        "estimate": {
+          "feeValue": "613831200010352",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "153457800000000",
+            "executionConsumed": "0",
+            "totalMessageFees": "0",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "messageAllocations": []
+        },
+        "txHash": "0xf43343121e228c2043684dafd774ca8b7afc869ba07f301f581ba8f91fc8ad36",
+        "transactionStatus": "FINALIZED",
+        "transactionOutcome": "accepted",
+        "executionResult": "FINISHED_WITH_RETURN",
+        "cliExecutionAssertion": "FINISHED_WITH_RETURN from authoritative transaction read",
+        "readback": {
+          "lifecycle": [
+            "reclose-target-r1-run-a",
+            1,
+            "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b",
+            1789496216,
+            1789496906,
+            1789496966,
+            0,
+            true,
+            false,
+            false
+          ],
+          "header": [
+            1,
+            "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b",
+            true,
+            false,
+            true
+          ],
+          "counts": [
+            3,
+            2,
+            4
+          ]
+        },
+        "logFiles": {
+          "estimate": "deployment/61997/r1-fresh-run-a-policy-11-seal_policy-estimate.txt",
+          "write": "deployment/61997/r1-fresh-run-a-policy-11-seal_policy-write.txt"
+        },
+        "completedAt": "2026-09-15T18:29:13.906Z"
+      }
+    ],
+    "pendingWrite": null
+  },
+  "events": [
+    {
+      "operation": "begin_policy",
+      "txHash": "0x3d38b73edec934593fabd3d140bc044409a4b099e1a2a6779204fda486d9e3b7",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "lifecycle": [
+          "reclose-target-r1-run-a",
+          1,
+          "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b",
+          1789496216,
+          0,
+          0,
+          0,
+          false,
+          false,
+          false
+        ],
+        "counts": [
+          0,
+          0,
+          0
+        ]
+      },
+      "timestamp": "2026-09-15T18:17:33.346Z"
+    },
+    {
+      "operation": "add_policy_resource",
+      "txHash": "0x2a5d7ec8bfc63f89629f85e6bccdc975d51327bc7011b508391ba988913892a0",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "index": 0,
+        "resource": "provider_a",
+        "registered": true,
+        "counts": [
+          0,
+          1,
+          0
+        ]
+      },
+      "timestamp": "2026-09-15T18:18:43.489Z"
+    },
+    {
+      "operation": "add_policy_resource",
+      "txHash": "0xc9b408566c1a3bcb0161bede52cb53ab1c29b55062df8ac7bea1fb880760a313",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "index": 1,
+        "resource": "provider_b",
+        "registered": true,
+        "counts": [
+          0,
+          2,
+          0
+        ]
+      },
+      "timestamp": "2026-09-15T18:19:50.446Z"
+    },
+    {
+      "operation": "add_policy_rule",
+      "txHash": "0xdc19d1b54b58f5d96f9ea60e87836bcd9f49609dded0719128cad6186dc5f518",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "ruleId": "PROVIDER_COMPROMISE_V1",
+        "judge": "0x19b63c9c743862cdda35ee932293b33e33df05c8",
+        "judgeVersion": 1,
+        "ruleKind": 1,
+        "provisionalAllowed": true,
+        "enabled": true,
+        "economics": [
+          0,
+          0
+        ],
+        "counts": [
+          1,
+          2,
+          0
+        ]
+      },
+      "timestamp": "2026-09-15T18:20:59.607Z"
+    },
+    {
+      "operation": "add_policy_rule",
+      "txHash": "0x08dad9ec691c2826451bed2d4aa2f6beb1589744b252e4f811b65d2061956690",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "ruleId": "REMEDIATION_CONFIRMED_V1",
+        "judge": "0x19b63c9c743862cdda35ee932293b33e33df05c8",
+        "judgeVersion": 1,
+        "ruleKind": 2,
+        "provisionalAllowed": false,
+        "enabled": true,
+        "economics": [
+          0,
+          0
+        ],
+        "counts": [
+          2,
+          2,
+          0
+        ]
+      },
+      "timestamp": "2026-09-15T18:22:10.061Z"
+    },
+    {
+      "operation": "add_policy_rule",
+      "txHash": "0xadd37412b475164503043aa965dc5bfc912397eabc4ca63d2d2786d2b9e8ec6e",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "ruleId": "RECOVERY_VALIDATED_V1",
+        "judge": "0x19b63c9c743862cdda35ee932293b33e33df05c8",
+        "judgeVersion": 1,
+        "ruleKind": 3,
+        "provisionalAllowed": false,
+        "enabled": true,
+        "economics": [
+          0,
+          0
+        ],
+        "counts": [
+          3,
+          2,
+          0
+        ]
+      },
+      "timestamp": "2026-09-15T18:23:20.769Z"
+    },
+    {
+      "operation": "add_policy_effect",
+      "txHash": "0x321a31e53404b7bf6e8a40d6c4b5044b8d12bbbc94e5b2ecdebc7b90ac57ef7b",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "index": 0,
+        "effect": [
+          "PROVIDER_COMPROMISE_V1",
+          3,
+          "provider_a",
+          0,
+          "",
+          1,
+          true
+        ],
+        "counts": [
+          3,
+          2,
+          1
+        ]
+      },
+      "timestamp": "2026-09-15T18:24:31.246Z"
+    },
+    {
+      "operation": "add_policy_effect",
+      "txHash": "0xb509e92a90960c528d0692ec4a84b2df34a72bfb4270a17470c3bae3aa5d034b",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "index": 1,
+        "effect": [
+          "PROVIDER_COMPROMISE_V1",
+          7,
+          "",
+          0,
+          "",
+          1,
+          true
+        ],
+        "counts": [
+          3,
+          2,
+          2
+        ]
+      },
+      "timestamp": "2026-09-15T18:25:39.044Z"
+    },
+    {
+      "operation": "add_policy_effect",
+      "txHash": "0x0b628e6503eb79994d34b80ab1d96aa89ef5932d52e5ba50d507437305d657ff",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "index": 2,
+        "effect": [
+          "REMEDIATION_CONFIRMED_V1",
+          9,
+          "",
+          0,
+          "",
+          1,
+          true
+        ],
+        "counts": [
+          3,
+          2,
+          3
+        ]
+      },
+      "timestamp": "2026-09-15T18:26:47.735Z"
+    },
+    {
+      "operation": "add_policy_effect",
+      "txHash": "0xdcec26632b106f9e6b96ed8701130fbe78cd5582a7659fcc391c5370bfd027ed",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "index": 3,
+        "effect": [
+          "RECOVERY_VALIDATED_V1",
+          10,
+          "",
+          0,
+          "",
+          2,
+          true
+        ],
+        "counts": [
+          3,
+          2,
+          4
+        ]
+      },
+      "timestamp": "2026-09-15T18:27:59.380Z"
+    },
+    {
+      "operation": "seal_policy",
+      "txHash": "0xf43343121e228c2043684dafd774ca8b7afc869ba07f301f581ba8f91fc8ad36",
+      "status": "FINALIZED",
+      "executionResult": "FINISHED_WITH_RETURN",
+      "readback": {
+        "lifecycle": [
+          "reclose-target-r1-run-a",
+          1,
+          "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b",
+          1789496216,
+          1789496906,
+          1789496966,
+          0,
+          true,
+          false,
+          false
+        ],
+        "header": [
+          1,
+          "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b",
+          true,
+          false,
+          true
+        ],
+        "counts": [
+          3,
+          2,
+          4
+        ]
+      },
+      "timestamp": "2026-09-15T18:29:13.906Z"
+    }
+  ]
+}

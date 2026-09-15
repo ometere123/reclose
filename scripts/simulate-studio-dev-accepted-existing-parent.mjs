@@ -21,7 +21,7 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ORIGINAL = path.join(ROOT, "release-evidence", "r1", "diagnostics", "accepted-message-repro", "simulation-results.json");
 const OUTPUT_DIR = path.join(ROOT, "release-evidence", "r1", "diagnostics", "accepted-message-repro", "typed-address-existing-parent");
-const RPC = "https://studio-dev.genlayer.com/api";
+const RPC = "https://studio-next.genlayer.com/api";
 const CHAIN_ID = 61997;
 const PARENT = "0xbd7a6BcFaa8Ab8505e7C62C8Dcfff1Ae40fcA5de";
 const CHILD = "0x763289C8d65316032e3717C32A84b33c8DaB5020";

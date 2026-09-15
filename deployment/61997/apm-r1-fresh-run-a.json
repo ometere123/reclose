@@ -1,0 +1,18 @@
+{
+  "schema": "reclose-apm-v1",
+  "policyId": "policy-r1-fresh-run-a",
+  "version": 1,
+  "target": { "targetId": "reclose-target-r1-run-a" },
+  "authority": {},
+  "protectedResources": ["provider_a", "provider_b"],
+  "judgeModules": [{"moduleId":"judge-r1","address":"0x19b63c9C743862CdDA35eE932293B33E33DF05C8","version":1}],
+  "semanticRules": [
+    {"ruleId":"PROVIDER_COMPROMISE_V1","judgeModuleId":"judge-r1","ruleKind":"INCIDENT","provisionalAllowed":true,"reportBond":"0","confirmedBounty":"0","effects":[{"actionType":"RESTRICT","resourceId":"provider_a","releasePhase":"REMEDIATION_CONFIRMED"},{"actionType":"ENTER_SAFE_MODE","resourceId":"","releasePhase":"REMEDIATION_CONFIRMED"}]},
+    {"ruleId":"REMEDIATION_CONFIRMED_V1","judgeModuleId":"judge-r1","ruleKind":"REMEDIATION","provisionalAllowed":false,"reportBond":"0","confirmedBounty":"0","effects":[{"actionType":"ENTER_RECOVERY","resourceId":"","releasePhase":"REMEDIATION_CONFIRMED"}]},
+    {"ruleId":"RECOVERY_VALIDATED_V1","judgeModuleId":"judge-r1","ruleKind":"RECOVERY_VALIDATION","provisionalAllowed":false,"reportBond":"0","confirmedBounty":"0","effects":[{"actionType":"RESTORE","resourceId":"","releasePhase":"RECOVERY_VALIDATED"}]}
+  ],
+  "sourcePolicies": {}, "capabilities": {}, "actionBounds": {}, "stateMachine": {},
+  "provisionalContainment": {}, "recovery": {}, "reporting": {}, "crossChain": {},
+  "humanOverride": false, "evolutionEnvelope": {}, "activation": {},
+  "metadata": {"generation":"r1-fresh-run-a","sourceCommit":"cd5bd13f02e7e1fbcfa741e451708fefb7ff3fe9","sourceRegistryHash":"0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386"}
+}

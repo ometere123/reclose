@@ -9,16 +9,19 @@ import { execFileSync } from "node:child_process";
 import { createClient, chains } from "genlayer-js";
 
 const ROOT = process.cwd();
-const MANIFEST_PATH = "deployment/61997/r1-lifecycle-split-run-a-working-manifest.json";
-const COMPILED_PATH = "deployment/61997/apm-r1-lifecycle-split-run-a-compiled.json";
-const LOG_PREFIX = "deployment/61997/r1-lifecycle-split-run-a-policy";
-const RPC = "https://studio-dev.genlayer.com/api";
+const MANIFEST_PATH = "deployment/61997/r1-fresh-run-a-manifest.json";
+const COMPILED_PATH = "deployment/61997/apm-r1-fresh-run-a-compiled.json";
+const LOG_PREFIX = "deployment/61997/r1-fresh-run-a-policy";
+const RPC = "https://studio-next.genlayer.com/api";
 const CHAIN_ID = 61997;
 const CLI_JS = path.join(process.env.APPDATA ?? "", "npm", "node_modules", "genlayer", "dist", "index.js");
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const safe = (value) => JSON.parse(JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : item));
 
 function writeManifest(manifest) {
+  if (!manifest.deployer || !/^0x[0-9a-f]{40}$/i.test(manifest.deployer)) {
+    throw new Error("Refusing to persist fresh policy manifest without verified deployer identity.");
+  }
   const temp = `${MANIFEST_PATH}.tmp`;
   fs.writeFileSync(temp, `${JSON.stringify(manifest, null, 2)}\n`);
   fs.renameSync(temp, MANIFEST_PATH);
@@ -109,9 +112,9 @@ async function itemReadback(client, kernel, call, counts, effectIndex) {
     case "seal_policy": {
       const lifecycle = await client.readContract({ address: kernel, functionName: "get_policy_lifecycle", args: [policyKey] });
       const header = await client.readContract({ address: kernel, functionName: "get_policy_header", args: [policyKey] });
-      assertEqual(lifecycle.slice(0, 3), ["reclose-target-007", 1, "0xb5ac60c955e3bc052531e07b9c351738e7c27d80fb286b702f1f6e2e8ee83953"], "sealed lifecycle identity");
+      assertEqual(lifecycle.slice(0, 3), ["reclose-target-r1-run-a", 1, "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b"], "sealed lifecycle identity");
       assertEqual(lifecycle.slice(7, 10), [true, false, false], "sealed lifecycle flags");
-      assertEqual(header.slice(0, 4), [1, "0xb5ac60c955e3bc052531e07b9c351738e7c27d80fb286b702f1f6e2e8ee83953", true, false], "sealed header");
+      assertEqual(header.slice(0, 4), [1, "0x2d5f1f26612b7e5a031387a18b518270415fec65fdf062c0b8569eda1186737b", true, false], "sealed header");
       assertEqual(counts, [3, 2, 4], "sealed policy counts");
       return { lifecycle: safe(lifecycle), header: safe(header), counts: safe(counts) };
     }
@@ -125,6 +128,13 @@ async function main() {
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
   const compiled = JSON.parse(fs.readFileSync(COMPILED_PATH, "utf8"));
   const kernel = manifest.contracts.AssuranceKernel.address;
+  const deployer = manifest.deployer;
+  if (!/^0x[0-9a-f]{40}$/i.test(deployer)) throw new Error("Fresh manifest deployer is missing or invalid; refusing policy estimation.");
+  const targetOwner = await (async () => {
+    const verifyClient = createClient({ chain: { ...chains.studioDevnet, id: CHAIN_ID, rpcUrls: { default: { http: [RPC] } } } });
+    return verifyClient.readContract({ address: manifest.contracts.ReferenceAgentProtocol.address, functionName: "get_assurance_owner", args: [] });
+  })();
+  assertEqual(targetOwner, deployer, "fresh target owner/deployer identity");
   if (!kernel || manifest.contracts.IncidentJudgeV1.readbacks.sourceRegistryHash !== manifest.sourceRegistry.canonicalHash) {
     throw new Error("Fresh stack manifest is incomplete or source registry readback mismatches; refusing policy writes.");
   }
@@ -183,11 +193,10 @@ async function main() {
     const argText = call.args.map((value) => typeof value === "string" ? value : JSON.stringify(value));
 
     await pause(3000);
-    const estimateOutput = cli([
-      "estimate-fees", kernel, call.functionName, "--rpc", RPC,
-      "--args", ...argText, "--json",
-    ], `${base}-estimate.txt`);
-    const estimate = jsonLine(estimateOutput, `${call.functionName} estimate`);
+    const bigintIndexes = call.functionName === "add_policy_rule" ? [6, 7] : call.functionName === "add_policy_effect" ? [4] : [];
+    const estimateOutput = execFileSync(process.execPath, [path.join(ROOT, "scripts", "estimate-studio-dev-write.mjs"), kernel, call.functionName, "--account", deployer, "--args", JSON.stringify(call.args), ...bigintIndexes.flatMap((index) => ["--bigint-arg-index", String(index)])], { cwd: ROOT, env: process.env, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+    fs.writeFileSync(`${base}-estimate.txt`, estimateOutput);
+    const estimate = JSON.parse(estimateOutput);
     if (!estimate.distribution || !estimate.feeValue) throw new Error(`${call.functionName} estimator returned no usable fee preset.`);
 
     const feeOptions = { distribution: estimate.distribution };

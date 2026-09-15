@@ -72,7 +72,7 @@ export function buildSentinelRunnerFromConfig(
     getNextReporterNonce: () => Promise<number>;
   },
 ): unknown {
-  const rpc = config.rpc ?? "https://studio-dev.genlayer.com/api";
+  const rpc = config.rpc ?? "https://studio-next.genlayer.com/api";
   const reporterAddress = genlayerAccountAddress(config.reporterAccount);
   const monitor = new deps.SentinelMonitor(config.sources);
   const store = new deps.FileSentinelStateStore(config.stateFile ?? ".sentinel-state.json");

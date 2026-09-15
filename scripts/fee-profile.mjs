@@ -21,7 +21,7 @@ import { installStudioDevRpcThrottle } from "./studio-dev-rpc-throttle.mjs";
 import { validateFeeProfileInputs } from "./fee-profile-input.mjs";
 
 const STUDIO_DEV_CHAIN_ID = 61997;
-const STUDIO_DEV_RPC = "https://studio-dev.genlayer.com/api";
+const STUDIO_DEV_RPC = "https://studio-next.genlayer.com/api";
 
 function parseArgs(argv) {
   const [profilePath, ...rest] = argv;

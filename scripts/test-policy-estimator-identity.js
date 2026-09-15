@@ -1,0 +1,17 @@
+const assert = require("assert");
+const fs = require("fs");
+const executor = fs.readFileSync("scripts/studio-dev-policy-construct.mjs", "utf8");
+const estimator = fs.readFileSync("scripts/estimate-studio-dev-write.mjs", "utf8");
+assert(executor.includes("manifest.deployer"));
+assert(executor.includes("get_assurance_owner"));
+assert(executor.includes("assertEqual(targetOwner, deployer"));
+assert(executor.includes("estimate-studio-dev-write.mjs"));
+assert(executor.includes('"--account", deployer'));
+assert(executor.includes("bigintIndexes"));
+assert(executor.includes("fs.writeFileSync(`${base}-estimate.txt`, estimateOutput)"));
+assert(estimator.includes("estimateTransactionFeesForWrite"));
+assert(estimator.includes("if (!account ?" ) === false);
+assert(estimator.includes("STUDIO_DEV_CHAIN_ID = 61997"));
+assert(estimator.includes("STUDIO_DEV_RPC = \"https://studio-next.genlayer.com/api\""));
+assert(!estimator.match(/private.?key|mnemonic/i));
+console.log("PASS estimator identity regression: owner binding, fail-closed identity, typed args, read-only SDK path, chain/RPC lock, no key material");

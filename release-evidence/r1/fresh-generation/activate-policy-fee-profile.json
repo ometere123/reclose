@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "network": "localnet",
+  "measuredAt": "2026-09-15T22:10:36Z",
+  "chainId": 61127,
+  "deploy": {
+    "leaderTimeunitsAllocation": "0",
+    "validatorTimeunitsAllocation": "0",
+    "executionBudgetPerRound": "0",
+    "totalMessageFees": "0",
+    "rotationsPerRound": "0"
+  },
+  "methods": {
+    "add_policy_effect": {
+      "leaderTimeunitsAllocation": "0",
+      "validatorTimeunitsAllocation": "0",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "0"
+    },
+    "add_policy_resource": {
+      "leaderTimeunitsAllocation": "0",
+      "validatorTimeunitsAllocation": "0",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "0"
+    },
+    "add_policy_rule": {
+      "leaderTimeunitsAllocation": "0",
+      "validatorTimeunitsAllocation": "0",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "0"
+    },
+    "begin_policy": {
+      "leaderTimeunitsAllocation": "0",
+      "validatorTimeunitsAllocation": "0",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "0"
+    },
+    "register_target": {
+      "leaderTimeunitsAllocation": "0",
+      "validatorTimeunitsAllocation": "0",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "0"
+    },
+    "seal_policy": {
+      "leaderTimeunitsAllocation": "0",
+      "validatorTimeunitsAllocation": "0",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "0"
+    },
+    "set_assurance_controller": {
+      "leaderTimeunitsAllocation": "0",
+      "validatorTimeunitsAllocation": "0",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "0"
+    }
+  }
+}

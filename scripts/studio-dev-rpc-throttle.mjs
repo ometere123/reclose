@@ -2,7 +2,7 @@
 // One FIFO queue per process, >= 2.6s between RPC starts, bounded transient retries, and
 // exponential spacing for transaction receipt/status polling.
 
-const DEFAULT_RPC = "https://studio-dev.genlayer.com/api";
+const DEFAULT_RPC = "https://studio-next.genlayer.com/api";
 const MIN_INTERVAL_MS = 2600; // at most 23.1 starts/minute, below Studio-dev's 30/minute limit
 const MAX_TRANSIENT_RETRIES = 5;
 const TRANSIENT_BACKOFF_MS = [3000, 6000, 12000, 24000, 30000];

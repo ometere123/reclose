@@ -1,0 +1,39 @@
+{
+  "distribution": {
+    "leaderTimeunitsAllocation": "100",
+    "validatorTimeunitsAllocation": "200",
+    "appealRounds": "0",
+    "executionBudgetPerRound": "153458400000000",
+    "executionConsumed": "0",
+    "totalMessageFees": "0",
+    "rotations": [
+      "3"
+    ],
+    "maxPriceGenPerTimeUnit": "2",
+    "storageFeeMaxGasPrice": "300000000",
+    "receiptFeeMaxGasPrice": "300000000"
+  },
+  "feeValue": "613833600010352",
+  "policy": {
+    "enabled": true,
+    "genPerTimeUnit": "1",
+    "storageUnitPrice": "250000000",
+    "receiptGasPrice": "250000000",
+    "executionBudgetFloor": "76548000000000",
+    "timeUnitOverlayBps": "1500"
+  },
+  "observed": {
+    "executionFeeConsumed": "78632000000000",
+    "executionFeeReportTotal": "78628000000000",
+    "recommendedExecutionBudgetPerRound": "188712000000000",
+    "genvmMessageFeeConsumed": "0",
+    "messageFeeBudget": "0",
+    "messageFeeConsumed": "0",
+    "messageFeeRefunded": "0",
+    "internalDeclaredBudget": "0",
+    "externalMessageReserved": "0",
+    "externalMessageReimbursed": "0",
+    "externalMessageRemainder": "0",
+    "recommendedTotalMessageFees": "0"
+  }
+}

@@ -6,7 +6,7 @@ const path = require("path");
 const cli = require(path.join(__dirname, "..", "dist", "index.js"));
 const sdkModule = require(path.join(__dirname, "..", "..", "protocol-sdk", "dist", "index.js"));
 
-const STUDIO_DEV_RPC = "https://studio-dev.genlayer.com/api";
+const STUDIO_DEV_RPC = "https://studio-next.genlayer.com/api";
 
 function usage() {
   return [

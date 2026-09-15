@@ -14,7 +14,7 @@
 # Usage: studio-dev-write.sh <contractAddress> <method> [--args ...]
 set -euo pipefail
 
-RPC="https://studio-dev.genlayer.com/api"
+RPC="https://studio-next.genlayer.com/api"
 EXPECTED_CHAIN_ID="61997"
 
 CONTRACT="$1"; shift

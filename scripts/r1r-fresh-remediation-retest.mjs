@@ -11,7 +11,7 @@ import { buildJudgeKernelTargetAllocationTree } from "../packages/protocol-sdk/d
 import { buildEap } from "../packages/protocol-sdk/dist/evidence.js";
 
 const STUDIO_DEV_CHAIN_ID = 61997;
-const STUDIO_DEV_RPC = "https://studio-dev.genlayer.com/api";
+const STUDIO_DEV_RPC = "https://studio-next.genlayer.com/api";
 
 const JUDGE = "0xBB79117f59fF62a83bD5961D58818e0D2575487e";
 const KERNEL = "0x056E745A74ABf2A31CbC0796eECE0431Bc5C8c71";

@@ -21,7 +21,7 @@
 import { createClient, chains } from "genlayer-js";
 
 const STUDIO_DEV_CHAIN_ID = 61997;
-const STUDIO_DEV_RPC = "https://studio-dev.genlayer.com/api";
+const STUDIO_DEV_RPC = "https://studio-next.genlayer.com/api";
 
 function parseArgs(argv) {
   const [address, functionName, ...rest] = argv;
@@ -80,9 +80,10 @@ async function main() {
     });
     console.log(JSON.stringify(estimate, (_key, v) => (typeof v === "bigint" ? v.toString() : v), 2));
   } catch (err) {
-    console.error("ESTIMATION_FAILED (not fabricated - exact error below):");
-    console.error(err?.message ?? String(err));
-    if (err?.cause) console.error("cause:", err.cause);
+    const safe = (value) => JSON.parse(JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : item));
+    const diagnostic = { name: err?.name ?? null, code: err?.code ?? null, message: err?.message ?? String(err), cause: err?.cause ? safe(err.cause) : null };
+    console.error("ESTIMATION_FAILED_DIAGNOSTIC_JSON:");
+    console.error(JSON.stringify(diagnostic, null, 2));
     process.exit(1);
   }
 }

@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { createClient, chains } from "genlayer-js";
 import { installStudioDevRpcThrottle } from "./studio-dev-rpc-throttle.mjs";
 
-const RPC = "https://studio-dev.genlayer.com/api";
+const RPC = "https://studio-next.genlayer.com/api";
 const CHAIN_ID = 61997;
 const MANIFEST_PATH = "deployment/61997/r1-lifecycle-split-run-a-working-manifest.json";
 const manifest = JSON.parse(await fs.readFile(MANIFEST_PATH, "utf8"));

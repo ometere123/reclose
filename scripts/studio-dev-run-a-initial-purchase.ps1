@@ -2,7 +2,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 
-$rpc = 'https://studio-dev.genlayer.com/api'
+$rpc = 'https://studio-next.genlayer.com/api'
 $expectedChainId = '61997'
 $expectedOwner = '0x24fAe7cD031Ed702Be63BDeA8912141805B996bd'
 $target = '0xAbb0446A9e4e50d8d7C463F7F3eae320C0Ba9ca2'
