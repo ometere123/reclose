@@ -164,6 +164,23 @@ class ReferenceAgentProtocol(gl.contract.Contract):
         return self.state
 
     @gl.public.view
+    def get_recovery_readiness(self) -> tuple:
+        """Narrow deterministic recovery facts for the Judge; not a generic storage reader."""
+        return (
+            self.target_id,
+            self.kernel if self.assurance_controller_set else gl.Address("0x" + "0" * 40),
+            self.authority_revoked,
+            self.state,
+            self.provider_a,
+            self.provider_b,
+            self.provider_a_enabled,
+            self.provider_b_enabled,
+            self.provider_a_revoked,
+            self.provider_b_revoked,
+            self.get_effective_provider(),
+        )
+
+    @gl.public.view
     def supports_assurance_action(self, action_type: gl.u8, resource_id: str) -> bool:
         """C1-FINAL Section 10: the Kernel calls this BEFORE sealing a policy, so a policy whose
         effects the target will deterministically reject can never be constructed in the first

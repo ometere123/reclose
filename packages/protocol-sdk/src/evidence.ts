@@ -74,6 +74,8 @@ export interface EapInput {
   observedAt: string;
   retrievedAt: string;
   sources: EvidenceSourceInput[];
+  /** Required by the V2 recovery Judge path; absent for incident/remediation EAPs. */
+  recoveryProbeRef?: string;
 }
 
 export interface CanonicalEvidenceSource extends EvidenceSourceInput {
@@ -95,6 +97,7 @@ export interface CanonicalEap {
   contentHashes: `0x${string}`[];
   snapshotRefs: string[];
   artifactHash: `0x${string}`;
+  recoveryProbeRef?: string;
 }
 
 export interface EapValidationError {
@@ -124,6 +127,9 @@ export function validateEap(eap: EapInput): EapValidationError[] {
   if (!ADDRESS_RE.test(eap.reporter)) errors.push({ field: "reporter", message: "reporter must be a 20-byte address" });
   if (!validTimestamp(eap.observedAt)) errors.push({ field: "observedAt", message: "observedAt must be an ISO-compatible timestamp" });
   if (!validTimestamp(eap.retrievedAt)) errors.push({ field: "retrievedAt", message: "retrievedAt must be an ISO-compatible timestamp" });
+  if (eap.ruleId === "RECOVERY_VALIDATED_V1" && !validId(eap.recoveryProbeRef ?? "", 128)) {
+    errors.push({ field: "recoveryProbeRef", message: "RECOVERY_VALIDATED_V1 requires a bounded recoveryProbeRef" });
+  }
   if (typeof eap.subject !== "string" || eap.subject.length > MAX_SUBJECT_CHARS) {
     errors.push({ field: "subject", message: `subject must be at most ${MAX_SUBJECT_CHARS} characters` });
   }
@@ -186,6 +192,7 @@ export function buildEapObject(eap: EapInput): CanonicalEap {
     retrievedAt: eap.retrievedAt,
     contentHashes: sources.map((s) => s.contentHash),
     snapshotRefs: sources.map((s) => s.snapshotRef),
+    ...(eap.recoveryProbeRef !== undefined ? { recoveryProbeRef: eap.recoveryProbeRef } : {}),
   };
   const artifactHash = canonicalKeccak256(withoutArtifact);
   return { ...withoutArtifact, artifactHash };

@@ -949,7 +949,7 @@ async function main() {
       "buildIncidentReport must reject a bondId whose reporter nonce no longer matches"
     );
     await assert.rejects(
-      () => client.buildRecoveryReport({ incidentId: "target-001:" + reporterAddress.toLowerCase() + ":0", reporterAddress, bondId: staleBondId, evidenceSources: [{ sourceId: "s1", url: "https://example.com/a", sourceClass: "INDEPENDENT_PUBLIC", fetchedAt: "2026-01-01T00:00:00.000Z", availability: "AVAILABLE" }] }),
+      () => client.buildRecoveryReport({ incidentId: "target-001:" + reporterAddress.toLowerCase() + ":0", reporterAddress, recoveryProbeRef: "reclose-recovery-probe-001", bondId: staleBondId, evidenceSources: [{ sourceId: "s1", url: "https://example.com/a", sourceClass: "INDEPENDENT_PUBLIC", fetchedAt: "2026-01-01T00:00:00.000Z", availability: "AVAILABLE" }] }),
       /Bond mismatch/i,
       "buildRecoveryReport must reject a bondId whose reporter nonce no longer matches, generalizing the same gating buildIncidentReport already had"
     );
