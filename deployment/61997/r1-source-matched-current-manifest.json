@@ -1,0 +1,27 @@
+{
+  "schema": "reclose-source-matched-stack-v1",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "rpc": "https://studio-next.genlayer.com/api",
+  "generation": "r1-source-matched-current",
+  "sourceCommit": "adca37d9bb08bd447c00d8f073a0a2014f5c2360",
+  "deployer": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+  "targetId": "reclose-target-source-matched",
+  "contracts": {
+    "ProviderStubA": { "address": "0xA290a1Fe93d17F00a7d55521b08E63eFA6466eF2" },
+    "ProviderStubB": { "address": "0x8d4361d566453FeF6BA2ed2704052c0119b0B72E" },
+    "ReferenceAgentProtocol": { "address": "0x55b4bEc59AD069e623DAb737CF8dB0c7EB1D36E9" },
+    "AssuranceKernel": { "address": "0x7DE54B6d2Fea164E325597b1D2275463180d4ddC" },
+    "IncidentJudgeV1": { "address": "0x343Ec96CFEE86b2355e94E79D515FdB619DBfd8a" },
+    "IncentiveVault": { "address": "0x30F4AaDA41A0557B4D6EAd7BeBB8708bf492318E" }
+  },
+  "policy": {
+    "policyKey": "policy-source-matched-current",
+    "version": 1,
+    "manifestHash": "0x7a841f699a27278aab158675ba737809d8ea1978ad4de8e9633c492075052491",
+    "status": "active",
+    "activationTx": "0x319d524170e0b5667f0c8d4beef9e8e6c3d2b6f1ab841d22ce047e982f8fa522",
+    "counts": [3, 2, 4]
+  },
+  "sourceRegistry": { "canonicalHash": "0x7520819a0079e43b9bb0fbd0a4cb6888f6cd22ccc4428090ab0f7da54cee2386", "path": "config/source-registry-r1.json" }
+}
