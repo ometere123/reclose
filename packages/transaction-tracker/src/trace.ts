@@ -1,5 +1,6 @@
 import { mapRawTransaction, type RawGenLayerTransaction } from "@reclose/protocol-sdk";
 import type { ExecutionResult, GenLayerTransactionLifecycle } from "@reclose/protocol-sdk";
+import type { ExpectedEmittedMessage, MessageTriggerPhase } from "./tracker";
 
 export type TraceRole = "REPORT_SUBMISSION" | "JUDGE_DECISION" | "KERNEL_EFFECT" | "TARGET_ACTION" | "VAULT_PAYOUT" | "UNKNOWN";
 
@@ -21,6 +22,7 @@ export interface TransactionTraceNode {
   lifecycle: GenLayerTransactionLifecycle;
   executionResult: ExecutionResult | null;
   emittedMessageCount: number | null;
+  expectedMessages: ExpectedEmittedMessage[];
   childMaterialization: "NOT_OBSERVABLE" | "NO_MESSAGES_DUE" | "AWAITING_MATERIALIZATION" | "MATERIALIZED";
   postStateVerification: "MATCH" | "MISMATCH" | "PENDING" | null;
   children: TransactionTraceNode[];
@@ -73,15 +75,33 @@ export async function buildTransactionTrace(
     }
     const emitted = raw.emittedMessages ?? raw.messages;
     const emittedMessageCount = Array.isArray(emitted) ? emitted.length : null;
+    const expectedMessages = Array.isArray(emitted) ? emitted.map((message, index) => ({
+      index,
+      triggerPhase: traceMessagePhase(message),
+      materializedChildTxId: children[index]?.txId,
+    })) : [];
+    const dueMessages = expectedMessages.filter((message) => traceMessageDue(message.triggerPhase, lifecycle));
     const childMaterialization = emittedMessageCount === null ? (children.length ? "MATERIALIZED" : "NOT_OBSERVABLE") :
-      emittedMessageCount > children.length ? "AWAITING_MATERIALIZATION" :
-      emittedMessageCount === 0 ? "NO_MESSAGES_DUE" : "MATERIALIZED";
+      dueMessages.length === 0 ? "NO_MESSAGES_DUE" :
+      dueMessages.length > children.length ? "AWAITING_MATERIALIZATION" : "MATERIALIZED";
     if (childMaterialization === "AWAITING_MATERIALIZATION" || raw.postStateVerification === "MISMATCH") complete = false;
-    return { txId, role, lifecycle, executionResult, emittedMessageCount, childMaterialization, postStateVerification: raw.postStateVerification ?? null, children };
+    return { txId, role, lifecycle, executionResult, emittedMessageCount, expectedMessages, childMaterialization, postStateVerification: raw.postStateVerification ?? null, children };
   };
 
   const root = await walk(rootTxId, 0);
   return { root, allTransactionIds: Array.from(seen), hasExecutionFailure, complete };
+}
+
+function traceMessagePhase(message: unknown): MessageTriggerPhase {
+  if (!message || typeof message !== "object") return "UNKNOWN";
+  const onAcceptance = (message as { onAcceptance?: unknown }).onAcceptance;
+  return onAcceptance === true ? "ACCEPTED" : onAcceptance === false ? "FINALIZED" : "UNKNOWN";
+}
+
+function traceMessageDue(phase: MessageTriggerPhase, lifecycle: GenLayerTransactionLifecycle): boolean {
+  if (phase === "ACCEPTED") return lifecycle.derived?.isFinal === true || lifecycle.rawStatus === "ACCEPTED" || lifecycle.protocolDecisionOutcome === "accepted";
+  if (phase === "FINALIZED") return lifecycle.derived?.isFinal === true;
+  return lifecycle.derived?.isFinal === true || lifecycle.protocolDecisionOutcome !== null;
 }
 
 export function inferRoleFromFunctionName(functionName: string | null | undefined): TraceRole {

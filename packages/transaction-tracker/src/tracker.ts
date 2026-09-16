@@ -41,6 +41,14 @@ export interface TrackedChild {
 
 export type ChildMaterializationStatus = "NOT_OBSERVABLE" | "NO_MESSAGES_DUE" | "AWAITING_MATERIALIZATION" | "MATERIALIZED";
 
+export type MessageTriggerPhase = "ACCEPTED" | "FINALIZED" | "UNKNOWN";
+
+export interface ExpectedEmittedMessage {
+  index: number;
+  triggerPhase: MessageTriggerPhase;
+  materializedChildTxId?: string;
+}
+
 export interface TrackedTransaction {
   txId: string;
   /** Caller-supplied label for what this transaction IS (e.g. "submit_incident"), purely for
@@ -51,6 +59,8 @@ export interface TrackedTransaction {
   /** Persisted graph metadata. Existing stores may contain records without these fields. */
   parentTxId?: string;
   emittedMessageCount?: number | null;
+  /** Persisted ledger of emitted messages and the lifecycle phase at which each can exist. */
+  expectedMessages?: ExpectedEmittedMessage[];
   childMaterialization: ChildMaterializationStatus;
   postStateVerification?: "MATCH" | "MISMATCH" | "PENDING" | null;
   firstTrackedAt: string;
@@ -165,17 +175,32 @@ export class TransactionTracker {
     }
 
     const emitted = raw.emittedMessages ?? raw.messages;
+    const expectedMessages = Array.isArray(emitted)
+      ? emitted.map((message, index) => ({
+          index,
+          triggerPhase: messageTriggerPhase(message),
+          materializedChildTxId: existing.expectedMessages?.find((item) => item.index === index)?.materializedChildTxId,
+        }))
+      : existing.expectedMessages ?? [];
+    const reconciledMessages = expectedMessages.map((message, index) => ({
+      ...message,
+      materializedChildTxId: message.materializedChildTxId ?? children[index]?.txId,
+    }));
     const emittedMessageCount = Array.isArray(emitted) ? emitted.length : existing.emittedMessageCount ?? null;
+    const dueMessages = reconciledMessages.filter((message) => isMessageDue(message.triggerPhase, lifecycle));
+    const knownChildIds = new Set(children.map((child) => child.txId));
+    const materializedDueMessages = dueMessages.filter((message) => message.materializedChildTxId && knownChildIds.has(message.materializedChildTxId));
     const childMaterialization: ChildMaterializationStatus =
       emittedMessageCount === null ? (children.length ? "MATERIALIZED" : "NOT_OBSERVABLE") :
-      emittedMessageCount > children.length ? "AWAITING_MATERIALIZATION" :
-      emittedMessageCount === 0 ? "NO_MESSAGES_DUE" : "MATERIALIZED";
+      dueMessages.length === 0 ? "NO_MESSAGES_DUE" :
+      materializedDueMessages.length < dueMessages.length ? "AWAITING_MATERIALIZATION" : "MATERIALIZED";
 
     const updated: TrackedTransaction = {
       ...existing,
       lifecycle,
       children,
       emittedMessageCount,
+      expectedMessages: reconciledMessages,
       childMaterialization,
       postStateVerification: raw.postStateVerification ?? existing.postStateVerification ?? null,
       lastPolledAt: new Date().toISOString(),
@@ -193,4 +218,18 @@ export class TransactionTracker {
     const record = await this.store.load(txId);
     return record ? isSafeToResubmit(record.lifecycle) : false;
   }
+}
+
+function messageTriggerPhase(message: unknown): MessageTriggerPhase {
+  if (!message || typeof message !== "object") return "UNKNOWN";
+  const onAcceptance = (message as { onAcceptance?: unknown }).onAcceptance;
+  if (onAcceptance === true) return "ACCEPTED";
+  if (onAcceptance === false) return "FINALIZED";
+  return "UNKNOWN";
+}
+
+function isMessageDue(phase: MessageTriggerPhase, lifecycle: GenLayerTransactionLifecycle): boolean {
+  if (phase === "UNKNOWN") return lifecycle.derived?.isFinal === true || lifecycle.protocolDecisionOutcome !== null;
+  if (phase === "ACCEPTED") return lifecycle.derived?.isFinal === true || lifecycle.rawStatus === "ACCEPTED" || lifecycle.protocolDecisionOutcome === "accepted";
+  return lifecycle.derived?.isFinal === true;
 }
