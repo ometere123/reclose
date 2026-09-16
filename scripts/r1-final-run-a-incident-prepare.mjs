@@ -213,7 +213,7 @@ async function main() {
   const incidentId = `${TARGET_ID}:${OWNER}:${reporterNonce}`;
   const receiveDecisionArgs = () => [
     incidentId, "", TARGET_ID, POLICY_KEY, POLICY_VERSION, POLICY_HASH, RULE_ID, RESOURCE_ID,
-    OWNER, eap.artifactHash, 1, "CREDENTIAL_COMPROMISE", 1,
+    OWNER, eap.artifactHash, 1, "CREDENTIAL_COMPROMISE", FRESH_RUN ? 2 : 1,
   ];
   const actionKey = (actionType, resourceId, paramU256 = 0n, paramString = "") => {
     const parts = [incidentId, POLICY_KEY, String(actionType), resourceId, String(paramU256), paramString];

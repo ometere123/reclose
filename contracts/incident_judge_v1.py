@@ -652,7 +652,11 @@ class IncidentJudgeV1(gl.contract.Contract):
         )
         self._require(_valid_identifier(probe_ref, MAX_RECOVERY_PROBE_REF_CHARS), "E_JDG_RECOVERY: invalid recoveryProbeRef")
         parent = self.incidents[parent_incident_id]
-        self._require(int(parent.status) == int(INCIDENT_STATUS_RECOVERY), "E_JDG_RECOVERY: parent incident is not in RECOVERY")
+        # The Judge's local lineage record intentionally stores identity/evidence only; the
+        # authoritative lifecycle status is maintained by AssuranceKernel. Read it before the
+        # nondeterministic classifier instead of dereferencing a non-existent local status field.
+        parent_status = gl.contract.get_at(self.kernel).view().get_incident_status(parent_incident_id)
+        self._require(int(parent_status) == int(INCIDENT_STATUS_RECOVERY), "E_JDG_RECOVERY: parent incident is not in RECOVERY")
         details = gl.contract.get_at(self.kernel).view().get_target_details(parent.target_id)
         target_address = details[0]
         self._require(target_address.as_hex.lower() != ("0x" + "0" * 40), "E_JDG_RECOVERY: target is not registered")
