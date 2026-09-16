@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { keccak256Hex } from "../packages/protocol-sdk/dist/canonical.js";
 
-const anchor = "404affd0eb28be2345f16b8d87ddf2cb27adae17";
-const prefix = `/ometere123/reclose/${anchor}/release-evidence/r1/e1/e1a-fixtures/`;
+const anchor = "633cc5876815f904acb2006279ab68b01f09e263";
+const prefix = `/ometere123/reclose/${anchor}/release-evidence/r1/e1/e1a-final-fixtures/`;
 const allowed = (url) => {
   try { const u = new URL(url); return u.origin === "https://raw.githubusercontent.com" && u.pathname.startsWith(prefix) && !u.pathname.slice(prefix.length).includes("/"); }
   catch { return false; }

@@ -1,9 +1,9 @@
 {
-  "fixtureAnchorSha": "404affd0eb28be2345f16b8d87ddf2cb27adae17",
+  "fixtureAnchorSha": "633cc5876815f904acb2006279ab68b01f09e263",
   "fixtures": {
-    "provider-a-compromise.md": {"httpStatus": 200, "bytes": 584, "contentHash": "0xd09be3b2dcf88d318c6a79eb72648afe925f46ae5454f4f3dae19febb58efa37"},
-    "provider-a-remediation.md": {"httpStatus": 200, "bytes": 766, "contentHash": "0x38b58c15352fda9b813593e0e47fbbbba555027f386458e4d53fd3a81be22eab"},
-    "provider-a-recovery.md": {"httpStatus": 200, "bytes": 769, "contentHash": "0x054ffcde1386a501516fe74466b7f9c4ec6c9c54eee183bf21be3da4dab5fd97"}
+    "provider-a-compromise.md": {"httpStatus": 200, "bytes": 456, "contentHash": "0x846ae8a7097ff9ebfbf94b3583d3fc44528ddb6838ff647ecd607febe056e80d"},
+    "provider-a-remediation.md": {"httpStatus": 200, "bytes": 594, "contentHash": "0xd857b55e34d5dc975f882092d0f34e513628cedf7610bbd7830be9474ed9e876"},
+    "provider-a-recovery.md": {"httpStatus": 200, "bytes": 633, "contentHash": "0x0ca0871f4fb12cbc9dff6c84dd1e6329c7559f36211ee00f5bd94bdab9bfc16b"}
   },
-  "registryHash": "0x337df302706ed0ee89ae6f7b76d13986721f3705033f9e592510117383ed2986"
+  "registryHash": "0x30148f85dc4c0dab65b7d1db38c863160d98f1f4f4f72f3d67dc5e287918f65a"
 }

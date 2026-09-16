@@ -12,7 +12,7 @@
     {
       "sourceId": "reclose-reference-evidence",
       "canonicalOrigin": "https://raw.githubusercontent.com",
-      "canonicalPathPrefix": "/ometere123/reclose/404affd0eb28be2345f16b8d87ddf2cb27adae17/release-evidence/r1/e1/e1a-fixtures/",
+      "canonicalPathPrefix": "/ometere123/reclose/633cc5876815f904acb2006279ab68b01f09e263/release-evidence/r1/e1/e1a-final-fixtures/",
       "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
       "ruleIds": ["PROVIDER_COMPROMISE_V1", "SERVICE_FAILURE_V1", "REMEDIATION_CONFIRMED_V1", "RECOVERY_VALIDATED_V1"],
       "enabled": true
