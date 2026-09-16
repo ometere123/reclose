@@ -26,6 +26,11 @@ export interface RawGenLayerTransaction {
   txId: string;
   status: RawTransactionStatus;
   result: RawTransactionResult | null;
+  /** Optional execution/async-message data preserved by the public GenLayerJS adapter. */
+  executionResult?: import("./types").ExecutionResult | null;
+  messages?: unknown[] | null;
+  emittedMessages?: unknown[] | null;
+  postStateVerification?: "MATCH" | "MISMATCH" | "PENDING" | null;
   decidedAtBlock?: number | null;
   appealDeadline?: string | null;
 }
