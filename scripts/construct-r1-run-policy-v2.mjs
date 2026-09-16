@@ -37,7 +37,8 @@ const calls = [
   ["add_policy_effect", [policyKey, "RECOVERY_VALIDATED_V1", 10, "", 0n, "", 2]],
   ["seal_policy", [policyKey]],
 ];
-m.policy = { key: policyKey, version: 1, manifestHash: first.hash, compileTwiceIdentical: true, countsExpected: [3, 2, 4], calls: calls.map(([functionName, args]) => ({ functionName, args: safe(args) })), steps: m.policy?.steps ?? [] };
+const previousPolicy = m.policy ?? {};
+m.policy = { ...previousPolicy, key: policyKey, version: 1, manifestHash: first.hash, compileTwiceIdentical: true, countsExpected: [3, 2, 4], calls: calls.map(([functionName, args]) => ({ functionName, args: safe(args) })), steps: previousPolicy.steps ?? [] };
 async function save() { await fs.writeFile(FILE, JSON.stringify(m, null, 2) + "\n"); }
 async function write(index, functionName, args) {
   const old = m.policy.steps[index]; if (old?.executionResult === "FINISHED_WITH_RETURN") return old;
