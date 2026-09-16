@@ -133,6 +133,30 @@ async function main() {
     assert.strictEqual((await tracker.get("0xgrandchild")).parentTxId, "0xchild");
   });
 
+  await test("phase-aware ledger waits for finalized messages without misclassifying accepted-only progress", async () => {
+    const responses = new Map([
+      ["0xphase-root", {
+        txId: "0xphase-root", status: "ACCEPTED", result: "MAJORITY_AGREE",
+        messages: [{ onAcceptance: true }, { onAcceptance: false }], __children: ["0xaccepted-child"],
+      }],
+      ["0xaccepted-child", { txId: "0xaccepted-child", status: "FINALIZED", result: "MAJORITY_AGREE" }],
+      ["0xfinal-child", { txId: "0xfinal-child", status: "PENDING", result: null }],
+    ]);
+    const tracker = new TransactionTracker(fakeClient(responses));
+    await tracker.track("0xphase-root");
+    const accepted = await tracker.poll("0xphase-root");
+    assert.strictEqual(accepted.childMaterialization, "MATERIALIZED");
+    assert.deepStrictEqual(accepted.expectedMessages.map((message) => message.triggerPhase), ["ACCEPTED", "FINALIZED"]);
+
+    responses.set("0xphase-root", {
+      txId: "0xphase-root", status: "FINALIZED", result: "MAJORITY_AGREE",
+      messages: [{ onAcceptance: true }, { onAcceptance: false }], __children: ["0xaccepted-child", "0xfinal-child"],
+    });
+    const finalized = await tracker.poll("0xphase-root");
+    assert.strictEqual(finalized.childMaterialization, "MATERIALIZED");
+    assert.strictEqual(finalized.children.length, 2);
+  });
+
   await test("isReadyForResubmitDecision is true only for CANCELED, never for a timeout status (Section 31 rule 3)", async () => {
     const responses = new Map([
       ["0xcanceled", { txId: "0xcanceled", status: "CANCELED", result: null }],
