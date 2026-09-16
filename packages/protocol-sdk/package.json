@@ -1,8 +1,20 @@
 {
   "name": "@reclose/protocol-sdk",
   "version": "0.1.0",
-  "private": true,
-  "description": "Type-only foundation for the frozen Reclose F1 interface boundary (Frontend Contract v1) plus a minimal wrong-network runtime guard. No network calls or C1 business logic at this phase (A0-T1).",
+  "description": "Reclose protocol SDK: typed evidence, policy, lifecycle, transaction, and GenLayer adapter primitives for external agents.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ometere123/reclose.git",
+    "directory": "packages/protocol-sdk"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
