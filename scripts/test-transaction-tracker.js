@@ -7,7 +7,7 @@
 const assert = require("assert");
 const path = require("path");
 
-const { TransactionTracker, InMemoryTransactionStore, inferRoleFromFunctionName } = require(
+const { TransactionTracker, InMemoryTransactionStore, inferRoleFromFunctionName, buildTransactionTrace } = require(
   path.join(__dirname, "..", "packages", "transaction-tracker", "dist", "index.js")
 );
 
@@ -166,6 +166,16 @@ async function main() {
     assert.strictEqual((await tracker.poll("0xstalled")).childMaterialization, "AWAITING_MATERIALIZATION");
     assert.strictEqual((await tracker.poll("0xstalled")).childMaterialization, "MATERIALIZATION_STALLED");
     assert.strictEqual(await tracker.isReadyForResubmitDecision("0xstalled"), false);
+  });
+
+  await test("trace completion requires successful execution for every discovered descendant", async () => {
+    const responses = new Map([
+      ["0xtrace-root", { txId: "0xtrace-root", status: "FINALIZED", result: "MAJORITY_AGREE", executionResult: "FINISHED_WITH_RETURN", __children: ["0xtrace-child"] }],
+      ["0xtrace-child", { txId: "0xtrace-child", status: "PENDING", result: null, executionResult: null }],
+    ]);
+    const trace = await buildTransactionTrace(fakeClient(responses), "0xtrace-root");
+    assert.strictEqual(trace.complete, false);
+    assert.strictEqual(trace.hasExecutionFailure, false);
   });
 
   await test("isReadyForResubmitDecision is true only for CANCELED, never for a timeout status (Section 31 rule 3)", async () => {
