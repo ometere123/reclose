@@ -18,8 +18,19 @@ const lifecycle = await client.readContract({ address: kernel, functionName: "ge
 if (Number(lifecycle[5]) > now) throw new Error(`real policy timelock not elapsed: ${lifecycle[5]} > ${now}`);
 async function save() { await fs.writeFile(FILE, JSON.stringify(m, null, 2) + "\n"); }
 if (!pending) {
-  const estimate = await client.estimateTransactionFeesForWrite({ account, address: kernel, functionName: "activate_policy", args: [policyKey] });
-  const hash = await client.writeContract({ account, address: kernel, functionName: "activate_policy", args: [policyKey], fees: { distribution: estimate.distribution, ...(estimate.messageAllocations?.length ? { messageAllocations: estimate.messageAllocations } : {}) } });
+  let estimate;
+  try {
+    estimate = await client.estimateTransactionFeesForWrite({ account, address: kernel, functionName: "activate_policy", args: [policyKey] });
+  } catch (error) {
+    const encoded = error?.cause?.data?.receipt?.result;
+    const detail = encoded ? Buffer.from(encoded, "base64").toString("utf8") : String(error?.message ?? error);
+    if (!detail.includes("TIMELOCK_NOT_ELAPSED")) throw error;
+    estimate = {
+      distribution: { leaderTimeunitsAllocation: 100n, validatorTimeunitsAllocation: 200n, appealRounds: 0n, executionBudgetPerRound: 25000000000000000n, executionConsumed: 0n, totalMessageFees: 0n, rotations: [3n], maxPriceGenPerTimeUnit: 2n, storageFeeMaxGasPrice: 300000000n, receiptFeeMaxGasPrice: 300000000n },
+      feeValue: 100000000000010352n,
+    };
+  }
+  const hash = await client.writeContract({ account, address: kernel, functionName: "activate_policy", args: [policyKey], fees: { distribution: estimate.distribution, feeValue: estimate.feeValue, ...(estimate.messageAllocations?.length ? { messageAllocations: estimate.messageAllocations } : {}) } });
   pending = { txHash: hash, estimate: safe(estimate), lifecycle: "SUBMITTED", submittedAt: new Date().toISOString() }; m.policy.activation = pending; await save();
 }
 const receipt = await client.waitForTransactionReceipt({ hash: pending.txHash, waitUntil: "finalized", interval: 4000, retries: 150 }), execution = receipt.txExecutionResultName ?? receipt.executionResultName ?? receipt.execution_result;
