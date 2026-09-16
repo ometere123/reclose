@@ -15,6 +15,9 @@ export interface GenLayerJsClientLike {
     result?: string | null;
     executionResultName?: string | null;
     execution_result?: string | null;
+    messages?: unknown[] | null;
+    emittedMessages?: unknown[] | null;
+    postStateVerification?: "MATCH" | "MISMATCH" | "PENDING" | null;
     decidedAtBlock?: number | bigint | null;
     appealDeadline?: string | null;
   }>;
@@ -47,6 +50,9 @@ export function createGenLayerTransport(client: GenLayerJsClientLike): RecloseTr
         decidedAtBlock: tx.decidedAtBlock == null ? null : Number(tx.decidedAtBlock),
         appealDeadline: tx.appealDeadline ?? null,
         executionResult: executionResult(tx.executionResultName ?? tx.execution_result),
+        messages: tx.messages ?? null,
+        emittedMessages: tx.emittedMessages ?? null,
+        postStateVerification: tx.postStateVerification ?? null,
       };
     },
     getTriggeredTransactionIds: (args) => client.getTriggeredTransactionIds(args),
