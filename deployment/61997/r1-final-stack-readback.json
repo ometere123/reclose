@@ -1,0 +1,125 @@
+{
+  "generatedAt": "2026-09-16T14:34:36.512Z",
+  "network": {
+    "rpc": "https://studio-dev.genlayer.com/api",
+    "chainId": 61997
+  },
+  "targetId": "reclose-target-r1-e1a-final",
+  "addresses": {
+    "AssuranceKernel": "0xc98e741587baa60bD97716FA5428F8b2E75AB9D7",
+    "ProviderStubA": "0xa7B35c2c72E82198Df44c443bd222d1000F2a6Ee",
+    "ProviderStubB": "0x872F05493e3697E557568703C092f483a9AE0425",
+    "ReferenceAgentProtocol": "0xdE1Af869A60c894aB6465E0e1B66B98B0927219b",
+    "IncidentJudgeV1": "0x597D14c25625cd69f71DF59833B20c15D23514B3",
+    "IncentiveVault": "0xcE38093E13560CC5B8B2b62704cB6018eCbE973A"
+  },
+  "readbacks": {
+    "providerA": {
+      "owner": {
+        "ok": true,
+        "value": "0x24fae7cd031ed702be63bdea8912141805b996bd"
+      },
+      "totalReceived": {
+        "ok": true,
+        "value": 0
+      },
+      "fulfilled": {
+        "ok": true,
+        "value": false
+      }
+    },
+    "providerB": {
+      "owner": {
+        "ok": true,
+        "value": "0x24fae7cd031ed702be63bdea8912141805b996bd"
+      },
+      "totalReceived": {
+        "ok": true,
+        "value": 0
+      },
+      "fulfilled": {
+        "ok": true,
+        "value": false
+      }
+    },
+    "target": {
+      "owner": {
+        "ok": true,
+        "value": "0x24fae7cd031ed702be63bdea8912141805b996bd"
+      },
+      "targetId": {
+        "ok": true,
+        "value": "reclose-target-r1-e1a-final"
+      },
+      "controller": {
+        "ok": true,
+        "value": "0xc98e741587baa60bd97716fa5428f8b2e75ab9d7"
+      },
+      "state": {
+        "ok": true,
+        "value": 0
+      },
+      "revoked": {
+        "ok": true,
+        "value": false
+      },
+      "providerA": {
+        "ok": false,
+        "error": "Missing or invalid parameters.\nDouble check you have provided the correct parameters.\n\nDetails: execution failed\nVersion: viem@2.56.5"
+      },
+      "providerB": {
+        "ok": false,
+        "error": "Missing or invalid parameters.\nDouble check you have provided the correct parameters.\n\nDetails: execution failed\nVersion: viem@2.56.5"
+      }
+    },
+    "judge": {
+      "moduleType": {
+        "ok": true,
+        "value": "INCIDENT_JUDGE"
+      },
+      "kernel": {
+        "ok": true,
+        "value": "0xc98e741587baa60bd97716fa5428f8b2e75ab9d7"
+      },
+      "version": {
+        "ok": true,
+        "value": 1
+      },
+      "registry": {
+        "ok": true,
+        "value": "0x30148f85dc4c0dab65b7d1db38c863160d98f1f4f4f72f3d67dc5e287918f65a"
+      },
+      "nonce": {
+        "ok": true,
+        "value": 0
+      }
+    },
+    "vault": {
+      "moduleType": {
+        "ok": true,
+        "value": "INCENTIVE_VAULT"
+      },
+      "kernel": {
+        "ok": true,
+        "value": "0xc98e741587baa60bd97716fa5428f8b2e75ab9d7"
+      },
+      "judge": {
+        "ok": true,
+        "value": "0x597d14c25625cd69f71df59833b20c15d23514b3"
+      }
+    },
+    "kernelTarget": {
+      "ok": true,
+      "value": [
+        "0xde1af869a60c894ab6465e0e1b66b98b0927219b",
+        "0x24fae7cd031ed702be63bdea8912141805b996bd",
+        0,
+        "",
+        1789569054,
+        0,
+        false,
+        true
+      ]
+    }
+  }
+}

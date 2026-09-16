@@ -1,0 +1,16 @@
+import fs from "node:fs/promises";
+import { createClient, chains } from "genlayer-js";
+const [mode, hash] = process.argv.slice(2);
+if (!mode || !hash) throw new Error("usage: recover-value-purchase.mjs <mode> <hash>");
+const m = JSON.parse(await fs.readFile("deployment/61997/r1-final-generation-manifest.json", "utf8"));
+const RPC = "https://studio-dev.genlayer.com/api";
+const c = createClient({ chain: { ...chains.studioDevnet, id: 61997, rpcUrls: { default: { http: [RPC] } } } });
+if (Number(await c.getChainId()) !== 61997) throw new Error("wrong chain");
+const r = await c.waitForTransactionReceipt({ hash, waitUntil: "finalized", interval: 5000, retries: 40 });
+const target = m.contracts.ReferenceAgentProtocol.address;
+const provider = mode === "purchase-b" ? m.contracts.ProviderStubB.address : m.contracts.ProviderStubA.address;
+const requestRef = mode === "purchase-b" ? "e1a-final-fallback-provider-b-001" : "e1a-final-initial-provider-a-001";
+const safe = v => JSON.parse(JSON.stringify(v, (_k, x) => typeof x === "bigint" ? x.toString() : x));
+const out = { schema: "reclose-r1-value-step-v1", mode, network: { rpc: RPC, chainId: 61997 }, target, provider, functionName: "purchase_service", args: [requestRef, "50000000000000000"], value: "0", txHash: hash, lifecycle: "VERIFIED", receipt: safe(r), readback: { treasuryBalance: safe(await c.readContract({ address: target, functionName: "get_treasury_balance", args: [] })), targetState: safe(await c.readContract({ address: target, functionName: "get_state", args: [] })), effectiveProvider: safe(await c.readContract({ address: target, functionName: "get_effective_provider", args: [] })), providerTotalReceived: safe(await c.readContract({ address: provider, functionName: "get_total_received", args: [] })), providerFulfilled: safe(await c.readContract({ address: provider, functionName: "is_fulfilled", args: [requestRef] })), providerChildIds: safe(await c.getTriggeredTransactionIds({ hash })) } };
+await fs.writeFile(`release-evidence/r1/e1/fresh-fixed-cycle/value-${mode}-recovered.json`, JSON.stringify(out, null, 2) + "\n");
+console.log(JSON.stringify({ mode, hash, status: r.statusName ?? r.status_name, execution: r.txExecutionResultName ?? r.execution_result, readback: out.readback }, null, 2));
