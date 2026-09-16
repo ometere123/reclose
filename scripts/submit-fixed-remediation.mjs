@@ -17,7 +17,7 @@ const POLICY_KEY = "policy-source-matched-current";
 const POLICY_HASH = "0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833";
 const REPORTER = "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd";
 const PARENT_INCIDENT_ID = `${TARGET_ID}:${REPORTER}:0`;
-const REPORTER_NONCE = 3;
+const REPORTER_NONCE = 4;
 const INCIDENT_ID = `${TARGET_ID}:${REPORTER}:${REPORTER_NONCE}`;
 
 function key() {

@@ -14,9 +14,9 @@
     "policyHash": "0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833"
   },
   "parentIncidentId": "reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0",
-  "incidentId": "reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:2",
+  "incidentId": "reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:4",
   "action": {
-    "actionId": "74:reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:229:policy-source-matched-current2:100:1:50:",
+    "actionId": "74:reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:429:policy-source-matched-current2:100:1:50:",
     "actionType": 10,
     "paramU256": "5",
     "expectedState": "RECOVERY"
@@ -24,43 +24,43 @@
   "submitArgs": [
     "reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0",
     "policy-source-matched-current",
-    "0x2a76c442e97ac5757cfd7be20fc298fd4f5a475b049d39dcc238d49eda9f4281",
-    "{\"schema\":\"reclose-eap-v1\",\"targetId\":\"reclose-target-source-matched\",\"policyHash\":\"0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833\",\"ruleId\":\"REMEDIATION_CONFIRMED_V1\",\"subject\":\"Confirmed remediation for reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\",\"reporter\":\"0x24fAe7cD031Ed702Be63BDeA8912141805B996bd\",\"observedAt\":\"2026-09-16T10:50:30.488Z\",\"sources\":[{\"sourceId\":\"genlayer-project-boilerplate\",\"url\":\"https://raw.githubusercontent.com/genlayerlabs/genlayer-project-boilerplate/main/README.md\",\"sourceClass\":\"INDEPENDENT_PUBLIC\",\"extractedText\":\"Remediation confirmed: ProviderStubA's credentials have been rotated and independently verified as no longer compromised. The operator has published a signed confirmation of remediation. Provider A access has been revoked and replacement credentials have been tested successfully. This is a controlled synthetic verification record.\",\"snapshotRef\":\"\",\"retrievedAt\":\"2026-09-16T10:50:30.488Z\",\"contentHash\":\"0x106be4c1fd7d7095466becd02fd2100e3bd875be61f6db3eb9de036ca1d057da\"}],\"sourceClasses\":[\"INDEPENDENT_PUBLIC\"],\"retrievedAt\":\"2026-09-16T10:50:30.488Z\",\"contentHashes\":[\"0x106be4c1fd7d7095466becd02fd2100e3bd875be61f6db3eb9de036ca1d057da\"],\"snapshotRefs\":[\"\"],\"artifactHash\":\"0x2a76c442e97ac5757cfd7be20fc298fd4f5a475b049d39dcc238d49eda9f4281\"}",
-    2,
+    "0xd0bdce89799a6b6c6ebf6a0f246ac2cc22beb30086aa53fd155fc48983a889c1",
+    "{\"schema\":\"reclose-eap-v1\",\"targetId\":\"reclose-target-source-matched\",\"policyHash\":\"0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833\",\"ruleId\":\"REMEDIATION_CONFIRMED_V1\",\"subject\":\"Confirmed remediation for reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\",\"reporter\":\"0x24fAe7cD031Ed702Be63BDeA8912141805B996bd\",\"observedAt\":\"2026-09-16T11:23:52.797Z\",\"sources\":[{\"sourceId\":\"reclose-reference-evidence\",\"url\":\"https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md\",\"sourceClass\":\"CONTENT_ADDRESSED_SNAPSHOT\",\"extractedText\":\"RECLOSE SYNTHETIC R1 DEMONSTRATION EVIDENCE — PROVIDER A REMEDIATION\\r\\nfixture_version: 1\\r\\nfixture_id: r1-demo-provider-a-remediation\\r\\nreality: SYNTHETIC; this is not a real incident response, credential rotation, or production change.\\r\\nprovider: Provider A (controlled demo contract reclose-target-006)\\r\\nscenario: In this controlled demo, the fictional credential fixture-key-a-7 is revoked and replaced with fixture-key-a-8. The old credential is rejected by the simulator; the replacement is restricted to the intended Provider A audience. The remediation check records the old-key rejection and the new-key scope check as successful.\\r\\ncondition: REMEDIATION_VERIFIED\\r\\npurpose: deterministic evidence input for the Reclose R1 demo only.\\r\\n\",\"snapshotRef\":\"https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md\",\"retrievedAt\":\"2026-09-16T11:23:52.797Z\",\"contentHash\":\"0x70bef76512a4a402732be277d14b3dfddd90d05e63aa154ab7e2a6316c7100de\"}],\"sourceClasses\":[\"CONTENT_ADDRESSED_SNAPSHOT\"],\"retrievedAt\":\"2026-09-16T11:23:52.797Z\",\"contentHashes\":[\"0x70bef76512a4a402732be277d14b3dfddd90d05e63aa154ab7e2a6316c7100de\"],\"snapshotRefs\":[\"https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md\"],\"artifactHash\":\"0xd0bdce89799a6b6c6ebf6a0f246ac2cc22beb30086aa53fd155fc48983a889c1\"}",
+    4,
     ""
   ],
-  "txHash": "0x648e9f00a411fe5e972c0bb509154911cc7e83c7d16edbf1b78f4853667e25e6",
+  "txHash": "0xba8a7159cdefa07600ec63b1854655c0f5c6f32b9806d5f5e3306e9f9768778c",
   "receipt": {
-    "hash": "0x648e9f00a411fe5e972c0bb509154911cc7e83c7d16edbf1b78f4853667e25e6",
+    "hash": "0xba8a7159cdefa07600ec63b1854655c0f5c6f32b9806d5f5e3306e9f9768778c",
     "from_address": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
     "to_address": "0x6b8cc80DF56B2EF1577373e4e52e883272985038",
     "data": {
       "calldata": {
-        "readable": "{\"\":\"submit_remediation\"\"args\":[\"reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\",\"policy-source-matched-current\",\"0x2a76c442e97ac5757cfd7be20fc298fd4f5a475b049d39dcc238d49eda9f4281\",\"{\\\"schema\\\":\\\"reclose-eap-v1\\\",\\\"targetId\\\":\\\"reclose-target-source-matched\\\",\\\"policyHash\\\":\\\"0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833\\\",\\\"ruleId\\\":\\\"REMEDIATION_CONFIRMED_V1\\\",\\\"subject\\\":\\\"Confirmed remediation for reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\\\",\\\"reporter\\\":\\\"0x24fAe7cD031Ed702Be63BDeA8912141805B996bd\\\",\\\"observedAt\\\":\\\"2026-09-16T10:50:30.488Z\\\",\\\"sources\\\":[{\\\"sourceId\\\":\\\"genlayer-project-boilerplate\\\",\\\"url\\\":\\\"https://raw.githubusercontent.com/genlayerlabs/genlayer-project-boilerplate/main/README.md\\\",\\\"sourceClass\\\":\\\"INDEPENDENT_PUBLIC\\\",\\\"extractedText\\\":\\\"Remediation confirmed: ProviderStubA's credentials have been rotated and independently verified as no longer compromised. The operator has published a signed confirmation of remediation. Provider A access has been revoked and replacement credentials have been tested successfully. This is a controlled synthetic verification record.\\\",\\\"snapshotRef\\\":\\\"\\\",\\\"retrievedAt\\\":\\\"2026-09-16T10:50:30.488Z\\\",\\\"contentHash\\\":\\\"0x106be4c1fd7d7095466becd02fd2100e3bd875be61f6db3eb9de036ca1d057da\\\"}],\\\"sourceClasses\\\":[\\\"INDEPENDENT_PUBLIC\\\"],\\\"retrievedAt\\\":\\\"2026-09-16T10:50:30.488Z\\\",\\\"contentHashes\\\":[\\\"0x106be4c1fd7d7095466becd02fd2100e3bd875be61f6db3eb9de036ca1d057da\\\"],\\\"snapshotRefs\\\":[\\\"\\\"],\\\"artifactHash\\\":\\\"0x2a76c442e97ac5757cfd7be20fc298fd4f5a475b049d39dcc238d49eda9f4281\\\"}\",2,\"\",]}"
+        "readable": "{\"\":\"submit_remediation\"\"args\":[\"reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\",\"policy-source-matched-current\",\"0xd0bdce89799a6b6c6ebf6a0f246ac2cc22beb30086aa53fd155fc48983a889c1\",\"{\\\"schema\\\":\\\"reclose-eap-v1\\\",\\\"targetId\\\":\\\"reclose-target-source-matched\\\",\\\"policyHash\\\":\\\"0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833\\\",\\\"ruleId\\\":\\\"REMEDIATION_CONFIRMED_V1\\\",\\\"subject\\\":\\\"Confirmed remediation for reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\\\",\\\"reporter\\\":\\\"0x24fAe7cD031Ed702Be63BDeA8912141805B996bd\\\",\\\"observedAt\\\":\\\"2026-09-16T11:23:52.797Z\\\",\\\"sources\\\":[{\\\"sourceId\\\":\\\"reclose-reference-evidence\\\",\\\"url\\\":\\\"https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md\\\",\\\"sourceClass\\\":\\\"CONTENT_ADDRESSED_SNAPSHOT\\\",\\\"extractedText\\\":\\\"RECLOSE SYNTHETIC R1 DEMONSTRATION EVIDENCE — PROVIDER A REMEDIATION\\\\r\\\\nfixture_version: 1\\\\r\\\\nfixture_id: r1-demo-provider-a-remediation\\\\r\\\\nreality: SYNTHETIC; this is not a real incident response, credential rotation, or production change.\\\\r\\\\nprovider: Provider A (controlled demo contract reclose-target-006)\\\\r\\\\nscenario: In this controlled demo, the fictional credential fixture-key-a-7 is revoked and replaced with fixture-key-a-8. The old credential is rejected by the simulator; the replacement is restricted to the intended Provider A audience. The remediation check records the old-key rejection and the new-key scope check as successful.\\\\r\\\\ncondition: REMEDIATION_VERIFIED\\\\r\\\\npurpose: deterministic evidence input for the Reclose R1 demo only.\\\\r\\\\n\\\",\\\"snapshotRef\\\":\\\"https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md\\\",\\\"retrievedAt\\\":\\\"2026-09-16T11:23:52.797Z\\\",\\\"contentHash\\\":\\\"0x70bef76512a4a402732be277d14b3dfddd90d05e63aa154ab7e2a6316c7100de\\\"}],\\\"sourceClasses\\\":[\\\"CONTENT_ADDRESSED_SNAPSHOT\\\"],\\\"retrievedAt\\\":\\\"2026-09-16T11:23:52.797Z\\\",\\\"contentHashes\\\":[\\\"0x70bef76512a4a402732be277d14b3dfddd90d05e63aa154ab7e2a6316c7100de\\\"],\\\"snapshotRefs\\\":[\\\"https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md\\\"],\\\"artifactHash\\\":\\\"0xd0bdce89799a6b6c6ebf6a0f246ac2cc22beb30086aa53fd155fc48983a889c1\\\"}\",4,\"\",]}"
       },
-      "fee_value": "360642702000041408",
+      "fee_value": "360642703200041408",
       "salt_nonce": 0,
       "user_value": 0,
-      "valid_until": 1789559454,
+      "valid_until": 1789561447,
       "fee_accounting": {
         "sender": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
         "source": "submission",
         "status": "settled",
         "refunds": [
           {
-            "amount": 510041750009529,
+            "amount": 510042700009529,
             "reason": "finalized",
             "message": 0,
-            "primary": 510041750009529,
+            "primary": 510042700009529,
             "appealBond": 0
           }
         ],
         "top_ups": [
           {
-            "amount": "360642702000041408",
+            "amount": "360642703200041408",
             "sender": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
             "messageFees": "360000000000031056",
-            "primaryAmount": 642702000010352,
+            "primaryAmount": 642703200010352,
             "feesDistribution": {
               "rotations": [
                 3
@@ -71,7 +71,7 @@
               "receiptFeeMaxGasPrice": 300000000,
               "storageFeeMaxGasPrice": 300000000,
               "maxPriceGenPerTimeUnit": 2,
-              "executionBudgetPerRound": 160675500000000,
+              "executionBudgetPerRound": 160675800000000,
               "leaderTimeunitsAllocation": 100,
               "validatorTimeunitsAllocation": 200
             }
@@ -81,10 +81,10 @@
         "user_value": 0,
         "contributions": [
           {
-            "amount": "360642702000041408",
+            "amount": "360642703200041408",
             "message": "360000000000031056",
             "overlay": 1552,
-            "primary": 642702000008800,
+            "primary": 642703200008800,
             "depositor": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd"
           }
         ],
@@ -93,8 +93,8 @@
           "receiptGasPrice": 250000000,
           "storageUnitPrice": 250000000
         },
-        "paid_fee_value": "360642702000041408",
-        "total_refunded": 510041750009529,
+        "paid_fee_value": "360642703200041408",
+        "total_refunded": 510042700009529,
         "policy_snapshot": {
           "intrinsic_gas": 21000,
           "extra_exec_gas": 210000,
@@ -131,11 +131,11 @@
           "receiptFeeMaxGasPrice": 300000000,
           "storageFeeMaxGasPrice": 300000000,
           "maxPriceGenPerTimeUnit": 2,
-          "executionBudgetPerRound": 160675500000000,
+          "executionBudgetPerRound": 160675800000000,
           "leaderTimeunitsAllocation": 100,
           "validatorTimeunitsAllocation": 200
         },
-        "primary_fee_spent": 132660250000823,
+        "primary_fee_spent": 132660500000823,
         "settlement_reason": "finalized",
         "settlement_rounds": [
           {
@@ -149,8 +149,8 @@
         "actual_final_round": 0,
         "appeal_bonds_total": 0,
         "message_fee_budget": "360000000000031056",
-        "primary_fee_budget": 642702000010352,
-        "required_fee_value": "360642702000041408",
+        "primary_fee_budget": 642703200010352,
+        "required_fee_value": "360642703200041408",
         "allocation_consumed": {
           "0": "360000000000031056"
         },
@@ -193,7 +193,7 @@
                 "name": "execution",
                 "unit": "fee",
                 "index": 0,
-                "consumed": 133896250000000
+                "consumed": 133896500000000
               },
               {
                 "name": "message",
@@ -215,14 +215,14 @@
               }
             ],
             "message": "120000000000004400",
-            "execution": 133896250000000,
-            "totalExecution": 133896250000000,
-            "totalWithMessage": "120133896250004400",
+            "execution": 133896500000000,
+            "totalExecution": 133896500000000,
+            "totalWithMessage": "120133896500004400",
             "submittedMessageBytes": 1312,
             "executionBudgetOverrun": 0,
             "executionBudgetExceeded": false,
-            "executionBudgetPerRound": 160675500000000,
-            "executionBudgetRemaining": 26779250000000,
+            "executionBudgetPerRound": 160675800000000,
+            "executionBudgetRemaining": 26779300000000,
             "nondeterministicOutputBytes": 49
           },
           "messageReveal": {
@@ -273,8 +273,8 @@
           },
           "receiptGasPrice": 250000000,
           "executionMetering": {
-            "chargeableExecutionFee": 132660250000000,
-            "genvmReportedExecution": 133896250000000,
+            "chargeableExecutionFee": 132660500000000,
+            "genvmReportedExecution": 133896500000000,
             "genvmDeltaFromChargeable": 1236000000000
           },
           "totalEstimatedFee": 132652000000000,
@@ -291,17 +291,17 @@
                 "name": "storage",
                 "unit": "fee",
                 "index": 1,
-                "consumed": 8250000000
+                "consumed": 8500000000
               }
             ],
             "receipt": 132652000000000,
-            "storage": 8250000000,
-            "totalExecution": 132660250000000,
-            "totalWithMessage": 132660250000000,
+            "storage": 8500000000,
+            "totalExecution": 132660500000000,
+            "totalWithMessage": 132660500000000,
             "executionBudgetOverrun": 0,
             "executionBudgetExceeded": false,
-            "executionBudgetPerRound": 160675500000000,
-            "executionBudgetRemaining": 28015250000000
+            "executionBudgetPerRound": 160675800000000,
+            "executionBudgetRemaining": 28015300000000
           },
           "historicalReceiptFees": {
             "attempts": [
@@ -314,35 +314,35 @@
                 "deterministicViolation": false
               }
             ],
-            "totalExecution": 132660250000000,
-            "finalStorageFee": 8250000000,
+            "totalExecution": 132660500000000,
+            "finalStorageFee": 8500000000,
             "receiptFeeTotal": 132652000000000
           },
           "totalStudioMeteredFee": 133888000000000
         },
         "message_fee_consumed": "360000000000031056",
         "message_fee_refunded": 0,
-        "primary_fee_refunded": 510041750009529,
-        "primary_fee_required": 642702000010352,
+        "primary_fee_refunded": 510042700009529,
+        "primary_fee_required": 642703200010352,
         "selection_pool_count": 16,
         "message_phase_emitted": {
           "accepted": true,
           "finalized": true
         },
         "message_value_effects": {
-          "0xdd7930e2a56868c1d6a697a300ed01663dd650a2ae8a30db1234abf5a01609b8": {
+          "0x243243b119dcdaed0907fa29f18d58e54c9f9bfb3c7bb8365c24b0c01cbd9824": {
             "phase": "finalized",
             "value": 0,
             "include": true,
-            "descriptor": "0x6c6d8ce56588cb582e045761fa9487de75d89130fda8917876ee2e6e68a2b0fa",
+            "descriptor": "0xd5302fe9a4430d61db9c9397aa8931857b62f28ea4ba13296e858f60f0f60f4e",
             "declaredBudget": 0
           }
         },
-        "execution_budget_total": 642702000000000,
-        "execution_fee_consumed": 132660250000000,
+        "execution_budget_total": 642703200000000,
+        "execution_fee_consumed": 132660500000000,
         "fee_refund_settlements": [
           {
-            "amount": 510041750008100,
+            "amount": 510042700008100,
             "source": "primary-fifo",
             "recipient": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd"
           },
@@ -354,14 +354,14 @@
         ],
         "recommended_fee_preset": {
           "source": "simulation",
-          "feeValue": "360642702000041408",
+          "feeValue": "360642703200041408",
           "observed": {
-            "executionFee": 132660250000000,
+            "executionFee": 132660500000000,
             "messageFeeBudget": "360000000000031056",
             "totalEstimatedFee": 132652000000000,
             "declaredMessageFees": "360000000000031056",
             "totalStudioMeteredFee": 133888000000000,
-            "genvmExecutionRequired": 133896250000000,
+            "genvmExecutionRequired": 133896500000000,
             "externalMessageReserved": 0
           },
           "paddingBps": 12000,
@@ -375,7 +375,7 @@
             "receiptFeeMaxGasPrice": 300000000,
             "storageFeeMaxGasPrice": 300000000,
             "maxPriceGenPerTimeUnit": 2,
-            "executionBudgetPerRound": 160675500000000,
+            "executionBudgetPerRound": 160675800000000,
             "leaderTimeunitsAllocation": 100,
             "validatorTimeunitsAllocation": 200
           },
@@ -410,7 +410,7 @@
               "name": "execution",
               "unit": "fee",
               "index": 0,
-              "consumed": 133896250000000
+              "consumed": 133896500000000
             },
             {
               "name": "message",
@@ -432,21 +432,21 @@
             }
           ],
           "message": "120000000000004400",
-          "execution": 133896250000000,
-          "totalExecution": 133896250000000,
-          "totalWithMessage": "120133896250004400",
+          "execution": 133896500000000,
+          "totalExecution": 133896500000000,
+          "totalWithMessage": "120133896500004400",
           "submittedMessageBytes": 1312,
           "executionBudgetOverrun": 0,
           "executionBudgetExceeded": false,
-          "executionBudgetPerRound": 160675500000000,
-          "executionBudgetRemaining": 26779250000000,
+          "executionBudgetPerRound": 160675800000000,
+          "executionBudgetRemaining": 26779300000000,
           "nondeterministicOutputBytes": 49
         },
         "time_unit_overlay_spent": 123,
         "untracked_contributions": 0,
         "activation_prices_locked": true,
         "message_effect_delivered": {
-          "0xdd7930e2a56868c1d6a697a300ed01663dd650a2ae8a30db1234abf5a01609b8": true
+          "0x243243b119dcdaed0907fa29f18d58e54c9f9bfb3c7bb8365c24b0c01cbd9824": true
         },
         "selection_pool_addresses": [
           "0x1da3a7de8ea65a318bf88eb63d3dc55295dd257e",
@@ -473,7 +473,7 @@
           ],
           "messages": [
             {
-              "data": "0x1600b401726563656976655f66696e616c5f6465636973696f6e04617267736dd4047265636c6f73652d7461726765742d736f757263652d6d6174636865643a3078323466416537634430333145643730324265363342446541383931323134313830354239393662643a32d4047265636c6f73652d7461726765742d736f757263652d6d6174636865643a3078323466416537634430333145643730324265363342446541383931323134313830354239393662643a30ec017265636c6f73652d7461726765742d736f757263652d6d617463686564ec01706f6c6963792d736f757263652d6d6174636865642d63757272656e74099404307834656434363135383561323037643261323863323164323234623533316539363636356236343138333664356466316338323562376663326363383330383333c40152454d4544494154494f4e5f434f4e4649524d45445f5631041824fae7cd031ed702be63bdea8912141805b996bd940430783261373663343432653937616335373537636664376265323066633239386664346635613437356230343964333964636332333864343965646139663432383119ac01494e53554646494349454e545f45564944454e434509",
+              "data": "0x1600b401726563656976655f66696e616c5f6465636973696f6e04617267736dd4047265636c6f73652d7461726765742d736f757263652d6d6174636865643a3078323466416537634430333145643730324265363342446541383931323134313830354239393662643a34d4047265636c6f73652d7461726765742d736f757263652d6d6174636865643a3078323466416537634430333145643730324265363342446541383931323134313830354239393662643a30ec017265636c6f73652d7461726765742d736f757263652d6d617463686564ec01706f6c6963792d736f757263652d6d6174636865642d63757272656e74099404307834656434363135383561323037643261323863323164323234623533316539363636356236343138333664356466316338323562376663326363383330383333c40152454d4544494154494f4e5f434f4e4649524d45445f5631041824fae7cd031ed702be63bdea8912141805b996bd940430786430626463653839373939613662366336656266366130663234366163326363323262656233303038366161353366643135356663343839383361383839633119ac01494e53554646494349454e545f45564944454e434509",
               "value": 0,
               "callKey": "0x726563656976655f66696e616c5f6465636973696f6e00000000000000000000",
               "gasUsed": 0,
@@ -519,7 +519,7 @@
             }
           ],
           "occurrences": [
-            "0xdd7930e2a56868c1d6a697a300ed01663dd650a2ae8a30db1234abf5a01609b8"
+            "0x243243b119dcdaed0907fa29f18d58e54c9f9bfb3c7bb8365c24b0c01cbd9824"
           ],
           "acceptanceDispatched": true,
           "acceptanceDispatchRequired": true
@@ -527,7 +527,7 @@
         "appeal_bonds_payout_total": 0,
         "storage_fee_dust_refunded": 0,
         "genvm_fee_consumed_buckets": [
-          133896250000000,
+          133896500000000,
           "120000000000004400",
           49,
           1312
@@ -542,7 +542,7 @@
           }
         ],
         "message_effect_descriptors": {
-          "0xdd7930e2a56868c1d6a697a300ed01663dd650a2ae8a30db1234abf5a01609b8": "0x6c6d8ce56588cb582e045761fa9487de75d89130fda8917876ee2e6e68a2b0fa"
+          "0x243243b119dcdaed0907fa29f18d58e54c9f9bfb3c7bb8365c24b0c01cbd9824": "0xd5302fe9a4430d61db9c9397aa8931857b62f28ea4ba13296e858f60f0f60f4e"
         },
         "appeal_bond_sender_refunded": 0,
         "storage_fee_recipient_count": 5,
@@ -562,7 +562,7 @@
         "appeal_charge_surplus_refunded": 0,
         "execution_fee_consumed_buckets": [
           132652000000000,
-          8250000000
+          8500000000
         ],
         "external_message_fee_remainder": 0,
         "message_allocations_restricted": false,
@@ -580,7 +580,7 @@
         "receiptFeeMaxGasPrice": 300000000,
         "storageFeeMaxGasPrice": 300000000,
         "maxPriceGenPerTimeUnit": 2,
-        "executionBudgetPerRound": 160675500000000,
+        "executionBudgetPerRound": 160675800000000,
         "leaderTimeunitsAllocation": 100,
         "validatorTimeunitsAllocation": 200
       },
@@ -590,13 +590,13 @@
     "txExecutionResult": 1,
     "txExecutionResultName": "FINISHED_WITH_RETURN",
     "fees": {
-      "deposit": "360642702000041408",
+      "deposit": "360642703200041408",
       "userValue": "0",
       "distribution": {
         "leaderTimeunitsAllocation": "100",
         "validatorTimeunitsAllocation": "200",
         "appealRounds": "0",
-        "executionBudgetPerRound": "160675500000000",
+        "executionBudgetPerRound": "160675800000000",
         "totalMessageFees": "360000000000031056",
         "rotations": [
           "3"
@@ -611,19 +611,19 @@
         "receiptGasPrice": "250000000"
       },
       "consumed": {
-        "executionConsumed": "132660250000000",
-        "storageFeeUsed": "8250000000",
+        "executionConsumed": "132660500000000",
+        "storageFeeUsed": "8500000000",
         "messageFeesConsumed": "360000000000031056",
         "messageFeesBudgetTotal": "360000000000031056",
-        "leaderTimeunitsUsed": "4",
-        "validatorTimeunitsUsed": "15",
+        "leaderTimeunitsUsed": "2",
+        "validatorTimeunitsUsed": "13",
         "perRound": [
           {
             "round": 0,
             "consensusRound": "Accepted",
-            "leaderTimeunits": "4",
-            "validatorTimeunits": "15",
-            "maxValidatorTimeunits": "7"
+            "leaderTimeunits": "2",
+            "validatorTimeunits": "13",
+            "maxValidatorTimeunits": "6"
           }
         ]
       }
@@ -631,10 +631,10 @@
     "result": 1,
     "consensus_data": {
       "votes": {
-        "0x5A4230B920b18c4AFD3A28F99Eae669B7F2cdC1e": "agree",
-        "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E": "agree",
-        "0x8D32eb5D0207f7E230C45e7BF0D14B2ED5DA3028": "idle",
-        "0xE52dDB85587585930b1E5f1Fe88fef21CcA49829": "idle",
+        "0x1dA3a7de8EA65A318bf88Eb63d3dC55295Dd257E": "idle",
+        "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E": "idle",
+        "0xA793D9dc0ED9edC1f9F732bB68b5D3AFA934F52D": "agree",
+        "0xa0435f618c1F27B254998018AEa8Da5C77187852": "agree",
         "0xcF5Fd792Df0Dc9d297af75c82B4A0011e8FA1A4A": "agree"
       },
       "leader_receipt": [
@@ -647,13 +647,13 @@
             "error_code": null,
             "error_description": null,
             "data_fees_consumed": [
-              133896250000000,
+              133896500000000,
               "120000000000004400",
               49,
               1312
             ],
             "data_fees_remaining": [
-              26779250000000,
+              26779300000000,
               "240000000000026656",
               "115792089237316195423570985008687907853269984665640564039457584007913129639886",
               "115792089237316195423570985008687907853269984665640564039457584007913129638623"
@@ -685,7 +685,7 @@
               "enforce_v06_submission_config": 1
             },
             "data_fee_bucket_totals": [
-              160675500000000,
+              160675800000000,
               "360000000000031056",
               "115792089237316195423570985008687907853269984665640564039457584007913129639935",
               "115792089237316195423570985008687907853269984665640564039457584007913129639935"
@@ -695,477 +695,8 @@
           "vote": null,
           "node_config": {
             "stake": 100,
-            "address": "0x5A4230B920b18c4AFD3A28F99Eae669B7F2cdC1e",
+            "address": "0x1dA3a7de8EA65A318bf88Eb63d3dC55295Dd257E",
             "primary_model": {
-              "model": "policy:dev-mistral",
-              "config": {
-                "policy_ir": [
-                  "policy",
-                  [
-                    "and",
-                    [
-                      "meets_req"
-                    ],
-                    [
-                      "not",
-                      [
-                        "is",
-                        "disabled"
-                      ]
-                    ],
-                    [
-                      "cmp",
-                      "success_rate",
-                      "ge",
-                      0.2
-                    ],
-                    [
-                      "or",
-                      [
-                        "family_eq",
-                        "mistral-large"
-                      ],
-                      [
-                        "family_eq",
-                        "gpt-oss-120b"
-                      ],
-                      [
-                        "family_eq",
-                        "gpt-5.4"
-                      ]
-                    ]
-                  ],
-                  [
-                    "add",
-                    [
-                      "scale",
-                      100,
-                      [
-                        "gate",
-                        [
-                          "family_eq",
-                          "mistral-large"
-                        ],
-                        [
-                          "lit",
-                          1
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      10,
-                      [
-                        "gate",
-                        [
-                          "family_eq",
-                          "gpt-oss-120b"
-                        ],
-                        [
-                          "lit",
-                          1
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      1,
-                      [
-                        "gate",
-                        [
-                          "family_eq",
-                          "gpt-5.4"
-                        ],
-                        [
-                          "lit",
-                          1
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      0.25,
-                      [
-                        "neg",
-                        [
-                          "normalize",
-                          [
-                            "field",
-                            "price_in"
-                          ]
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      0.45,
-                      [
-                        "neg",
-                        [
-                          "normalize",
-                          [
-                            "field",
-                            "price_out"
-                          ]
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      0.2,
-                      [
-                        "field",
-                        "success_rate"
-                      ]
-                    ],
-                    [
-                      "scale",
-                      0.1,
-                      [
-                        "neg",
-                        [
-                          "normalize",
-                          [
-                            "field",
-                            "latency_ms"
-                          ]
-                        ]
-                      ]
-                    ]
-                  ],
-                  [
-                    "argmax"
-                  ],
-                  [
-                    "id"
-                  ],
-                  [
-                    "always",
-                    {
-                      "action": "next_candidate"
-                    }
-                  ]
-                ],
-                "timeout_ms": 22000,
-                "first_token_timeout_ms": 7000
-              },
-              "plugin": "openai-compatible",
-              "provider": "llm-router",
-              "plugin_config": {
-                "api_url": "https://router.ygr.ai",
-                "api_key_env_var": "LLM_ROUTER_API_KEY"
-              },
-              "fallback_validator": "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E"
-            },
-            "secondary_model": {
-              "model": "openai/gpt-5.4",
-              "config": {
-                "models": [
-                  "openai/gpt-5.4",
-                  "anthropic/claude-sonnet-4.6",
-                  "google/gemini-3-flash-preview"
-                ]
-              },
-              "plugin": "openai-compatible",
-              "address": "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E",
-              "provider": "openrouter",
-              "plugin_config": {
-                "api_url": "https://openrouter.ai/api",
-                "api_key_env_var": "OPENROUTERAPIKEY"
-              }
-            }
-          },
-          "calldata": {
-            "readable": "{\"\":\"submit_remediation\"\"args\":[\"reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\",\"policy-source-matched-current\",\"0x2a76c442e97ac5757cfd7be20fc298fd4f5a475b049d39dcc238d49eda9f4281\",\"{\\\"schema\\\":\\\"reclose-eap-v1\\\",\\\"targetId\\\":\\\"reclose-target-source-matched\\\",\\\"policyHash\\\":\\\"0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833\\\",\\\"ruleId\\\":\\\"REMEDIATION_CONFIRMED_V1\\\",\\\"subject\\\":\\\"Confirmed remediation for reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\\\",\\\"reporter\\\":\\\"0x24fAe7cD031Ed702Be63BDeA8912141805B996bd\\\",\\\"observedAt\\\":\\\"2026-09-16T10:50:30.488Z\\\",\\\"sources\\\":[{\\\"sourceId\\\":\\\"genlayer-project-boilerplate\\\",\\\"url\\\":\\\"https://raw.githubusercontent.com/genlayerlabs/genlayer-project-boilerplate/main/README.md\\\",\\\"sourceClass\\\":\\\"INDEPENDENT_PUBLIC\\\",\\\"extractedText\\\":\\\"Remediation confirmed: ProviderStubA's credentials have been rotated and independently verified as no longer compromised. The operator has published a signed confirmation of remediation. Provider A access has been revoked and replacement credentials have been tested successfully. This is a controlled synthetic verification record.\\\",\\\"snapshotRef\\\":\\\"\\\",\\\"retrievedAt\\\":\\\"2026-09-16T10:50:30.488Z\\\",\\\"contentHash\\\":\\\"0x106be4c1fd7d7095466becd02fd2100e3bd875be61f6db3eb9de036ca1d057da\\\"}],\\\"sourceClasses\\\":[\\\"INDEPENDENT_PUBLIC\\\"],\\\"retrievedAt\\\":\\\"2026-09-16T10:50:30.488Z\\\",\\\"contentHashes\\\":[\\\"0x106be4c1fd7d7095466becd02fd2100e3bd875be61f6db3eb9de036ca1d057da\\\"],\\\"snapshotRefs\\\":[\\\"\\\"],\\\"artifactHash\\\":\\\"0x2a76c442e97ac5757cfd7be20fc298fd4f5a475b049d39dcc238d49eda9f4281\\\"}\",2,\"\",]}"
-          },
-          "eq_outputs": {
-            "0": {
-              "status": "return",
-              "payload": {
-                "readable": "{\"condition_code\":\"INSUFFICIENT_EVIDENCE\"\"outcome\":3}"
-              }
-            }
-          },
-          "result": {
-            "status": "return",
-            "payload": {
-              "readable": "\"reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:2\""
-            }
-          }
-        },
-        {
-          "execution_result": "SUCCESS",
-          "genvm_result": {
-            "stderr": "",
-            "stdout": "",
-            "raw_error": null,
-            "error_code": null,
-            "error_description": null,
-            "data_fees_consumed": [
-              133896250000000,
-              "120000000000004400",
-              49,
-              1312
-            ],
-            "data_fees_remaining": [
-              26779250000000,
-              "240000000000026656",
-              "115792089237316195423570985008687907853269984665640564039457584007913129639886",
-              "115792089237316195423570985008687907853269984665640564039457584007913129638623"
-            ],
-            "data_fee_bucket_totals": [
-              160675500000000,
-              "360000000000031056",
-              "115792089237316195423570985008687907853269984665640564039457584007913129639935",
-              "115792089237316195423570985008687907853269984665640564039457584007913129639935"
-            ]
-          },
-          "mode": "validator",
-          "vote": "agree",
-          "node_config": {
-            "stake": 100,
-            "address": "0x5A4230B920b18c4AFD3A28F99Eae669B7F2cdC1e",
-            "primary_model": {
-              "model": "policy:dev-mistral",
-              "config": {
-                "policy_ir": [
-                  "policy",
-                  [
-                    "and",
-                    [
-                      "meets_req"
-                    ],
-                    [
-                      "not",
-                      [
-                        "is",
-                        "disabled"
-                      ]
-                    ],
-                    [
-                      "cmp",
-                      "success_rate",
-                      "ge",
-                      0.2
-                    ],
-                    [
-                      "or",
-                      [
-                        "family_eq",
-                        "mistral-large"
-                      ],
-                      [
-                        "family_eq",
-                        "gpt-oss-120b"
-                      ],
-                      [
-                        "family_eq",
-                        "gpt-5.4"
-                      ]
-                    ]
-                  ],
-                  [
-                    "add",
-                    [
-                      "scale",
-                      100,
-                      [
-                        "gate",
-                        [
-                          "family_eq",
-                          "mistral-large"
-                        ],
-                        [
-                          "lit",
-                          1
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      10,
-                      [
-                        "gate",
-                        [
-                          "family_eq",
-                          "gpt-oss-120b"
-                        ],
-                        [
-                          "lit",
-                          1
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      1,
-                      [
-                        "gate",
-                        [
-                          "family_eq",
-                          "gpt-5.4"
-                        ],
-                        [
-                          "lit",
-                          1
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      0.25,
-                      [
-                        "neg",
-                        [
-                          "normalize",
-                          [
-                            "field",
-                            "price_in"
-                          ]
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      0.45,
-                      [
-                        "neg",
-                        [
-                          "normalize",
-                          [
-                            "field",
-                            "price_out"
-                          ]
-                        ]
-                      ]
-                    ],
-                    [
-                      "scale",
-                      0.2,
-                      [
-                        "field",
-                        "success_rate"
-                      ]
-                    ],
-                    [
-                      "scale",
-                      0.1,
-                      [
-                        "neg",
-                        [
-                          "normalize",
-                          [
-                            "field",
-                            "latency_ms"
-                          ]
-                        ]
-                      ]
-                    ]
-                  ],
-                  [
-                    "argmax"
-                  ],
-                  [
-                    "id"
-                  ],
-                  [
-                    "always",
-                    {
-                      "action": "next_candidate"
-                    }
-                  ]
-                ],
-                "timeout_ms": 22000,
-                "first_token_timeout_ms": 7000
-              },
-              "plugin": "openai-compatible",
-              "provider": "llm-router",
-              "plugin_config": {
-                "api_url": "https://router.ygr.ai",
-                "api_key_env_var": "LLM_ROUTER_API_KEY"
-              },
-              "fallback_validator": "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E"
-            },
-            "secondary_model": {
-              "model": "openai/gpt-5.4",
-              "config": {
-                "models": [
-                  "openai/gpt-5.4",
-                  "anthropic/claude-sonnet-4.6",
-                  "google/gemini-3-flash-preview"
-                ]
-              },
-              "plugin": "openai-compatible",
-              "address": "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E",
-              "provider": "openrouter",
-              "plugin_config": {
-                "api_url": "https://openrouter.ai/api",
-                "api_key_env_var": "OPENROUTERAPIKEY"
-              }
-            }
-          },
-          "calldata": {
-            "readable": "{\"\":\"submit_remediation\"\"args\":[\"reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\",\"policy-source-matched-current\",\"0x2a76c442e97ac5757cfd7be20fc298fd4f5a475b049d39dcc238d49eda9f4281\",\"{\\\"schema\\\":\\\"reclose-eap-v1\\\",\\\"targetId\\\":\\\"reclose-target-source-matched\\\",\\\"policyHash\\\":\\\"0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833\\\",\\\"ruleId\\\":\\\"REMEDIATION_CONFIRMED_V1\\\",\\\"subject\\\":\\\"Confirmed remediation for reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\\\",\\\"reporter\\\":\\\"0x24fAe7cD031Ed702Be63BDeA8912141805B996bd\\\",\\\"observedAt\\\":\\\"2026-09-16T10:50:30.488Z\\\",\\\"sources\\\":[{\\\"sourceId\\\":\\\"genlayer-project-boilerplate\\\",\\\"url\\\":\\\"https://raw.githubusercontent.com/genlayerlabs/genlayer-project-boilerplate/main/README.md\\\",\\\"sourceClass\\\":\\\"INDEPENDENT_PUBLIC\\\",\\\"extractedText\\\":\\\"Remediation confirmed: ProviderStubA's credentials have been rotated and independently verified as no longer compromised. The operator has published a signed confirmation of remediation. Provider A access has been revoked and replacement credentials have been tested successfully. This is a controlled synthetic verification record.\\\",\\\"snapshotRef\\\":\\\"\\\",\\\"retrievedAt\\\":\\\"2026-09-16T10:50:30.488Z\\\",\\\"contentHash\\\":\\\"0x106be4c1fd7d7095466becd02fd2100e3bd875be61f6db3eb9de036ca1d057da\\\"}],\\\"sourceClasses\\\":[\\\"INDEPENDENT_PUBLIC\\\"],\\\"retrievedAt\\\":\\\"2026-09-16T10:50:30.488Z\\\",\\\"contentHashes\\\":[\\\"0x106be4c1fd7d7095466becd02fd2100e3bd875be61f6db3eb9de036ca1d057da\\\"],\\\"snapshotRefs\\\":[\\\"\\\"],\\\"artifactHash\\\":\\\"0x2a76c442e97ac5757cfd7be20fc298fd4f5a475b049d39dcc238d49eda9f4281\\\"}\",2,\"\",]}"
-          },
-          "result": {
-            "status": "return",
-            "payload": {
-              "readable": "\"reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:2\""
-            }
-          }
-        }
-      ],
-      "validators": [
-        {
-          "execution_result": "SUCCESS",
-          "genvm_result": {
-            "stderr": "",
-            "stdout": "",
-            "raw_error": null,
-            "error_code": null,
-            "error_description": null,
-            "data_fees_consumed": [
-              133896250000000,
-              "120000000000004400",
-              49,
-              1312
-            ],
-            "data_fees_remaining": [
-              26779250000000,
-              "240000000000026656",
-              "115792089237316195423570985008687907853269984665640564039457584007913129639886",
-              "115792089237316195423570985008687907853269984665640564039457584007913129638623"
-            ],
-            "data_fee_bucket_totals": [
-              160675500000000,
-              "360000000000031056",
-              "115792089237316195423570985008687907853269984665640564039457584007913129639935",
-              "115792089237316195423570985008687907853269984665640564039457584007913129639935"
-            ]
-          },
-          "mode": "validator",
-          "vote": "agree",
-          "node_config": {
-            "stake": 100,
-            "address": "0xcF5Fd792Df0Dc9d297af75c82B4A0011e8FA1A4A",
-            "primary_model": {
-              "model": "openai/gpt-5.4",
-              "config": {
-                "models": [
-                  "openai/gpt-5.4",
-                  "anthropic/claude-sonnet-4.6",
-                  "google/gemini-3-flash-preview"
-                ]
-              },
-              "plugin": "openai-compatible",
-              "provider": "openrouter",
-              "plugin_config": {
-                "api_url": "https://openrouter.ai/api",
-                "api_key_env_var": "OPENROUTERAPIKEY"
-              },
-              "fallback_validator": "0x1dA3a7de8EA65A318bf88Eb63d3dC55295Dd257E"
-            },
-            "secondary_model": {
               "model": "policy:dev-gpt-5-4",
               "config": {
                 "policy_ir": [
@@ -1319,12 +850,46 @@
                 "first_token_timeout_ms": 7000
               },
               "plugin": "openai-compatible",
-              "address": "0x1dA3a7de8EA65A318bf88Eb63d3dC55295Dd257E",
               "provider": "llm-router",
               "plugin_config": {
                 "api_url": "https://router.ygr.ai",
                 "api_key_env_var": "LLM_ROUTER_API_KEY"
+              },
+              "fallback_validator": "0xE52dDB85587585930b1E5f1Fe88fef21CcA49829"
+            },
+            "secondary_model": {
+              "model": "anthropic/claude-sonnet-4.6",
+              "config": {
+                "models": [
+                  "anthropic/claude-sonnet-4.6",
+                  "openai/gpt-5.4",
+                  "google/gemini-3-flash-preview"
+                ]
+              },
+              "plugin": "openai-compatible",
+              "address": "0xE52dDB85587585930b1E5f1Fe88fef21CcA49829",
+              "provider": "openrouter",
+              "plugin_config": {
+                "api_url": "https://openrouter.ai/api",
+                "api_key_env_var": "OPENROUTERAPIKEY"
               }
+            }
+          },
+          "calldata": {
+            "readable": "{\"\":\"submit_remediation\"\"args\":[\"reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\",\"policy-source-matched-current\",\"0xd0bdce89799a6b6c6ebf6a0f246ac2cc22beb30086aa53fd155fc48983a889c1\",\"{\\\"schema\\\":\\\"reclose-eap-v1\\\",\\\"targetId\\\":\\\"reclose-target-source-matched\\\",\\\"policyHash\\\":\\\"0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833\\\",\\\"ruleId\\\":\\\"REMEDIATION_CONFIRMED_V1\\\",\\\"subject\\\":\\\"Confirmed remediation for reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0\\\",\\\"reporter\\\":\\\"0x24fAe7cD031Ed702Be63BDeA8912141805B996bd\\\",\\\"observedAt\\\":\\\"2026-09-16T11:23:52.797Z\\\",\\\"sources\\\":[{\\\"sourceId\\\":\\\"reclose-reference-evidence\\\",\\\"url\\\":\\\"https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md\\\",\\\"sourceClass\\\":\\\"CONTENT_ADDRESSED_SNAPSHOT\\\",\\\"extractedText\\\":\\\"RECLOSE SYNTHETIC R1 DEMONSTRATION EVIDENCE — PROVIDER A REMEDIATION\\\\r\\\\nfixture_version: 1\\\\r\\\\nfixture_id: r1-demo-provider-a-remediation\\\\r\\\\nreality: SYNTHETIC; this is not a real incident response, credential rotation, or production change.\\\\r\\\\nprovider: Provider A (controlled demo contract reclose-target-006)\\\\r\\\\nscenario: In this controlled demo, the fictional credential fixture-key-a-7 is revoked and replaced with fixture-key-a-8. The old credential is rejected by the simulator; the replacement is restricted to the intended Provider A audience. The remediation check records the old-key rejection and the new-key scope check as successful.\\\\r\\\\ncondition: REMEDIATION_VERIFIED\\\\r\\\\npurpose: deterministic evidence input for the Reclose R1 demo only.\\\\r\\\\n\\\",\\\"snapshotRef\\\":\\\"https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md\\\",\\\"retrievedAt\\\":\\\"2026-09-16T11:23:52.797Z\\\",\\\"contentHash\\\":\\\"0x70bef76512a4a402732be277d14b3dfddd90d05e63aa154ab7e2a6316c7100de\\\"}],\\\"sourceClasses\\\":[\\\"CONTENT_ADDRESSED_SNAPSHOT\\\"],\\\"retrievedAt\\\":\\\"2026-09-16T11:23:52.797Z\\\",\\\"contentHashes\\\":[\\\"0x70bef76512a4a402732be277d14b3dfddd90d05e63aa154ab7e2a6316c7100de\\\"],\\\"snapshotRefs\\\":[\\\"https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md\\\"],\\\"artifactHash\\\":\\\"0xd0bdce89799a6b6c6ebf6a0f246ac2cc22beb30086aa53fd155fc48983a889c1\\\"}\",4,\"\",]}"
+          },
+          "eq_outputs": {
+            "0": {
+              "status": "return",
+              "payload": {
+                "readable": "{\"condition_code\":\"INSUFFICIENT_EVIDENCE\"\"outcome\":3}"
+              }
+            }
+          },
+          "result": {
+            "status": "return",
+            "payload": {
+              "readable": "\"reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:4\""
             }
           }
         },
@@ -1344,8 +909,8 @@
           "mode": "validator",
           "vote": "idle",
           "node_config": {
-            "id": 189,
-            "model": "policy:dev-sonnet",
+            "id": 184,
+            "model": "policy:dev-gpt-5-4",
             "stake": 100,
             "config": {
               "policy_ir": [
@@ -1372,15 +937,15 @@
                     "or",
                     [
                       "family_eq",
-                      "claude-sonnet-4-6"
-                    ],
-                    [
-                      "family_eq",
                       "gpt-5.4"
                     ],
                     [
                       "family_eq",
                       "gemini-3-flash-preview"
+                    ],
+                    [
+                      "family_eq",
+                      "gpt-oss-120b"
                     ]
                   ]
                 ],
@@ -1389,21 +954,6 @@
                   [
                     "scale",
                     100,
-                    [
-                      "gate",
-                      [
-                        "family_eq",
-                        "claude-sonnet-4-6"
-                      ],
-                      [
-                        "lit",
-                        1
-                      ]
-                    ]
-                  ],
-                  [
-                    "scale",
-                    10,
                     [
                       "gate",
                       [
@@ -1418,12 +968,27 @@
                   ],
                   [
                     "scale",
-                    1,
+                    10,
                     [
                       "gate",
                       [
                         "family_eq",
                         "gemini-3-flash-preview"
+                      ],
+                      [
+                        "lit",
+                        1
+                      ]
+                    ]
+                  ],
+                  [
+                    "scale",
+                    1,
+                    [
+                      "gate",
+                      [
+                        "family_eq",
+                        "gpt-oss-120b"
                       ],
                       [
                         "lit",
@@ -1499,15 +1064,21 @@
               "first_token_timeout_ms": 7000
             },
             "plugin": "openai-compatible",
-            "address": "0x8D32eb5D0207f7E230C45e7BF0D14B2ED5DA3028",
+            "address": "0x1dA3a7de8EA65A318bf88Eb63d3dC55295Dd257E",
             "provider": "llm-router",
             "plugin_config": {
               "api_url": "https://router.ygr.ai",
               "api_key_env_var": "LLM_ROUTER_API_KEY"
             },
             "fallback_validator": "0xE52dDB85587585930b1E5f1Fe88fef21CcA49829"
+          },
+          "result": {
+            "status": "contract_error",
+            "payload": "idle"
           }
-        },
+        }
+      ],
+      "validators": [
         {
           "execution_result": "SUCCESS",
           "genvm_result": {
@@ -1517,19 +1088,19 @@
             "error_code": null,
             "error_description": null,
             "data_fees_consumed": [
-              133896250000000,
+              133896500000000,
               "120000000000004400",
               49,
               1312
             ],
             "data_fees_remaining": [
-              26779250000000,
+              26779300000000,
               "240000000000026656",
               "115792089237316195423570985008687907853269984665640564039457584007913129639886",
               "115792089237316195423570985008687907853269984665640564039457584007913129638623"
             ],
             "data_fee_bucket_totals": [
-              160675500000000,
+              160675800000000,
               "360000000000031056",
               "115792089237316195423570985008687907853269984665640564039457584007913129639935",
               "115792089237316195423570985008687907853269984665640564039457584007913129639935"
@@ -1539,7 +1110,7 @@
           "vote": "agree",
           "node_config": {
             "stake": 100,
-            "address": "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E",
+            "address": "0xcF5Fd792Df0Dc9d297af75c82B4A0011e8FA1A4A",
             "primary_model": {
               "model": "openai/gpt-5.4",
               "config": {
@@ -1555,10 +1126,10 @@
                 "api_url": "https://openrouter.ai/api",
                 "api_key_env_var": "OPENROUTERAPIKEY"
               },
-              "fallback_validator": "0xf13c3DfE38C8E206C33F750C24a1b043b63Cb810"
+              "fallback_validator": "0xA793D9dc0ED9edC1f9F732bB68b5D3AFA934F52D"
             },
             "secondary_model": {
-              "model": "policy:dev-gemini",
+              "model": "policy:dev-grok",
               "config": {
                 "policy_ir": [
                   "policy",
@@ -1584,15 +1155,15 @@
                       "or",
                       [
                         "family_eq",
-                        "gemini-3-flash-preview"
-                      ],
-                      [
-                        "family_eq",
-                        "gpt-oss-120b"
+                        "grok-4.3"
                       ],
                       [
                         "family_eq",
                         "gpt-5.4"
+                      ],
+                      [
+                        "family_eq",
+                        "gemini-3-flash-preview"
                       ]
                     ]
                   ],
@@ -1605,7 +1176,7 @@
                         "gate",
                         [
                           "family_eq",
-                          "gemini-3-flash-preview"
+                          "grok-4.3"
                         ],
                         [
                           "lit",
@@ -1620,7 +1191,7 @@
                         "gate",
                         [
                           "family_eq",
-                          "gpt-oss-120b"
+                          "gpt-5.4"
                         ],
                         [
                           "lit",
@@ -1635,7 +1206,7 @@
                         "gate",
                         [
                           "family_eq",
-                          "gpt-5.4"
+                          "gemini-3-flash-preview"
                         ],
                         [
                           "lit",
@@ -1711,11 +1282,435 @@
                 "first_token_timeout_ms": 7000
               },
               "plugin": "openai-compatible",
-              "address": "0xf13c3DfE38C8E206C33F750C24a1b043b63Cb810",
+              "address": "0xA793D9dc0ED9edC1f9F732bB68b5D3AFA934F52D",
               "provider": "llm-router",
               "plugin_config": {
                 "api_url": "https://router.ygr.ai",
                 "api_key_env_var": "LLM_ROUTER_API_KEY"
+              }
+            }
+          }
+        },
+        {
+          "execution_result": "SUCCESS",
+          "genvm_result": {
+            "stderr": "",
+            "stdout": "",
+            "raw_error": null,
+            "error_code": null,
+            "error_description": null,
+            "data_fees_consumed": [
+              133896500000000,
+              "120000000000004400",
+              49,
+              1312
+            ],
+            "data_fees_remaining": [
+              26779300000000,
+              "240000000000026656",
+              "115792089237316195423570985008687907853269984665640564039457584007913129639886",
+              "115792089237316195423570985008687907853269984665640564039457584007913129638623"
+            ],
+            "data_fee_bucket_totals": [
+              160675800000000,
+              "360000000000031056",
+              "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            ]
+          },
+          "mode": "validator",
+          "vote": "agree",
+          "node_config": {
+            "stake": 100,
+            "address": "0xA793D9dc0ED9edC1f9F732bB68b5D3AFA934F52D",
+            "primary_model": {
+              "model": "policy:dev-grok",
+              "config": {
+                "policy_ir": [
+                  "policy",
+                  [
+                    "and",
+                    [
+                      "meets_req"
+                    ],
+                    [
+                      "not",
+                      [
+                        "is",
+                        "disabled"
+                      ]
+                    ],
+                    [
+                      "cmp",
+                      "success_rate",
+                      "ge",
+                      0.2
+                    ],
+                    [
+                      "or",
+                      [
+                        "family_eq",
+                        "grok-4.3"
+                      ],
+                      [
+                        "family_eq",
+                        "gpt-5.4"
+                      ],
+                      [
+                        "family_eq",
+                        "gemini-3-flash-preview"
+                      ]
+                    ]
+                  ],
+                  [
+                    "add",
+                    [
+                      "scale",
+                      100,
+                      [
+                        "gate",
+                        [
+                          "family_eq",
+                          "grok-4.3"
+                        ],
+                        [
+                          "lit",
+                          1
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      10,
+                      [
+                        "gate",
+                        [
+                          "family_eq",
+                          "gpt-5.4"
+                        ],
+                        [
+                          "lit",
+                          1
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      1,
+                      [
+                        "gate",
+                        [
+                          "family_eq",
+                          "gemini-3-flash-preview"
+                        ],
+                        [
+                          "lit",
+                          1
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      0.25,
+                      [
+                        "neg",
+                        [
+                          "normalize",
+                          [
+                            "field",
+                            "price_in"
+                          ]
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      0.45,
+                      [
+                        "neg",
+                        [
+                          "normalize",
+                          [
+                            "field",
+                            "price_out"
+                          ]
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      0.2,
+                      [
+                        "field",
+                        "success_rate"
+                      ]
+                    ],
+                    [
+                      "scale",
+                      0.1,
+                      [
+                        "neg",
+                        [
+                          "normalize",
+                          [
+                            "field",
+                            "latency_ms"
+                          ]
+                        ]
+                      ]
+                    ]
+                  ],
+                  [
+                    "argmax"
+                  ],
+                  [
+                    "id"
+                  ],
+                  [
+                    "always",
+                    {
+                      "action": "next_candidate"
+                    }
+                  ]
+                ],
+                "timeout_ms": 22000,
+                "first_token_timeout_ms": 7000
+              },
+              "plugin": "openai-compatible",
+              "provider": "llm-router",
+              "plugin_config": {
+                "api_url": "https://router.ygr.ai",
+                "api_key_env_var": "LLM_ROUTER_API_KEY"
+              },
+              "fallback_validator": "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E"
+            },
+            "secondary_model": {
+              "model": "openai/gpt-5.4",
+              "config": {
+                "models": [
+                  "openai/gpt-5.4",
+                  "anthropic/claude-sonnet-4.6",
+                  "google/gemini-3-flash-preview"
+                ]
+              },
+              "plugin": "openai-compatible",
+              "address": "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E",
+              "provider": "openrouter",
+              "plugin_config": {
+                "api_url": "https://openrouter.ai/api",
+                "api_key_env_var": "OPENROUTERAPIKEY"
+              }
+            }
+          }
+        },
+        {
+          "execution_result": "SUCCESS",
+          "genvm_result": {
+            "stderr": "",
+            "stdout": "",
+            "raw_error": null,
+            "error_code": null,
+            "error_description": null,
+            "data_fees_consumed": [
+              133896500000000,
+              "120000000000004400",
+              49,
+              1312
+            ],
+            "data_fees_remaining": [
+              26779300000000,
+              "240000000000026656",
+              "115792089237316195423570985008687907853269984665640564039457584007913129639886",
+              "115792089237316195423570985008687907853269984665640564039457584007913129638623"
+            ],
+            "data_fee_bucket_totals": [
+              160675800000000,
+              "360000000000031056",
+              "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            ]
+          },
+          "mode": "validator",
+          "vote": "agree",
+          "node_config": {
+            "stake": 100,
+            "address": "0xa0435f618c1F27B254998018AEa8Da5C77187852",
+            "primary_model": {
+              "model": "policy:dev-gpt-5-4",
+              "config": {
+                "policy_ir": [
+                  "policy",
+                  [
+                    "and",
+                    [
+                      "meets_req"
+                    ],
+                    [
+                      "not",
+                      [
+                        "is",
+                        "disabled"
+                      ]
+                    ],
+                    [
+                      "cmp",
+                      "success_rate",
+                      "ge",
+                      0.2
+                    ],
+                    [
+                      "or",
+                      [
+                        "family_eq",
+                        "gpt-5.4"
+                      ],
+                      [
+                        "family_eq",
+                        "gemini-3-flash-preview"
+                      ],
+                      [
+                        "family_eq",
+                        "gpt-oss-120b"
+                      ]
+                    ]
+                  ],
+                  [
+                    "add",
+                    [
+                      "scale",
+                      100,
+                      [
+                        "gate",
+                        [
+                          "family_eq",
+                          "gpt-5.4"
+                        ],
+                        [
+                          "lit",
+                          1
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      10,
+                      [
+                        "gate",
+                        [
+                          "family_eq",
+                          "gemini-3-flash-preview"
+                        ],
+                        [
+                          "lit",
+                          1
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      1,
+                      [
+                        "gate",
+                        [
+                          "family_eq",
+                          "gpt-oss-120b"
+                        ],
+                        [
+                          "lit",
+                          1
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      0.25,
+                      [
+                        "neg",
+                        [
+                          "normalize",
+                          [
+                            "field",
+                            "price_in"
+                          ]
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      0.45,
+                      [
+                        "neg",
+                        [
+                          "normalize",
+                          [
+                            "field",
+                            "price_out"
+                          ]
+                        ]
+                      ]
+                    ],
+                    [
+                      "scale",
+                      0.2,
+                      [
+                        "field",
+                        "success_rate"
+                      ]
+                    ],
+                    [
+                      "scale",
+                      0.1,
+                      [
+                        "neg",
+                        [
+                          "normalize",
+                          [
+                            "field",
+                            "latency_ms"
+                          ]
+                        ]
+                      ]
+                    ]
+                  ],
+                  [
+                    "argmax"
+                  ],
+                  [
+                    "id"
+                  ],
+                  [
+                    "always",
+                    {
+                      "action": "next_candidate"
+                    }
+                  ]
+                ],
+                "timeout_ms": 22000,
+                "first_token_timeout_ms": 7000
+              },
+              "plugin": "openai-compatible",
+              "provider": "llm-router",
+              "plugin_config": {
+                "api_url": "https://router.ygr.ai",
+                "api_key_env_var": "LLM_ROUTER_API_KEY"
+              },
+              "fallback_validator": "0xE4E106086F167D75E2270fa5f3680f6ac598d179"
+            },
+            "secondary_model": {
+              "model": "google/gemini-3-flash-preview",
+              "config": {
+                "models": [
+                  "google/gemini-3-flash-preview",
+                  "openai/gpt-5.4",
+                  "anthropic/claude-sonnet-4.6"
+                ]
+              },
+              "plugin": "openai-compatible",
+              "address": "0xE4E106086F167D75E2270fa5f3680f6ac598d179",
+              "provider": "openrouter",
+              "plugin_config": {
+                "api_url": "https://openrouter.ai/api",
+                "api_key_env_var": "OPENROUTERAPIKEY"
               }
             }
           }
@@ -1736,55 +1731,55 @@
           "mode": "validator",
           "vote": "idle",
           "node_config": {
-            "id": 198,
-            "model": "anthropic/claude-sonnet-4.6",
+            "id": 196,
+            "model": "openai/gpt-5.4",
             "stake": 100,
             "config": {
               "models": [
-                "anthropic/claude-sonnet-4.6",
                 "openai/gpt-5.4",
+                "anthropic/claude-sonnet-4.6",
                 "google/gemini-3-flash-preview"
               ]
             },
             "plugin": "openai-compatible",
-            "address": "0xE52dDB85587585930b1E5f1Fe88fef21CcA49829",
+            "address": "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E",
             "provider": "openrouter",
             "plugin_config": {
               "api_url": "https://openrouter.ai/api",
               "api_key_env_var": "OPENROUTERAPIKEY"
             },
-            "fallback_validator": "0xf13c3DfE38C8E206C33F750C24a1b043b63Cb810"
+            "fallback_validator": "0xa0435f618c1F27B254998018AEa8Da5C77187852"
           }
         }
       ]
     },
-    "gaslimit": 449,
-    "nonce": 449,
-    "created_at": "2026-09-16T10:51:05.981507+00:00",
+    "gaslimit": 451,
+    "nonce": 451,
+    "created_at": "2026-09-16T11:24:19.363217+00:00",
     "leader_only": false,
     "execution_mode": "NORMAL",
     "origin_address": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
     "triggered_on": null,
     "triggered_transactions": [
-      "0xf1d02c086eb9b0b6199ef0e73a35b25e54c12c4dc6f45323ec019cad01e520a4"
+      "0xd489e8b247c5af5f5bcf4f893b82277553ddda7d1fca26670919a90691e203f6"
     ],
     "appeal_validators_timeout": false,
     "sim_config": {
-      "signed_rollup_transaction": "0xf90eb38201c180830f424094b7278a61aa25c888815afc32ad3cc52ff24fe57588050142a06f8cadc0b90e4435a251fb000000000000000000000000000000000000000000000000000000000000002000000000000000000000000024fae7cd031ed702be63bdea8912141805b996bd0000000000000000000000006b8cc80df56b2ef1577373e4e52e88327298503800000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000006aaa829e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000002c00000000000000000000000000000000000000000000000000000000000000900000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000092222e1a0300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004fefa17b7247950000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a30000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000061cf90619b90615160094017375626d69745f72656d6564696174696f6e046172677335d4047265636c6f73652d7461726765742d736f757263652d6d6174636865643a3078323466416537634430333145643730324265363342446541383931323134313830354239393662643a30ec01706f6c6963792d736f757263652d6d6174636865642d63757272656e749404307832613736633434326539376163353735376366643762653230666332393866643466356134373562303439643339646363323338643439656461396634323831b4547b22736368656d61223a227265636c6f73652d6561702d7631222c227461726765744964223a227265636c6f73652d7461726765742d736f757263652d6d617463686564222c22706f6c69637948617368223a22307834656434363135383561323037643261323863323164323234623533316539363636356236343138333664356466316338323562376663326363383330383333222c2272756c654964223a2252454d4544494154494f4e5f434f4e4649524d45445f5631222c227375626a656374223a22436f6e6669726d65642072656d6564696174696f6e20666f72207265636c6f73652d7461726765742d736f757263652d6d6174636865643a3078323466416537634430333145643730324265363342446541383931323134313830354239393662643a30222c227265706f72746572223a22307832346641653763443033314564373032426536334244654138393132313431383035423939366264222c226f627365727665644174223a22323032362d30392d31365431303a35303a33302e3438385a222c22736f7572636573223a5b7b22736f757263654964223a2267656e6c617965722d70726f6a6563742d626f696c6572706c617465222c2275726c223a2268747470733a2f2f7261772e67697468756275736572636f6e74656e742e636f6d2f67656e6c617965726c6162732f67656e6c617965722d70726f6a6563742d626f696c6572706c6174652f6d61696e2f524541444d452e6d64222c22736f75726365436c617373223a22494e444550454e44454e545f5055424c4943222c2265787472616374656454657874223a2252656d6564696174696f6e20636f6e6669726d65643a2050726f7669646572537475624127732063726564656e7469616c732068617665206265656e20726f746174656420616e6420696e646570656e64656e746c79207665726966696564206173206e6f206c6f6e67657220636f6d70726f6d697365642e20546865206f70657261746f7220686173207075626c69736865642061207369676e656420636f6e6669726d6174696f6e206f662072656d6564696174696f6e2e2050726f766964657220412061636365737320686173206265656e207265766f6b656420616e64207265706c6163656d656e742063726564656e7469616c732068617665206265656e20746573746564207375636365737366756c6c792e2054686973206973206120636f6e74726f6c6c65642073796e74686574696320766572696669636174696f6e207265636f72642e222c22736e617073686f74526566223a22222c227265747269657665644174223a22323032362d30392d31365431303a35303a33302e3438385a222c22636f6e74656e7448617368223a22307831303662653463316664376437303935343636626563643032666432313030653362643837356265363166366462336562396465303336636131643035376461227d5d2c22736f75726365436c6173736573223a5b22494e444550454e44454e545f5055424c4943225d2c227265747269657665644174223a22323032362d30392d31365431303a35303a33302e3438385a222c22636f6e74656e74486173686573223a5b22307831303662653463316664376437303935343636626563643032666432313030653362643837356265363166366462336562396465303336636131643035376461225d2c22736e617073686f7452656673223a5b22225d2c22617274696661637448617368223a22307832613736633434326539376163353735376366643762653230666332393866643466356134373562303439643339646363323338643439656461396634323831227d110400000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000d06ec39fef25f54d857a440f197ea4fc2a3240d5726563656976655f66696e616c5f6465636973696f6e0000000000000000000000000000000000000000000000000000000000000000000004fefa17b724795000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006a94d74f430000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000045894452144724efa694403501c2ad13e88543916170706c795f6173737572616e63655f616374696f6e000000000000000000000000000000000000000000000000000000000000000000000354a6ba7a1850e000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006a94d74f430000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a300000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000038301e47ea03f661cea1c779b9b5d0299b2d06eefa6875bef6ce102380c12ce8dbfaacd9f24a0464c7ade7202b6b27b91468b4521448b6723889a23b45d2c473f8810342abd93"
+      "signed_rollup_transaction": "0xf911d38201c380830f424094b7278a61aa25c888815afc32ad3cc52ff24fe57588050142a0b71339c0b9116435a251fb000000000000000000000000000000000000000000000000000000000000002000000000000000000000000024fae7cd031ed702be63bdea8912141805b996bd0000000000000000000000006b8cc80df56b2ef1577373e4e52e88327298503800000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000006aaa8a6700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000002c00000000000000000000000000000000000000000000000000000000000000c20000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000092223ffba600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004fefa17b7247950000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a300000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000940f9093db90939160094017375626d69745f72656d6564696174696f6e046172677335d4047265636c6f73652d7461726765742d736f757263652d6d6174636865643a3078323466416537634430333145643730324265363342446541383931323134313830354239393662643a30ec01706f6c6963792d736f757263652d6d6174636865642d63757272656e749404307864306264636538393739396136623663366562663661306632343661633263633232626562333030383661613533666431353566633438393833613838396331cc86017b22736368656d61223a227265636c6f73652d6561702d7631222c227461726765744964223a227265636c6f73652d7461726765742d736f757263652d6d617463686564222c22706f6c69637948617368223a22307834656434363135383561323037643261323863323164323234623533316539363636356236343138333664356466316338323562376663326363383330383333222c2272756c654964223a2252454d4544494154494f4e5f434f4e4649524d45445f5631222c227375626a656374223a22436f6e6669726d65642072656d6564696174696f6e20666f72207265636c6f73652d7461726765742d736f757263652d6d6174636865643a3078323466416537634430333145643730324265363342446541383931323134313830354239393662643a30222c227265706f72746572223a22307832346641653763443033314564373032426536334244654138393132313431383035423939366264222c226f627365727665644174223a22323032362d30392d31365431313a32333a35322e3739375a222c22736f7572636573223a5b7b22736f757263654964223a227265636c6f73652d7265666572656e63652d65766964656e6365222c2275726c223a2268747470733a2f2f7261772e67697468756275736572636f6e74656e742e636f6d2f6f6d65746572653132332f7265636c6f73652f656137646662373662383461646332346262633430623461353832376363336130616534313262362f72656c656173652d65766964656e63652f72312f65312f66697874757265732f70726f76696465722d612d72656d6564696174696f6e2e6d64222c22736f75726365436c617373223a22434f4e54454e545f4144445245535345445f534e415053484f54222c2265787472616374656454657874223a225245434c4f53452053594e5448455449432052312044454d4f4e5354524154494f4e2045564944454e434520e280942050524f564944455220412052454d4544494154494f4e5c725c6e666978747572655f76657273696f6e3a20315c725c6e666978747572655f69643a2072312d64656d6f2d70726f76696465722d612d72656d6564696174696f6e5c725c6e7265616c6974793a2053594e5448455449433b2074686973206973206e6f742061207265616c20696e636964656e7420726573706f6e73652c2063726564656e7469616c20726f746174696f6e2c206f722070726f64756374696f6e206368616e67652e5c725c6e70726f76696465723a2050726f766964657220412028636f6e74726f6c6c65642064656d6f20636f6e7472616374207265636c6f73652d7461726765742d303036295c725c6e7363656e6172696f3a20496e207468697320636f6e74726f6c6c65642064656d6f2c207468652066696374696f6e616c2063726564656e7469616c20666978747572652d6b65792d612d37206973207265766f6b656420616e64207265706c61636564207769746820666978747572652d6b65792d612d382e20546865206f6c642063726564656e7469616c2069732072656a6563746564206279207468652073696d756c61746f723b20746865207265706c6163656d656e74206973207265737472696374656420746f2074686520696e74656e6465642050726f766964657220412061756469656e63652e205468652072656d6564696174696f6e20636865636b207265636f72647320746865206f6c642d6b65792072656a656374696f6e20616e6420746865206e65772d6b65792073636f706520636865636b206173207375636365737366756c2e5c725c6e636f6e646974696f6e3a2052454d4544494154494f4e5f56455249464945445c725c6e707572706f73653a2064657465726d696e69737469632065766964656e636520696e70757420666f7220746865205265636c6f73652052312064656d6f206f6e6c792e5c725c6e222c22736e617073686f74526566223a2268747470733a2f2f7261772e67697468756275736572636f6e74656e742e636f6d2f6f6d65746572653132332f7265636c6f73652f656137646662373662383461646332346262633430623461353832376363336130616534313262362f72656c656173652d65766964656e63652f72312f65312f66697874757265732f70726f76696465722d612d72656d6564696174696f6e2e6d64222c227265747269657665644174223a22323032362d30392d31365431313a32333a35322e3739375a222c22636f6e74656e7448617368223a22307837306265663736353132613461343032373332626532373764313462336466646464393064303565363361613135346162376532613633313663373130306465227d5d2c22736f75726365436c6173736573223a5b22434f4e54454e545f4144445245535345445f534e415053484f54225d2c227265747269657665644174223a22323032362d30392d31365431313a32333a35322e3739375a222c22636f6e74656e74486173686573223a5b22307837306265663736353132613461343032373332626532373764313462336466646464393064303565363361613135346162376532613633313663373130306465225d2c22736e617073686f7452656673223a5b2268747470733a2f2f7261772e67697468756275736572636f6e74656e742e636f6d2f6f6d65746572653132332f7265636c6f73652f656137646662373662383461646332346262633430623461353832376363336130616534313262362f72656c656173652d65766964656e63652f72312f65312f66697874757265732f70726f76696465722d612d72656d6564696174696f6e2e6d64225d2c22617274696661637448617368223a22307864306264636538393739396136623663366562663661306632343661633263633232626562333030383661613533666431353566633438393833613838396331227d2104000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000d06ec39fef25f54d857a440f197ea4fc2a3240d5726563656976655f66696e616c5f6465636973696f6e0000000000000000000000000000000000000000000000000000000000000000000004fefa17b724795000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006a94d74f430000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000045894452144724efa694403501c2ad13e88543916170706c795f6173737572616e63655f616374696f6e000000000000000000000000000000000000000000000000000000000000000000000354a6ba7a1850e000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006a94d74f430000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a300000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000038301e47da04c44d7c4aebf99471fe0aa13d1153ca2b7f8ab0aece815c5b68f23955706ce63a04dde2327388895ab8d78e5631671c1b364106f6477123f719b8b4dc744c3c8ba"
     },
     "value_credited": false,
     "sender": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
     "recipient": "0x6b8cc80DF56B2EF1577373e4e52e883272985038",
-    "tx_id": "0x648e9f00a411fe5e972c0bb509154911cc7e83c7d16edbf1b78f4853667e25e6",
-    "activator": "0x5A4230B920b18c4AFD3A28F99Eae669B7F2cdC1e",
-    "last_leader": "0x5A4230B920b18c4AFD3A28F99Eae669B7F2cdC1e",
+    "tx_id": "0xba8a7159cdefa07600ec63b1854655c0f5c6f32b9806d5f5e3306e9f9768778c",
+    "activator": "0x1dA3a7de8EA65A318bf88Eb63d3dC55295Dd257E",
+    "last_leader": "0x1dA3a7de8EA65A318bf88Eb63d3dC55295Dd257E",
     "result_name": "MAJORITY_AGREE",
     "messages": [
       {
         "messageType": "0",
         "recipient": "0xD06Ec39feF25f54D857A440F197eA4Fc2A3240d5",
         "value": 0,
-        "data": "FgC0AXJlY2VpdmVfZmluYWxfZGVjaXNpb24EYXJnc23UBHJlY2xvc2UtdGFyZ2V0LXNvdXJjZS1tYXRjaGVkOjB4MjRmQWU3Y0QwMzFFZDcwMkJlNjNCRGVBODkxMjE0MTgwNUI5OTZiZDoy1ARyZWNsb3NlLXRhcmdldC1zb3VyY2UtbWF0Y2hlZDoweDI0ZkFlN2NEMDMxRWQ3MDJCZTYzQkRlQTg5MTIxNDE4MDVCOTk2YmQ6MOwBcmVjbG9zZS10YXJnZXQtc291cmNlLW1hdGNoZWTsAXBvbGljeS1zb3VyY2UtbWF0Y2hlZC1jdXJyZW50CZQEMHg0ZWQ0NjE1ODVhMjA3ZDJhMjhjMjFkMjI0YjUzMWU5NjY2NWI2NDE4MzZkNWRmMWM4MjViN2ZjMmNjODMwODMzxAFSRU1FRElBVElPTl9DT05GSVJNRURfVjEEGCT6580DHtcCvmO96okSFBgFuZa9lAQweDJhNzZjNDQyZTk3YWM1NzU3Y2ZkN2JlMjBmYzI5OGZkNGY1YTQ3NWIwNDlkMzlkY2MyMzhkNDllZGE5ZjQyODEZrAFJTlNVRkZJQ0lFTlRfRVZJREVOQ0UJ",
+        "data": "FgC0AXJlY2VpdmVfZmluYWxfZGVjaXNpb24EYXJnc23UBHJlY2xvc2UtdGFyZ2V0LXNvdXJjZS1tYXRjaGVkOjB4MjRmQWU3Y0QwMzFFZDcwMkJlNjNCRGVBODkxMjE0MTgwNUI5OTZiZDo01ARyZWNsb3NlLXRhcmdldC1zb3VyY2UtbWF0Y2hlZDoweDI0ZkFlN2NEMDMxRWQ3MDJCZTYzQkRlQTg5MTIxNDE4MDVCOTk2YmQ6MOwBcmVjbG9zZS10YXJnZXQtc291cmNlLW1hdGNoZWTsAXBvbGljeS1zb3VyY2UtbWF0Y2hlZC1jdXJyZW50CZQEMHg0ZWQ0NjE1ODVhMjA3ZDJhMjhjMjFkMjI0YjUzMWU5NjY2NWI2NDE4MzZkNWRmMWM4MjViN2ZjMmNjODMwODMzxAFSRU1FRElBVElPTl9DT05GSVJNRURfVjEEGCT6580DHtcCvmO96okSFBgFuZa9lAQweGQwYmRjZTg5Nzk5YTZiNmM2ZWJmNmEwZjI0NmFjMmNjMjJiZWIzMDA4NmFhNTNmZDE1NWZjNDg5ODNhODg5YzEZrAFJTlNVRkZJQ0lFTlRfRVZJREVOQ0UJ",
         "onAcceptance": false
       }
     ],
@@ -1798,30 +1793,30 @@
       "rotations_left": "3",
       "result": 1,
       "round_validators": [
-        "0x5A4230B920b18c4AFD3A28F99Eae669B7F2cdC1e",
+        "0x1dA3a7de8EA65A318bf88Eb63d3dC55295Dd257E",
         "0xcF5Fd792Df0Dc9d297af75c82B4A0011e8FA1A4A",
-        "0x8D32eb5D0207f7E230C45e7BF0D14B2ED5DA3028",
-        "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E",
-        "0xE52dDB85587585930b1E5f1Fe88fef21CcA49829"
+        "0xA793D9dc0ED9edC1f9F732bB68b5D3AFA934F52D",
+        "0xa0435f618c1F27B254998018AEa8Da5C77187852",
+        "0x8142E5D1b04f84c3cD995C25AAe31B31F8e0379E"
       ],
       "validator_votes_hash": [
-        "0x7bfbdc6e07eac52a6f4aa46dc2086a6f57ebc595ee0e933cc6f4fd64390dc4c0",
-        "0x225ea81ce3e93b5d164d6ab68e0114b1c263aa5e5c3ec335f041c6eaa6a442fa",
-        "0x77ad3959a316a3816f643e195cbb3bc65213bbceedada3df37b660dd05f4868b",
-        "0x76a107a5004c3cc2559742359a4ce879922eee7b25c187f1f354ab71a375a0cf",
-        "0x320ef012eb9ed897aad6844bbb644539390a459cc0de69c9741eedf9c4366c7b"
+        "0xd2b2beddf66e2d5392ea74b8c47a23e056ec8bcc6e012c0995af26671908fe6e",
+        "0x43a5d6cb094edb37d604e0d3af12539952816ea50b8589dc8a284f65b575a020",
+        "0xe06b293587c58d96cdef3922e72fffedc16f34eb3d1dc1b3c048ceb5839c0fdf",
+        "0x3a1b70477e4f2d1428a24b6f827220ac7236a57fd6cf7b7e10acf9bf7c230505",
+        "0x83aafd7f9217fcea185ab91f50ec82d804b5775577be7127c9134c867e64ee3f"
       ],
       "validator_votes": [
-        1,
-        1,
         3,
+        1,
+        1,
         1,
         3
       ],
       "validator_votes_name": [
-        "AGREE",
-        "AGREE",
         "IDLE",
+        "AGREE",
+        "AGREE",
         "AGREE",
         "IDLE"
       ]
@@ -1838,7 +1833,7 @@
       "leaderTimeunitsAllocation": "100",
       "validatorTimeunitsAllocation": "200",
       "appealRounds": "0",
-      "executionBudgetPerRound": "160675500000000",
+      "executionBudgetPerRound": "160675800000000",
       "executionConsumed": "0",
       "totalMessageFees": "360000000000031056",
       "rotations": [
@@ -1868,7 +1863,7 @@
         "feeParams": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006a94d74f430000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a30000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000003"
       }
     ],
-    "feeValue": "360642702000041408",
+    "feeValue": "360642703200041408",
     "policy": {
       "enabled": true,
       "genPerTimeUnit": "1",
@@ -1878,9 +1873,9 @@
       "timeUnitOverlayBps": "1500"
     },
     "observed": {
-      "executionFeeConsumed": "132660250000000",
+      "executionFeeConsumed": "132660500000000",
       "executionFeeReportTotal": "132652000000000",
-      "recommendedExecutionBudgetPerRound": "318374700000000",
+      "recommendedExecutionBudgetPerRound": "318375000000000",
       "genvmMessageFeeConsumed": "120000000000004400",
       "messageFeeBudget": "360000000000031056",
       "messageFeeConsumed": "360000000000031056",
@@ -1914,7 +1909,7 @@
       }
     ],
     "totalMessageFees": "360000000000031056",
-    "rootFeeValue": "120630414000020704",
+    "rootFeeValue": "120630415200020704",
     "steps": [
       {
         "address": "0x6b8cc80DF56B2EF1577373e4e52e883272985038",
@@ -1930,7 +1925,7 @@
             "feeParams": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006a94d74f430000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a30000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000003"
           }
         ],
-        "feeValue": "120630414000020704"
+        "feeValue": "120630415200020704"
       },
       {
         "address": "0xD06Ec39feF25f54D857A440F197eA4Fc2A3240d5",
@@ -1946,7 +1941,7 @@
             "feeParams": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006a94d74f430000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000011e1a3000000000000000000000000000000000000000000000000000000000011e1a30000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000003"
           }
         ],
-        "feeValue": "240641403600031056"
+        "feeValue": "240641407200031056"
       },
       {
         "address": "0x45894452144724EfA694403501c2aD13E8854391",
