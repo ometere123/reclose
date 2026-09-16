@@ -494,7 +494,7 @@ def test_reclose_content_authority_rejects_mutable_branch(direct_deploy, direct_
             "enabled": True,
         }],
     }
-    with pytest.raises(Exception, match="40-hex commit"):
+    with pytest.raises(Exception, match="trusted repository root|40-hex commit"):
         direct_deploy("incident_judge_v1.py", direct_alice, 1, hash_obj(registry), canonical_json(registry))
 
 

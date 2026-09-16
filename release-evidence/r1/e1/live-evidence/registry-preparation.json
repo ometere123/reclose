@@ -1,0 +1,14 @@
+{
+  "schema": "reclose-r1-live-registry-preparation-v1",
+  "registryFile": "config/source-registry-r1-live.json",
+  "registryHash": "0x9710aabf127a3d98367b5b943eb2f1f4472ecc8042315de1275b1828d761e285",
+  "authority": {
+    "sourceId": "reclose-live-evidence",
+    "canonicalOrigin": "https://raw.githubusercontent.com",
+    "canonicalPathPrefix": "/ometere123/reclose/",
+    "enforcedRuntimeNamespace": "/release-evidence/r1/e1/live-evidence/",
+    "requiresExactCommit": true
+  },
+  "fixtureAnchor": "c15379270dc669947b4acfda85d2f70e4c92bcc7",
+  "status": "LOCAL_PREDEPLOYMENT_ONLY"
+}
