@@ -1,0 +1,29 @@
+{
+  "schema": "reclose-fixed-remediation-byte-authority-result-v1",
+  "network": {
+    "name": "studio-dev",
+    "chainId": 61997,
+    "rpc": "https://studio-next.genlayer.com/api"
+  },
+  "deployment": {
+    "judge": "0x6b8cc80DF56B2EF1577373e4e52e883272985038",
+    "kernel": "0xD06Ec39feF25f54D857A440F197eA4Fc2A3240d5",
+    "target": "0x45894452144724EfA694403501c2aD13E8854391",
+    "targetId": "reclose-target-source-matched",
+    "policyKey": "policy-source-matched-current"
+  },
+  "incidentId": "reclose-target-source-matched:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:5",
+  "preflight": "remediation-preflight.json",
+  "snapshot": {
+    "url": "https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md",
+    "httpStatus": 200,
+    "bytes": 734,
+    "keccak256": "0x2ad13ff8a80da7b24495ea9a3708ddc2ce62a9afb2f63b77d62ecb6e621af9b1"
+  },
+  "judgeResult": {
+    "conditionCode": "INSUFFICIENT_EVIDENCE",
+    "outcome": 3,
+    "status": "STOP_WRITES"
+  },
+  "interpretation": "The immutable-byte binding assertion passed, but the Judge still returned INSUFFICIENT_EVIDENCE. No recovery-validation transaction was submitted. Further work requires semantic/web-retrieval investigation rather than another nonce-burning retry."
+}

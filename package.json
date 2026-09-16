@@ -23,7 +23,7 @@
     "f1-parity:test": "node scripts/test-f1-parity.js",
     "action-envelope:test": "node scripts/test-action-envelope-negative.js",
     "lifecycle:test": "node scripts/test-lifecycle-mapping.js",
-    "canonical:test": "node scripts/test-canonical-hashing.js",
+    "canonical:test": "node scripts/test-canonical-hashing.js && node scripts/test-content-addressed-byte-authority.mjs",
     "policy-compiler:test": "node scripts/test-policy-compiler.js",
     "policy-estimator-identity:test": "node scripts/test-policy-estimator-identity.js",
     "evidence-builder:test": "node scripts/test-evidence-builder.js",
