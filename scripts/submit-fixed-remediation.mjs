@@ -8,19 +8,20 @@ import { computeActionId } from "../packages/protocol-sdk/dist/client.js";
 import { buildJudgeKernelTargetAllocationTree } from "../packages/protocol-sdk/dist/feeAllocation.js";
 import { fetchAuthoritativeSnapshot, normalizedFixtureMatches } from "./content-addressed-snapshot.mjs";
 
-const RPC = "https://studio-next.genlayer.com/api";
+const RPC = "https://studio-dev.genlayer.com/api";
 const CHAIN_ID = 61997;
-const JUDGE = "0x6b8cc80DF56B2EF1577373e4e52e883272985038";
-const KERNEL = "0xD06Ec39feF25f54D857A440F197eA4Fc2A3240d5";
-const TARGET = "0x45894452144724EfA694403501c2aD13E8854391";
-const TARGET_ID = "reclose-target-source-matched";
-const POLICY_KEY = "policy-source-matched-current";
-const POLICY_HASH = "0x4ed461585a207d2a28c21d224b531e96665b641836d5df1c825b7fc2cc830833";
+const manifest = JSON.parse(await fs.readFile("deployment/61997/r1-final-generation-manifest.json", "utf8"));
+const JUDGE = manifest.contracts.IncidentJudgeV1.address;
+const KERNEL = manifest.contracts.AssuranceKernel.address;
+const TARGET = manifest.contracts.ReferenceAgentProtocol.address;
+const TARGET_ID = manifest.targetId;
+const POLICY_KEY = manifest.policy.key;
+const POLICY_HASH = manifest.policy.manifestHash;
 const REPORTER = "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd";
 const PARENT_INCIDENT_ID = `${TARGET_ID}:${REPORTER}:0`;
-const REMEDIATION_URL = "https://raw.githubusercontent.com/ometere123/reclose/ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6/release-evidence/r1/e1/fixtures/provider-a-remediation.md";
-const EXPECTED_REMEDIATION_BYTES = 734;
-const EXPECTED_REMEDIATION_HASH = "0x2ad13ff8a80da7b24495ea9a3708ddc2ce62a9afb2f63b77d62ecb6e621af9b1";
+const REMEDIATION_URL = "https://raw.githubusercontent.com/ometere123/reclose/633cc5876815f904acb2006279ab68b01f09e263/release-evidence/r1/e1/e1a-final-fixtures/provider-a-remediation.md";
+const EXPECTED_REMEDIATION_BYTES = 594;
+const EXPECTED_REMEDIATION_HASH = "0xd857b55e34d5dc975f882092d0f34e513628cedf7610bbd7830be9474ed9e876";
 
 function key() {
   const value = fsSync.readFileSync(".env.local", "utf8").match(/^STUDIO_NEXT_PRIVATE_KEY=(.+)$/m)?.[1]?.trim();
@@ -34,14 +35,19 @@ function feeOptions(e) {
 async function main() {
   const account = createAccount(key());
   const client = createClient({ chain: { ...chains.studioDevnet, id: CHAIN_ID, rpcUrls: { default: { http: [RPC] } } }, account });
+  if (Number(await client.getChainId()) !== CHAIN_ID) throw new Error("wrong chain");
   const remote = await fetchAuthoritativeSnapshot(REMEDIATION_URL);
   if (remote.bytes.length !== EXPECTED_REMEDIATION_BYTES) throw new Error(`Unexpected remediation snapshot length ${remote.bytes.length}`);
   if (remote.hash.toLowerCase() !== EXPECTED_REMEDIATION_HASH) throw new Error(`Unexpected remediation snapshot hash ${remote.hash}`);
-  const local = await fs.readFile("release-evidence/r1/e1/fixtures/provider-a-remediation.md", "utf8");
+  const local = await fs.readFile("release-evidence/r1/e1/e1a-final-fixtures/provider-a-remediation.md", "utf8");
   if (!normalizedFixtureMatches(local, remote.text)) console.warn("Local remediation fixture differs after newline normalization; remote bytes remain authoritative.");
   const reporterNonce = Number(await client.readContract({ address: JUDGE, functionName: "get_reporter_nonce", args: [REPORTER] }));
   if (!Number.isSafeInteger(reporterNonce) || reporterNonce < 0) throw new Error(`Invalid live Reporter nonce ${reporterNonce}`);
   const incidentId = `${TARGET_ID}:${REPORTER}:${reporterNonce}`;
+  if (reporterNonce !== 1) throw new Error(`expected remediation nonce 1 after the verified compromise, got ${reporterNonce}`);
+  const parentCondition = await client.readContract({ address: JUDGE, functionName: "get_incident_condition_code", args: [PARENT_INCIDENT_ID] });
+  const parentOutcome = await client.readContract({ address: JUDGE, functionName: "get_incident_outcome", args: [PARENT_INCIDENT_ID] });
+  if (String(parentCondition) !== "CREDENTIAL_COMPROMISE" || Number(parentOutcome) !== 1) throw new Error(`parent incident is not confirmed: ${parentCondition}/${parentOutcome}`);
   const observedAt = new Date().toISOString();
   const eap = JSON.parse(buildEap({
     targetId: TARGET_ID, policyHash: POLICY_HASH, ruleId: "REMEDIATION_CONFIRMED_V1",
@@ -80,6 +86,7 @@ async function main() {
   }, null, 2) + "\n");
   console.error("Read-only remediation preflight passed; submitting exactly one transaction.");
   const hash = await client.writeContract({ address: JUDGE, functionName: "submit_remediation", args: submitArgs, value: 0n, fees: feeOptions(estimate) });
+  await fs.writeFile("release-evidence/r1/e1/fresh-fixed-cycle/remediation-pending.json", JSON.stringify({ schema: "reclose-r1-remediation-pending-v1", txHash: hash, incidentId, parentIncidentId: PARENT_INCIDENT_ID, reporterNonce, feeEstimate: safe(estimate) }, null, 2) + "\n");
   const receipt = await client.waitForTransactionReceipt({ hash, waitUntil: "finalized", interval: 3000, retries: 100 });
   const conditionCode = await client.readContract({ address: JUDGE, functionName: "get_incident_condition_code", args: [incidentId] });
   const outcome = await client.readContract({ address: JUDGE, functionName: "get_incident_outcome", args: [incidentId] });

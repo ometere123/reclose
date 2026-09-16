@@ -1,0 +1,41 @@
+{
+  "schema": "reclose-r1-final-preflight-v1",
+  "generatedAt": "2026-09-16T14:25:59.508Z",
+  "network": {
+    "rpc": "https://studio-dev.genlayer.com/api",
+    "chainId": 61997
+  },
+  "fixtureAnchor": "633cc5876815f904acb2006279ab68b01f09e263",
+  "fixtures": {
+    "provider-a-compromise.md": {
+      "url": "https://raw.githubusercontent.com/ometere123/reclose/633cc5876815f904acb2006279ab68b01f09e263/release-evidence/r1/e1/e1a-final-fixtures/provider-a-compromise.md",
+      "httpStatus": 200,
+      "bytes": 456,
+      "hash": "0x846ae8a7097ff9ebfbf94b3583d3fc44528ddb6838ff647ecd607febe056e80d",
+      "localByteComparison": {
+        "exact": true,
+        "normalizedTextEqual": true
+      }
+    },
+    "provider-a-remediation.md": {
+      "url": "https://raw.githubusercontent.com/ometere123/reclose/633cc5876815f904acb2006279ab68b01f09e263/release-evidence/r1/e1/e1a-final-fixtures/provider-a-remediation.md",
+      "httpStatus": 200,
+      "bytes": 594,
+      "hash": "0xd857b55e34d5dc975f882092d0f34e513628cedf7610bbd7830be9474ed9e876",
+      "localByteComparison": {
+        "exact": true,
+        "normalizedTextEqual": true
+      }
+    },
+    "provider-a-recovery.md": {
+      "url": "https://raw.githubusercontent.com/ometere123/reclose/633cc5876815f904acb2006279ab68b01f09e263/release-evidence/r1/e1/e1a-final-fixtures/provider-a-recovery.md",
+      "httpStatus": 200,
+      "bytes": 633,
+      "hash": "0x0ca0871f4fb12cbc9dff6c84dd1e6329c7559f36211ee00f5bd94bdab9bfc16b",
+      "localByteComparison": {
+        "exact": true,
+        "normalizedTextEqual": true
+      }
+    }
+  }
+}

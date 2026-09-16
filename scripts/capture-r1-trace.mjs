@@ -1,0 +1,10 @@
+import fs from "node:fs/promises";
+import { createClient, chains } from "genlayer-js";
+const hash = process.argv[2];
+if (!hash) throw new Error("hash required");
+const c = createClient({ chain: { ...chains.studioDevnet, id: 61997, rpcUrls: { default: { http: ["https://studio-dev.genlayer.com/api"] } } } });
+const trace = await c.debugTraceTransaction({ hash, round: 0 });
+const safe = v => JSON.parse(JSON.stringify(v, (_k, x) => typeof x === "bigint" ? x.toString() : x));
+const path = `release-evidence/r1/e1/fresh-fixed-cycle/${hash.slice(2, 14)}-debug-trace.json`;
+await fs.writeFile(path, JSON.stringify(safe(trace), null, 2) + "\n");
+console.log(JSON.stringify({ path, hash, resultCode: trace?.result_code ?? trace?.genvm_result?.error_code, stdout: trace?.stdout ?? trace?.genvm_result?.stdout, stderr: trace?.stderr ?? trace?.genvm_result?.stderr, eqOutputs: trace?.eq_outputs }));

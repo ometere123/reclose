@@ -23,22 +23,22 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MANIFEST_RELATIVE = process.argv[2] ?? "deployment/61997/r1-lifecycle-split-run-a-working-manifest.json";
 const MANIFEST = JSON.parse(await fs.readFile(path.resolve(ROOT, MANIFEST_RELATIVE), "utf8"));
 const CHAIN_ID = 61997;
-const RPC = "https://studio-next.genlayer.com/api";
+const RPC = "https://studio-dev.genlayer.com/api";
 const KERNEL = MANIFEST.contracts.AssuranceKernel.address;
 const JUDGE = MANIFEST.contracts.IncidentJudgeV1.address;
 const TARGET = MANIFEST.contracts.ReferenceAgentProtocol.address;
 const OWNER = MANIFEST.deployer;
 const TARGET_ID = MANIFEST.targetId;
-const POLICY_KEY = MANIFEST.policy.policyKey;
+const POLICY_KEY = MANIFEST.policy.key;
 const POLICY_VERSION = Number(MANIFEST.policy.version);
 const POLICY_HASH = MANIFEST.policy.manifestHash;
 const RULE_ID = "PROVIDER_COMPROMISE_V1";
 const RESOURCE_ID = "provider_a";
 const SOURCE_ID = "reclose-reference-evidence";
-const FIXTURE_PATH = "release-evidence/r1/e1/fixtures/provider-a-compromise.md";
-const FIXTURE_COMMIT = "ea7dfb76b84adc24bbc40b4a5827cc3a0ae412b6";
+const FIXTURE_PATH = "release-evidence/r1/e1/e1a-final-fixtures/provider-a-compromise.md";
+const FIXTURE_COMMIT = "633cc5876815f904acb2006279ab68b01f09e263";
 const FIXTURE_URL = `https://raw.githubusercontent.com/ometere123/reclose/${FIXTURE_COMMIT}/${FIXTURE_PATH}`;
-const REGISTRY_PATH = "config/source-registry-r1.json";
+const REGISTRY_PATH = "config/source-registry-e1a.json";
 const REQUIRED_TREASURY_WEI = 100000000000000000n;
 
 // All Studio-dev RPC calls in this process share one FIFO queue and bounded backoff.
@@ -153,7 +153,7 @@ async function main() {
     fail(`Live Judge snapshot authority differs from the current registry: ${JSON.stringify(jsonSafe(sourceAuthority))}`);
   }
   if (sourceRecord.sourceClass !== "CONTENT_ADDRESSED_SNAPSHOT" ||
-      sourceRecord.canonicalPathPrefix !== `/ometere123/reclose/${FIXTURE_COMMIT}/release-evidence/r1/e1/fixtures/` ||
+      sourceRecord.canonicalPathPrefix !== `/ometere123/reclose/${FIXTURE_COMMIT}/release-evidence/r1/e1/e1a-final-fixtures/` ||
       !sourceRecord.enabled || !sourceRecord.ruleIds.includes(RULE_ID)) {
     fail("The frozen fixture URL is not covered by the enabled immutable source authority.");
   }
@@ -206,7 +206,9 @@ async function main() {
   const submitArgs = [TARGET_ID, POLICY_KEY, RULE_ID, RESOURCE_ID, eap.artifactHash, evidenceJson, reporterNonce, ""];
   const ownerAccount = { address: OWNER, type: "json-rpc" };
   const judgeAccount = { address: JUDGE, type: "json-rpc" };
-  const incidentId = `${TARGET_ID}:${OWNER.toLowerCase()}:${reporterNonce}`;
+  // GenLayer's Address.as_hex is the canonical checksummed representation used in the
+  // deployed incident key; preserve the manifest/account casing in the predicted identity.
+  const incidentId = `${TARGET_ID}:${OWNER}:${reporterNonce}`;
   const receiveDecisionArgs = () => [
     incidentId, "", TARGET_ID, POLICY_KEY, POLICY_VERSION, POLICY_HASH, RULE_ID, RESOURCE_ID,
     OWNER, eap.artifactHash, 1, "CREDENTIAL_COMPROMISE", 1,
