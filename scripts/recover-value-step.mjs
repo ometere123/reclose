@@ -1,0 +1,13 @@
+import fs from "node:fs/promises";
+import fsSync from "node:fs";
+import { createAccount, createClient, chains, isSuccessful } from "genlayer-js";
+const file = process.env.RECLOSE_MANIFEST, artifact = process.env.RECLOSE_VALUE_ARTIFACT, txHash = process.env.RECLOSE_TX_HASH;
+const m = JSON.parse(await fs.readFile(file, "utf8"));
+const k = fsSync.readFileSync(".env.local", "utf8").match(/^STUDIO_NEXT_PRIVATE_KEY=(.+)$/m)?.[1]?.trim();
+const c = createClient({ chain: { ...chains.studioDevnet, id: 61997, rpcUrls: { default: { http: ["https://studio-dev.genlayer.com/api"] } } }, account: createAccount(k) });
+const safe = v => JSON.parse(JSON.stringify(v, (_k, x) => typeof x === "bigint" ? x.toString() : x));
+const r = await c.waitForTransactionReceipt({ hash: txHash, waitUntil: "finalized", interval: 4000, retries: 150 });
+const mode = "purchase-b", target = m.contracts.ReferenceAgentProtocol.address, provider = m.contracts.ProviderStubB.address;
+const out = JSON.parse(await fs.readFile(artifact, "utf8")); out.receipt = safe(r); out.executionResult = r.txExecutionResultName ?? r.executionResultName ?? r.execution_result; out.lifecycle = isSuccessful(r) && out.executionResult === "FINISHED_WITH_RETURN" ? "VERIFIED" : "FAILED";
+out.readback = { treasuryBalance: safe(await c.readContract({ address: target, functionName: "get_treasury_balance", args: [] })), effectiveProvider: safe(await c.readContract({ address: target, functionName: "get_effective_provider", args: [] })), selectedProvider: provider, providerTotalReceived: safe(await c.readContract({ address: provider, functionName: "get_total_received", args: [] })), providerFulfilled: safe(await c.readContract({ address: provider, functionName: "is_fulfilled", args: ["e1a-final-fallback-provider-b-001"] })), targetState: safe(await c.readContract({ address: target, functionName: "get_state", args: [] })) };
+await fs.writeFile(artifact, JSON.stringify(out, null, 2) + "\n"); console.log(JSON.stringify({ txHash, lifecycle: out.lifecycle, executionResult: out.executionResult, readback: out.readback }));
