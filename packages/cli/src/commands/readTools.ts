@@ -39,7 +39,7 @@ export function runIncidentReportPrepare(
 
 export function runRecoveryPrepare(
   sdk: RecloseSDK,
-  input: { incidentId: string; evidenceSources: EvidenceSource[] },
+  input: { incidentId: string; evidenceSources: EvidenceSource[]; recoveryProbeRef: string },
 ): Promise<CommandResult> {
   return result(() => sdk.buildRecoveryReport(input));
 }
