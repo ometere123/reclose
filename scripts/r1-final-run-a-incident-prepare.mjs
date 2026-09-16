@@ -391,7 +391,9 @@ async function main() {
       reporterNonceAfterEstimate: nonceAfterEstimate,
     },
   };
-  process.stdout.write(`${JSON.stringify(output, (_key, value) => typeof value === "bigint" ? value.toString() : value, 2)}\n`);
+  const serialized = JSON.stringify(output, (_key, value) => typeof value === "bigint" ? value.toString() : value, 2);
+  await fs.writeFile(path.join(ROOT, "release-evidence/r1/e1/source-matched-incident-prepared.json"), `${serialized}\n`);
+  process.stdout.write(`${serialized}\n`);
 }
 
 main().catch((error) => {
