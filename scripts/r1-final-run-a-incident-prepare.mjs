@@ -32,13 +32,14 @@ const TARGET_ID = MANIFEST.targetId;
 const POLICY_KEY = MANIFEST.policy.key;
 const POLICY_VERSION = Number(MANIFEST.policy.version);
 const POLICY_HASH = MANIFEST.policy.manifestHash;
+const FRESH_RUN = /^reclose-target-r1-final-[ab]$/.test(TARGET_ID);
 const RULE_ID = "PROVIDER_COMPROMISE_V1";
 const RESOURCE_ID = "provider_a";
-const SOURCE_ID = "reclose-reference-evidence";
-const FIXTURE_PATH = "release-evidence/r1/e1/e1a-final-fixtures/provider-a-compromise.md";
-const FIXTURE_COMMIT = "633cc5876815f904acb2006279ab68b01f09e263";
+const SOURCE_ID = FRESH_RUN ? "reclose-live-evidence" : "reclose-reference-evidence";
+const FIXTURE_PATH = FRESH_RUN ? `release-evidence/r1/e1/live-evidence/run-${TARGET_ID.endsWith("-b") ? "b" : "a"}-compromise.md` : "release-evidence/r1/e1/e1a-final-fixtures/provider-a-compromise.md";
+const FIXTURE_COMMIT = FRESH_RUN ? "c15379270dc669947b4acfda85d2f70e4c92bcc7" : "633cc5876815f904acb2006279ab68b01f09e263";
 const FIXTURE_URL = `https://raw.githubusercontent.com/ometere123/reclose/${FIXTURE_COMMIT}/${FIXTURE_PATH}`;
-const REGISTRY_PATH = "config/source-registry-e1a.json";
+const REGISTRY_PATH = FRESH_RUN ? "config/source-registry-r1-live.json" : "config/source-registry-e1a.json";
 const REQUIRED_TREASURY_WEI = 100000000000000000n;
 
 // All Studio-dev RPC calls in this process share one FIFO queue and bounded backoff.
@@ -88,7 +89,7 @@ function compactFailure(error) {
 }
 
 async function main() {
-  if (!KERNEL || !JUDGE || !TARGET || !OWNER || !TARGET_ID || !POLICY_KEY || !POLICY_HASH || MANIFEST.policy.status !== "active") {
+  if (!KERNEL || !JUDGE || !TARGET || !OWNER || !TARGET_ID || !POLICY_KEY || !POLICY_HASH || (!FRESH_RUN && MANIFEST.policy.status !== "active")) {
     fail(`Deployment manifest is incomplete or policy is not marked active: ${MANIFEST_RELATIVE}`);
   }
   const chain = { ...chains.studioDevnet, id: CHAIN_ID, rpcUrls: { default: { http: [RPC] } } };
@@ -134,7 +135,7 @@ async function main() {
       Number(targetDetails?.[5]) !== 1 || targetDetails?.[6] !== false) {
     fail(`Target registration/state mismatch: ${JSON.stringify(jsonSafe(targetDetails))}`);
   }
-  if (!sameAddress(rule?.[0], JUDGE) || Number(rule?.[1]) !== 1 || Number(rule?.[2]) !== 1 || rule?.[3] !== true || rule?.[4] !== true) {
+  if (!sameAddress(rule?.[0], JUDGE) || Number(rule?.[1]) !== (FRESH_RUN ? 2 : 1) || Number(rule?.[2]) !== 1 || rule?.[3] !== true || rule?.[4] !== true) {
     fail(`Active compromise rule does not bind the expected Judge/version/kind: ${JSON.stringify(jsonSafe(rule))}`);
   }
   if (asBigInt(economics?.[0], "reportBond") !== 0n) fail("This prepared flow expects the active compromise rule to have zero report bond.");
@@ -152,8 +153,9 @@ async function main() {
   if (!sourceRecord || !authorityExpected || JSON.stringify(jsonSafe(sourceAuthority)) !== JSON.stringify(authorityExpected)) {
     fail(`Live Judge snapshot authority differs from the current registry: ${JSON.stringify(jsonSafe(sourceAuthority))}`);
   }
+  const expectedPathPrefix = FRESH_RUN ? "/ometere123/reclose/" : `/ometere123/reclose/${FIXTURE_COMMIT}/release-evidence/r1/e1/e1a-final-fixtures/`;
   if (sourceRecord.sourceClass !== "CONTENT_ADDRESSED_SNAPSHOT" ||
-      sourceRecord.canonicalPathPrefix !== `/ometere123/reclose/${FIXTURE_COMMIT}/release-evidence/r1/e1/e1a-final-fixtures/` ||
+      sourceRecord.canonicalPathPrefix !== expectedPathPrefix ||
       !sourceRecord.enabled || !sourceRecord.ruleIds.includes(RULE_ID)) {
     fail("The frozen fixture URL is not covered by the enabled immutable source authority.");
   }
@@ -381,7 +383,7 @@ async function main() {
     schema: "reclose-e1-run-a-incident-prepared-v1",
     network: { name: "studio-dev", chainId: CHAIN_ID, rpc: RPC },
     deployment: { kernel: KERNEL, judge: JUDGE, target: TARGET, targetId: TARGET_ID },
-    policy: { key: POLICY_KEY, version: POLICY_VERSION, hash: POLICY_HASH, active: true, judgeVersion: 1 },
+    policy: { key: POLICY_KEY, version: POLICY_VERSION, hash: POLICY_HASH, active: true, judgeVersion: FRESH_RUN ? 2 : 1 },
     sourceRegistryHash: recomputedRegistryHash,
     sourceAuthority: jsonSafe(sourceAuthority),
     fixture: { sourceId: SOURCE_ID, url: FIXTURE_URL, snapshotRef: FIXTURE_URL, contentHash, bytes: fixtureBytes.length, reality: "SYNTHETIC" },

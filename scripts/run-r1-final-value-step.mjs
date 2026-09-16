@@ -3,7 +3,7 @@ import fsSync from "node:fs";
 import { createAccount, createClient, chains, isSuccessful } from "genlayer-js";
 
 const [mode = "fund"] = process.argv.slice(2);
-const FILE = "deployment/61997/r1-final-generation-manifest.json";
+const FILE = process.env.RECLOSE_MANIFEST ?? "deployment/61997/r1-final-generation-manifest.json";
 const RPC = "https://studio-dev.genlayer.com/api";
 const CHAIN_ID = 61997;
 const safe = value => JSON.parse(JSON.stringify(value, (_k, v) => typeof v === "bigint" ? v.toString() : v));
@@ -21,7 +21,7 @@ const call = mode === "fund"
   : { functionName: "purchase_service", args: [mode === "purchase-a" ? "e1a-final-initial-provider-a-001" : mode === "purchase-b" ? "e1a-final-fallback-provider-b-001" : "e1a-final-recovery-provider-a-001", amount], value: 0n, requestRef: mode };
 const estimate = await client.estimateTransactionFeesForWrite({ account, address: target, functionName: call.functionName, args: call.args, value: call.value });
 const fees = { distribution: estimate.distribution, ...(estimate.messageAllocations?.length ? { messageAllocations: estimate.messageAllocations } : {}) };
-const artifactPath = `release-evidence/r1/e1/fresh-fixed-cycle/value-${mode}.json`;
+const artifactPath = process.env.RECLOSE_VALUE_ARTIFACT ?? `release-evidence/r1/e1/fresh-fixed-cycle/value-${mode}.json`;
 const pending = { schema: "reclose-r1-value-step-v1", mode, network: { rpc: RPC, chainId: CHAIN_ID }, target, functionName: call.functionName, args: safe(call.args), value: call.value.toString(), estimate: safe(estimate), fees: safe(fees), lifecycle: "SUBMITTING", submittedAt: new Date().toISOString() };
 await fs.mkdir("release-evidence/r1/e1/fresh-fixed-cycle", { recursive: true });
 const txHash = await client.writeContract({ account, address: target, functionName: call.functionName, args: call.args, value: call.value, fees });
