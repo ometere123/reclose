@@ -32,12 +32,13 @@ const TARGET_ID = MANIFEST.targetId;
 const POLICY_KEY = MANIFEST.policy.key;
 const POLICY_VERSION = Number(MANIFEST.policy.version);
 const POLICY_HASH = MANIFEST.policy.manifestHash;
-const FRESH_RUN = /^reclose-target-r1-final-[ab]$/.test(TARGET_ID);
+const FRESH_RUN = /^reclose-target-r1-final-/.test(TARGET_ID);
 const RULE_ID = "PROVIDER_COMPROMISE_V1";
 const RESOURCE_ID = "provider_a";
 const SOURCE_ID = FRESH_RUN ? "reclose-live-evidence" : "reclose-reference-evidence";
-const FIXTURE_PATH = FRESH_RUN ? `release-evidence/r1/e1/live-evidence/run-${TARGET_ID.endsWith("-b") ? "b" : "a"}-compromise.md` : "release-evidence/r1/e1/e1a-final-fixtures/provider-a-compromise.md";
-const FIXTURE_COMMIT = FRESH_RUN ? "c15379270dc669947b4acfda85d2f70e4c92bcc7" : "633cc5876815f904acb2006279ab68b01f09e263";
+const FIXTURE_RUN = process.env.RECLOSE_FIXTURE_RUN ?? (TARGET_ID.endsWith("-b") ? "b" : "a");
+const FIXTURE_PATH = FRESH_RUN ? `release-evidence/r1/e1/live-evidence/run-${FIXTURE_RUN}-compromise.md` : "release-evidence/r1/e1/e1a-final-fixtures/provider-a-compromise.md";
+const FIXTURE_COMMIT = process.env.RECLOSE_FIXTURE_COMMIT ?? (FRESH_RUN ? "c15379270dc669947b4acfda85d2f70e4c92bcc7" : "633cc5876815f904acb2006279ab68b01f09e263");
 const FIXTURE_URL = `https://raw.githubusercontent.com/ometere123/reclose/${FIXTURE_COMMIT}/${FIXTURE_PATH}`;
 const REGISTRY_PATH = FRESH_RUN ? "config/source-registry-r1-live.json" : "config/source-registry-e1a.json";
 const REQUIRED_TREASURY_WEI = 100000000000000000n;
@@ -412,7 +413,9 @@ async function main() {
     },
   };
   const serialized = JSON.stringify(output, (_key, value) => typeof value === "bigint" ? value.toString() : value, 2);
-  await fs.writeFile(path.join(ROOT, "release-evidence/r1/e1/source-matched-incident-prepared.json"), `${serialized}\n`);
+  const outputPath = process.env.RECLOSE_PREPARED_OUTPUT ?? path.join(ROOT, "release-evidence/r1/e1/source-matched-incident-prepared.json");
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  await fs.writeFile(outputPath, `${serialized}\n`);
   process.stdout.write(`${serialized}\n`);
 }
 
