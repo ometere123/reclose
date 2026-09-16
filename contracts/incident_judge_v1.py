@@ -169,6 +169,8 @@ def _url_matches_authority(url: str, rec: "SourceAuthorityRecord") -> bool:
         parts = path.split("/")
         if len(parts) < 5 or len(parts[3]) != 40 or any(c not in "0123456789abcdefABCDEF" for c in parts[3]):
             return False
+        if parts[4:8] != ["release-evidence", "r1", "e1", "live-evidence"]:
+            return False
     prefix = rec.canonical_path_prefix
     if prefix == "":
         # Registry entries created before path-prefix binding existed remain origin-only; new/
@@ -478,8 +480,8 @@ class IncidentJudgeV1(gl.contract.Contract):
                 if source_class == "CONTENT_ADDRESSED_SNAPSHOT" and path_prefix.startswith("/ometere123/reclose/"):
                     parts = path_prefix.split("/")
                     self._require(
-                        len(parts) >= 5 and len(parts[3]) == 40 and all(c in "0123456789abcdefABCDEF" for c in parts[3]),
-                        "E_JDG_000: Reclose content-addressed authority must pin a 40-hex commit",
+                        len(parts) == 4 and parts[1] == "ometere123" and parts[2] == "reclose",
+                        "E_JDG_000: Reclose content authority must use the trusted repository root; URLs must pin the commit and live-evidence path",
                     )
             rec = SourceAuthorityRecord()
             rec.source_id = source_id
