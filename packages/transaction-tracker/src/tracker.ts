@@ -39,7 +39,7 @@ export interface TrackedChild {
   lastSeenAt?: string;
 }
 
-export type ChildMaterializationStatus = "NOT_OBSERVABLE" | "NO_MESSAGES_DUE" | "AWAITING_MATERIALIZATION" | "MATERIALIZED";
+export type ChildMaterializationStatus = "NOT_OBSERVABLE" | "NO_MESSAGES_DUE" | "AWAITING_MATERIALIZATION" | "MATERIALIZATION_STALLED" | "MATERIALIZED";
 
 export type MessageTriggerPhase = "ACCEPTED" | "FINALIZED" | "UNKNOWN";
 
@@ -62,6 +62,8 @@ export interface TrackedTransaction {
   /** Persisted ledger of emitted messages and the lifecycle phase at which each can exist. */
   expectedMessages?: ExpectedEmittedMessage[];
   childMaterialization: ChildMaterializationStatus;
+  /** Number of consecutive polls where at least one due message had no child. */
+  materializationPolls?: number;
   postStateVerification?: "MATCH" | "MISMATCH" | "PENDING" | null;
   firstTrackedAt: string;
   lastPolledAt: string | null;
@@ -79,7 +81,8 @@ export interface TrackedTransaction {
 export class TransactionTracker {
   constructor(
     private readonly client: TrackerClient,
-    private readonly store: TransactionStore = new InMemoryTransactionStore()
+    private readonly store: TransactionStore = new InMemoryTransactionStore(),
+    private readonly options: { materializationStallPolls?: number } = {},
   ) {}
 
   /** Registers a transaction for tracking immediately, with an UNINITIALIZED placeholder
@@ -190,10 +193,14 @@ export class TransactionTracker {
     const dueMessages = reconciledMessages.filter((message) => isMessageDue(message.triggerPhase, lifecycle));
     const knownChildIds = new Set(children.map((child) => child.txId));
     const materializedDueMessages = dueMessages.filter((message) => message.materializedChildTxId && knownChildIds.has(message.materializedChildTxId));
+    const missingDueMessages = dueMessages.length - materializedDueMessages.length;
+    const materializationPolls = missingDueMessages > 0 ? (existing.materializationPolls ?? 0) + 1 : 0;
+    const stallAfter = this.options.materializationStallPolls ?? 3;
     const childMaterialization: ChildMaterializationStatus =
       emittedMessageCount === null ? (children.length ? "MATERIALIZED" : "NOT_OBSERVABLE") :
       dueMessages.length === 0 ? "NO_MESSAGES_DUE" :
-      materializedDueMessages.length < dueMessages.length ? "AWAITING_MATERIALIZATION" : "MATERIALIZED";
+      missingDueMessages > 0 && materializationPolls >= stallAfter ? "MATERIALIZATION_STALLED" :
+      missingDueMessages > 0 ? "AWAITING_MATERIALIZATION" : "MATERIALIZED";
 
     const updated: TrackedTransaction = {
       ...existing,
@@ -201,6 +208,7 @@ export class TransactionTracker {
       children,
       emittedMessageCount,
       expectedMessages: reconciledMessages,
+      materializationPolls,
       childMaterialization,
       postStateVerification: raw.postStateVerification ?? existing.postStateVerification ?? null,
       lastPolledAt: new Date().toISOString(),

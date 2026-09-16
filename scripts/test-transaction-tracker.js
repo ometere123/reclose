@@ -157,6 +157,17 @@ async function main() {
     assert.strictEqual(finalized.children.length, 2);
   });
 
+  await test("bounded missing-child state becomes stalled without resubmission", async () => {
+    const responses = new Map([
+      ["0xstalled", { txId: "0xstalled", status: "FINALIZED", result: "MAJORITY_AGREE", messages: [{ onAcceptance: false }], __children: [] }],
+    ]);
+    const tracker = new TransactionTracker(fakeClient(responses), new InMemoryTransactionStore(), { materializationStallPolls: 2 });
+    await tracker.track("0xstalled");
+    assert.strictEqual((await tracker.poll("0xstalled")).childMaterialization, "AWAITING_MATERIALIZATION");
+    assert.strictEqual((await tracker.poll("0xstalled")).childMaterialization, "MATERIALIZATION_STALLED");
+    assert.strictEqual(await tracker.isReadyForResubmitDecision("0xstalled"), false);
+  });
+
   await test("isReadyForResubmitDecision is true only for CANCELED, never for a timeout status (Section 31 rule 3)", async () => {
     const responses = new Map([
       ["0xcanceled", { txId: "0xcanceled", status: "CANCELED", result: null }],

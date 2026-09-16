@@ -23,7 +23,7 @@ export interface TransactionTraceNode {
   executionResult: ExecutionResult | null;
   emittedMessageCount: number | null;
   expectedMessages: ExpectedEmittedMessage[];
-  childMaterialization: "NOT_OBSERVABLE" | "NO_MESSAGES_DUE" | "AWAITING_MATERIALIZATION" | "MATERIALIZED";
+  childMaterialization: "NOT_OBSERVABLE" | "NO_MESSAGES_DUE" | "AWAITING_MATERIALIZATION" | "MATERIALIZATION_STALLED" | "MATERIALIZED";
   postStateVerification: "MATCH" | "MISMATCH" | "PENDING" | null;
   children: TransactionTraceNode[];
 }
@@ -81,7 +81,7 @@ export async function buildTransactionTrace(
       materializedChildTxId: children[index]?.txId,
     })) : [];
     const dueMessages = expectedMessages.filter((message) => traceMessageDue(message.triggerPhase, lifecycle));
-    const childMaterialization = emittedMessageCount === null ? (children.length ? "MATERIALIZED" : "NOT_OBSERVABLE") :
+    const childMaterialization: TransactionTraceNode["childMaterialization"] = emittedMessageCount === null ? (children.length ? "MATERIALIZED" : "NOT_OBSERVABLE") :
       dueMessages.length === 0 ? "NO_MESSAGES_DUE" :
       dueMessages.length > children.length ? "AWAITING_MATERIALIZATION" : "MATERIALIZED";
     if (childMaterialization === "AWAITING_MATERIALIZATION" || raw.postStateVerification === "MISMATCH") complete = false;
