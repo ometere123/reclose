@@ -1,0 +1,160 @@
+{
+  "schema": "reclose-old-remediation-forensics-v1",
+  "capturedAt": "2026-09-16T10:01:27.349Z",
+  "network": "studio-dev",
+  "chainId": 61997,
+  "rpc": "https://studio-next.genlayer.com/api",
+  "rootTxId": "0x5884d33f08ce765b94705d4723f44a033ade2cadce7e77167179f7f6e5edfc3d",
+  "classification": "KERNEL_SUCCESS_NO_EMITTED_TARGET_MESSAGE_OBSERVED",
+  "nodes": [
+    {
+      "role": "REMEDIATION_ROOT",
+      "txId": "0x5884d33f08ce765b94705d4723f44a033ade2cadce7e77167179f7f6e5edfc3d",
+      "tx": {
+        "hash": "0x5884d33f08ce765b94705d4723f44a033ade2cadce7e77167179f7f6e5edfc3d",
+        "txId": "0x5884d33f08ce765b94705d4723f44a033ade2cadce7e77167179f7f6e5edfc3d",
+        "from": "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd",
+        "to": "0x343Ec96CFEE86b2355e94E79D515FdB619DBfd8a",
+        "status": 7,
+        "statusName": "FINALIZED",
+        "result": 1,
+        "resultName": "MAJORITY_AGREE",
+        "txExecutionResult": 1,
+        "txExecutionResultName": "FINISHED_WITH_RETURN",
+        "triggeredBy": null,
+        "triggeredOn": null,
+        "triggeredTransactions": [
+          "0x1923615a81081e685a0cbb2ab0119e21ef608e0125806c5eaf0e6fa3dfe077fc"
+        ],
+        "fees": {
+          "deposit": "360642702000041408",
+          "userValue": "0",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "160675500000000",
+            "totalMessageFees": "360000000000031056",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "locked": {
+            "genPerTimeUnit": "1",
+            "storageUnitPrice": "250000000",
+            "receiptGasPrice": "250000000"
+          },
+          "consumed": {
+            "executionConsumed": "132660250000000",
+            "storageFeeUsed": "8250000000",
+            "messageFeesConsumed": "360000000000031056",
+            "messageFeesBudgetTotal": "360000000000031056",
+            "leaderTimeunitsUsed": "1",
+            "validatorTimeunitsUsed": "6",
+            "perRound": [
+              {
+                "round": 0,
+                "consensusRound": "Accepted",
+                "leaderTimeunits": "1",
+                "validatorTimeunits": "6",
+                "maxValidatorTimeunits": "2"
+              }
+            ]
+          }
+        },
+        "messages": [
+          {
+            "messageType": "0",
+            "recipient": "0x7DE54B6d2Fea164E325597b1D2275463180d4ddC",
+            "value": 0,
+            "data": "FgC0AXJlY2VpdmVfZmluYWxfZGVjaXNpb24EYXJnc23UBHJlY2xvc2UtdGFyZ2V0LXNvdXJjZS1tYXRjaGVkOjB4MjRmQWU3Y0QwMzFFZDcwMkJlNjNCRGVBODkxMjE0MTgwNUI5OTZiZDox1ARyZWNsb3NlLXRhcmdldC1zb3VyY2UtbWF0Y2hlZDoweDI0ZkFlN2NEMDMxRWQ3MDJCZTYzQkRlQTg5MTIxNDE4MDVCOTk2YmQ6MOwBcmVjbG9zZS10YXJnZXQtc291cmNlLW1hdGNoZWTsAXBvbGljeS1zb3VyY2UtbWF0Y2hlZC1jdXJyZW50CZQEMHg3YTg0MWY2OTlhMjcyNzhhYWIxNTg2NzViYTczNzgwOWQ4ZWExOTc4YWQ0ZGU4ZTk2MzNjNDkyMDc1MDUyNDkxxAFSRU1FRElBVElPTl9DT05GSVJNRURfVjEEGCT6580DHtcCvmO96okSFBgFuZa9lAQweDAxMWVkMmU0NjIwOGY1Yjk5YjFkNjgxNjE2MGI1Njk4Yjg3M2Y2M2EzNmIzMzMzNzg5OWY5ZTZmYjUzMzY5MzkZrAFJTlNVRkZJQ0lFTlRfRVZJREVOQ0UJ",
+            "onAcceptance": false
+          }
+        ],
+        "lifecycle": {
+          "state": "finalized",
+          "outcome": "accepted"
+        },
+        "blockNumber": null,
+        "createdAt": "2026-09-16T07:34:47.902316+00:00"
+      }
+    },
+    {
+      "role": "KERNEL_CHILD",
+      "txId": "0x1923615a81081e685a0cbb2ab0119e21ef608e0125806c5eaf0e6fa3dfe077fc",
+      "tx": {
+        "hash": "0x1923615a81081e685a0cbb2ab0119e21ef608e0125806c5eaf0e6fa3dfe077fc",
+        "txId": "0x1923615a81081e685a0cbb2ab0119e21ef608e0125806c5eaf0e6fa3dfe077fc",
+        "from": "0x343Ec96CFEE86b2355e94E79D515FdB619DBfd8a",
+        "to": "0x7DE54B6d2Fea164E325597b1D2275463180d4ddC",
+        "status": 7,
+        "statusName": "FINALIZED",
+        "result": 1,
+        "resultName": "MAJORITY_AGREE",
+        "txExecutionResult": 1,
+        "txExecutionResultName": "FINISHED_WITH_RETURN",
+        "triggeredBy": "0x5884d33f08ce765b94705d4723f44a033ade2cadce7e77167179f7f6e5edfc3d",
+        "triggeredOn": "finalized",
+        "triggeredTransactions": [],
+        "fees": {
+          "deposit": "360000000000031056",
+          "userValue": "0",
+          "distribution": {
+            "leaderTimeunitsAllocation": "100",
+            "validatorTimeunitsAllocation": "200",
+            "appealRounds": "0",
+            "executionBudgetPerRound": "30000000000000000",
+            "totalMessageFees": "240000000000020704",
+            "rotations": [
+              "3"
+            ],
+            "maxPriceGenPerTimeUnit": "2",
+            "storageFeeMaxGasPrice": "300000000",
+            "receiptFeeMaxGasPrice": "300000000"
+          },
+          "locked": {
+            "genPerTimeUnit": "1",
+            "storageUnitPrice": "250000000",
+            "receiptGasPrice": "250000000"
+          },
+          "consumed": {
+            "executionConsumed": "78640250000000",
+            "storageFeeUsed": "12250000000",
+            "messageFeesConsumed": "0",
+            "messageFeesBudgetTotal": "240000000000020704",
+            "leaderTimeunitsUsed": "1",
+            "validatorTimeunitsUsed": "4",
+            "perRound": [
+              {
+                "round": 0,
+                "consensusRound": "Accepted",
+                "leaderTimeunits": "1",
+                "validatorTimeunits": "4",
+                "maxValidatorTimeunits": "1"
+              }
+            ]
+          }
+        },
+        "messages": [],
+        "lifecycle": {
+          "state": "finalized",
+          "outcome": "accepted"
+        },
+        "blockNumber": null,
+        "createdAt": "2026-09-16T07:35:21.367474+00:00"
+      },
+      "debugTrace": {
+        "unavailable": true,
+        "error": "The method \"gen_dbg_traceTransaction\" does not exist / is not available.\n\nDetails: Method not found: gen_dbg_traceTransaction\nVersion: viem@2.56.5"
+      }
+    }
+  ],
+  "notes": [
+    "Receipt fields are captured without consensus validator payloads.",
+    "messageFeesConsumed and messageFeesBudgetTotal are preserved under each node's fees.consumed.",
+    "An empty messages array plus no triggered child is not classified as delayed materialization."
+  ]
+}

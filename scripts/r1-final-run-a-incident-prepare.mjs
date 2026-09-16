@@ -211,15 +211,15 @@ async function main() {
     incidentId, "", TARGET_ID, POLICY_KEY, POLICY_VERSION, POLICY_HASH, RULE_ID, RESOURCE_ID,
     OWNER, eap.artifactHash, 1, "CREDENTIAL_COMPROMISE", 1,
   ];
-  const actionKey = (actionType, resourceId) => {
-    const parts = [incidentId, POLICY_KEY, String(actionType), resourceId];
+  const actionKey = (actionType, resourceId, paramU256 = 0n, paramString = "") => {
+    const parts = [incidentId, POLICY_KEY, String(actionType), resourceId, String(paramU256), paramString];
     return parts.map((part) => `${part.length}:${part}`).join("");
   };
   const targetSimAccount = { address: KERNEL, type: "json-rpc" };
   const targetActionsForStage = (stage) => enabledCompromiseEffects
     .filter((effect) => stage === 2 || [2, 3, 5, 7].includes(Number(effect[1])))
     .map((effect) => ({
-      actionId: actionKey(Number(effect[1]), String(effect[2])),
+      actionId: actionKey(Number(effect[1]), String(effect[2]), asBigInt(effect[3], "effect param_u256"), String(effect[4])),
       incidentId,
       policyKey: POLICY_KEY,
       actionType: Number(effect[1]),
@@ -289,7 +289,23 @@ async function main() {
       });
     } catch (error) {
       console.error(`Kernel stage ${decisionStage} RPC details: ${JSON.stringify(compactFailure(error))}`);
-      throw error;
+      // Studio's estimator can reject an explicit aggregate child allocation even when the
+      // contract's own allocator can produce a valid phase-matched preset. Retry read-only with
+      // the SDK-generated allocation; never silently submit the rejected preset.
+      console.error(`Kernel stage ${decisionStage}: retrying with SDK-generated child allocation (read-only).`);
+      kernelEstimate = await client.estimateTransactionFeesForWrite({
+        account: judgeAccount,
+        address: KERNEL,
+        functionName: kernelFunctionName,
+        args: receiveDecisionArgs(),
+        value: 0n,
+      });
+      if (!Array.isArray(kernelEstimate.messageAllocations) || kernelEstimate.messageAllocations.length !== 1) {
+        throw new Error(`Kernel stage ${decisionStage} SDK fallback did not return exactly one child allocation.`);
+      }
+      // Carry the authoritative SDK allocation forward so the final Judge root is composed from
+      // the exact preset accepted by the Kernel simulation, not the rejected aggregate estimate.
+      repeated.allocation = kernelEstimate.messageAllocations[0];
     }
     const kernelAllocations = Array.isArray(kernelEstimate.messageAllocations) ? kernelEstimate.messageAllocations : [];
     console.error(`Kernel stage ${decisionStage} estimate succeeded: ${JSON.stringify({
