@@ -19,11 +19,11 @@ const POLICY_KEY = manifest.policy.key;
 const POLICY_HASH = manifest.policy.manifestHash;
 const REPORTER = "0x24fAe7cD031Ed702Be63BDeA8912141805B996bd";
 const PARENT_INCIDENT_ID = `${TARGET_ID}:${REPORTER}:0`;
-const FRESH_RUN = /^reclose-target-r1-final-[ab]$/.test(TARGET_ID);
-const RUN = TARGET_ID.endsWith("-b") ? "b" : "a";
-const REMEDIATION_URL = FRESH_RUN ? `https://raw.githubusercontent.com/ometere123/reclose/c15379270dc669947b4acfda85d2f70e4c92bcc7/release-evidence/r1/e1/live-evidence/run-${RUN}-remediation.md` : "https://raw.githubusercontent.com/ometere123/reclose/633cc5876815f904acb2006279ab68b01f09e263/release-evidence/r1/e1/e1a-final-fixtures/provider-a-remediation.md";
-const EXPECTED_REMEDIATION_BYTES = FRESH_RUN ? 616 : 594;
-const EXPECTED_REMEDIATION_HASH = FRESH_RUN ? (RUN === "a" ? "0x283ce7a496696afeec116d83d3a371e98a3a5bdd1fe7d76829267a15ba0d4a49" : "0x457b5609aa67a2016e9070f43e5d8ce450686f0eb4cf252d0f51074030b6e2c6") : "0xd857b55e34d5dc975f882092d0f34e513628cedf7610bbd7830be9474ed9e876";
+const FRESH_RUN = /^reclose-target-r1-final-/.test(TARGET_ID);
+const RUN = process.env.RECLOSE_FIXTURE_RUN ?? (TARGET_ID.endsWith("-b") ? "b" : TARGET_ID.endsWith("-a2") ? "a2" : "a");
+const REMEDIATION_URL = process.env.RECLOSE_REMEDIATION_URL ?? (FRESH_RUN ? `https://raw.githubusercontent.com/ometere123/reclose/c15379270dc669947b4acfda85d2f70e4c92bcc7/release-evidence/r1/e1/live-evidence/run-${RUN}-remediation.md` : "https://raw.githubusercontent.com/ometere123/reclose/633cc5876815f904acb2006279ab68b01f09e263/release-evidence/r1/e1/e1a-final-fixtures/provider-a-remediation.md");
+const EXPECTED_REMEDIATION_BYTES = Number(process.env.RECLOSE_REMEDIATION_BYTES ?? (FRESH_RUN ? 616 : 594));
+const EXPECTED_REMEDIATION_HASH = process.env.RECLOSE_REMEDIATION_HASH ?? (FRESH_RUN ? (RUN === "a" ? "0x283ce7a496696afeec116d83d3a371e98a3a5bdd1fe7d76829267a15ba0d4a49" : RUN === "b" ? "0x457b5609aa67a2016e9070f43e5d8ce450686f0eb4cf252d0f51074030b6e2c6" : "") : "0xd857b55e34d5dc975f882092d0f34e513628cedf7610bbd7830be9474ed9e876");
 const EVIDENCE_DIR = process.env.RECLOSE_EVIDENCE_DIR ?? "release-evidence/r1/e1/fresh-fixed-cycle";
 
 function key() {
@@ -42,7 +42,7 @@ async function main() {
   const remote = await fetchAuthoritativeSnapshot(REMEDIATION_URL);
   if (remote.bytes.length !== EXPECTED_REMEDIATION_BYTES) throw new Error(`Unexpected remediation snapshot length ${remote.bytes.length}`);
   if (remote.hash.toLowerCase() !== EXPECTED_REMEDIATION_HASH) throw new Error(`Unexpected remediation snapshot hash ${remote.hash}`);
-  const local = await fs.readFile(FRESH_RUN ? `release-evidence/r1/e1/live-evidence/run-${RUN}-remediation.md` : "release-evidence/r1/e1/e1a-final-fixtures/provider-a-remediation.md", "utf8");
+  const local = await fs.readFile(process.env.RECLOSE_REMEDIATION_LOCAL ?? (FRESH_RUN ? `release-evidence/r1/e1/live-evidence/run-${RUN}-remediation.md` : "release-evidence/r1/e1/e1a-final-fixtures/provider-a-remediation.md"), "utf8");
   if (!normalizedFixtureMatches(local, remote.text)) console.warn("Local remediation fixture differs after newline normalization; remote bytes remain authoritative.");
   const reporterNonce = Number(await client.readContract({ address: JUDGE, functionName: "get_reporter_nonce", args: [REPORTER] }));
   if (!Number.isSafeInteger(reporterNonce) || reporterNonce < 0) throw new Error(`Invalid live Reporter nonce ${reporterNonce}`);
