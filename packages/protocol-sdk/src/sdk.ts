@@ -67,6 +67,7 @@ export interface RecloseSDK {
   buildRecoveryReport(input: {
     incidentId: string;
     evidenceSources: EvidenceSource[];
+    recoveryProbeRef: string;
   }): Promise<{
     report: unknown;
     feePreview: FeeTransactionPreview;

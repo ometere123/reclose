@@ -863,6 +863,7 @@ export class DirectRecloseClient implements RecloseSDK {
     subject: string;
     reporterAddress: string;
     evidenceSources: Array<EvidenceSource & { extractedText?: string; snapshotRef?: string }>;
+    recoveryProbeRef?: string;
   }) {
     const now = new Date().toISOString();
     return buildEapObject({
@@ -881,6 +882,7 @@ export class DirectRecloseClient implements RecloseSDK {
         snapshotRef: s.snapshotRef ?? "",
         retrievedAt: s.observedAt ?? s.fetchedAt,
       })),
+      ...(args.recoveryProbeRef ? { recoveryProbeRef: args.recoveryProbeRef } : {}),
     });
   }
 
@@ -1050,6 +1052,7 @@ export class DirectRecloseClient implements RecloseSDK {
   async buildRecoveryReport(input: {
     incidentId: string;
     evidenceSources: Array<EvidenceSource & { extractedText?: string; snapshotRef?: string }>;
+    recoveryProbeRef: string;
     reporterAddress?: string;
     bondId?: string;
     subject?: string;
@@ -1071,6 +1074,7 @@ export class DirectRecloseClient implements RecloseSDK {
       subject: input.subject ?? `Recovery validation for ${input.incidentId}`,
       reporterAddress,
       evidenceSources: input.evidenceSources,
+      recoveryProbeRef: input.recoveryProbeRef,
     });
     const evidenceJson = JSON.stringify(eap);
     const reporterNonce = num(await this.judgeRead("get_reporter_nonce", [reporterAddress]));

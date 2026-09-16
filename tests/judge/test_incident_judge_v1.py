@@ -481,6 +481,23 @@ def test_registry_narrows_binding_below_hostname(snapshot_judge_harness):
     assert enabled is True
 
 
+def test_reclose_content_authority_rejects_mutable_branch(direct_deploy, direct_alice):
+    """The trusted Reclose raw-GitHub authority must pin a commit, never a branch/tag."""
+    registry = {
+        "schema": "reclose-source-registry-v1",
+        "sources": [{
+            "sourceId": "reclose-reference-evidence",
+            "canonicalOrigin": "https://raw.githubusercontent.com",
+            "canonicalPathPrefix": "/ometere123/reclose/main/release-evidence/r1/e1/live-evidence/",
+            "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+            "ruleIds": ["RECOVERY_VALIDATED_V1"],
+            "enabled": True,
+        }],
+    }
+    with pytest.raises(Exception, match="40-hex commit"):
+        direct_deploy("incident_judge_v1.py", direct_alice, 1, hash_obj(registry), canonical_json(registry))
+
+
 def test_attacker_controlled_repo_same_hostname_rejected(snapshot_judge_harness):
     """A Reporter cannot manufacture "independent" evidence from an attacker-controlled repo that
     merely shares the registered hostname (raw.githubusercontent.com is shared, multi-tenant

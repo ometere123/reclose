@@ -54,6 +54,7 @@ export interface ExpectedRecloseSDK {
   buildRecoveryReport(input: {
     incidentId: string;
     evidenceSources: EvidenceSource[];
+    recoveryProbeRef: string;
   }): Promise<{ report: unknown; feePreview: FeeTransactionPreview }>;
   validateAPM(apm: unknown): Promise<{ valid: boolean; errors: string[] }>;
   hashAPM(apm: unknown): Promise<string>;
