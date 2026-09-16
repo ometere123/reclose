@@ -6,11 +6,11 @@ import { createAccount, createClient, chains, isSuccessful } from "genlayer-js";
 import { hashCanonicalApm } from "../packages/policy-compiler/dist/index.js";
 
 const CHAIN_ID = 61997, RPC = "https://studio-dev.genlayer.com/api", RUN = (process.env.RECLOSE_RUN_ID ?? "a").toLowerCase();
-if (!/^[ab]$/.test(RUN)) throw new Error("RECLOSE_RUN_ID must be a or b");
-const FILE = `deployment/61997/r1-run-${RUN}-manifest.json`, MODULE_VERSION = 2;
+if (!/^[a-z0-9-]+$/.test(RUN)) throw new Error("RECLOSE_RUN_ID must be a simple generation label");
+const FILE = process.env.RECLOSE_MANIFEST ?? `deployment/61997/r1-run-${RUN}-manifest.json`, MODULE_VERSION = 2;
 const safe = v => JSON.parse(JSON.stringify(v, (_k, x) => typeof x === "bigint" ? x.toString() : x));
 const m = JSON.parse(await fs.readFile(FILE, "utf8")), c = m.contracts, kernel = c.AssuranceKernel.address, judge = c.IncidentJudgeV1.address;
-const policyKey = `policy-r1-final-${RUN}`;
+const policyKey = process.env.RECLOSE_POLICY_KEY ?? `policy-r1-final-${RUN}`;
 const env = fsSync.readFileSync(fileURLToPath(new URL("../.env.local", import.meta.url)), "utf8");
 const key = env.match(/^STUDIO_NEXT_PRIVATE_KEY=(.+)$/m)?.[1]?.trim();
 if (!/^0x[0-9a-f]{64}$/i.test(key ?? "")) throw new Error("invalid signer");

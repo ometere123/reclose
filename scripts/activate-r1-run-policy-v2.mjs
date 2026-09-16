@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 import { createAccount, createClient, chains, isSuccessful } from "genlayer-js";
 
 const CHAIN_ID = 61997, RPC = "https://studio-dev.genlayer.com/api", RUN = (process.env.RECLOSE_RUN_ID ?? "a").toLowerCase();
-if (!/^[ab]$/.test(RUN)) throw new Error("RECLOSE_RUN_ID must be a or b");
-const FILE = `deployment/61997/r1-run-${RUN}-manifest.json`, safe = v => JSON.parse(JSON.stringify(v, (_k, x) => typeof x === "bigint" ? x.toString() : x));
+if (!/^[a-z0-9-]+$/.test(RUN)) throw new Error("RECLOSE_RUN_ID must be a simple generation label");
+const FILE = process.env.RECLOSE_MANIFEST ?? `deployment/61997/r1-run-${RUN}-manifest.json`, safe = v => JSON.parse(JSON.stringify(v, (_k, x) => typeof x === "bigint" ? x.toString() : x));
 const m = JSON.parse(await fs.readFile(FILE, "utf8")), kernel = m.contracts.AssuranceKernel.address, policyKey = m.policy.key;
 const env = fsSync.readFileSync(fileURLToPath(new URL("../.env.local", import.meta.url)), "utf8"), key = env.match(/^STUDIO_NEXT_PRIVATE_KEY=(.+)$/m)?.[1]?.trim();
 if (!/^0x[0-9a-f]{64}$/i.test(key ?? "")) throw new Error("invalid signer");
