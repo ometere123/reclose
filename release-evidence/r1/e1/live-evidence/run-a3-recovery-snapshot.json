@@ -1,0 +1,32 @@
+{
+  "schema": "reclose-r1-recovery-facts-v2",
+  "reality": "SYNTHETIC_CONTROLLED_DEMONSTRATION",
+  "targetId": "reclose-target-r1-final-a3",
+  "rootIncidentId": "reclose-target-r1-final-a3:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0",
+  "kernel": "0x7a4f49BaF6c43CCdB6Fa0363C0320077C8c1594E",
+  "target": "0x6fdF82bD536268BF76655e5EC00eABcaB79A7D5E",
+  "judge": "0x00192f198DDdF325A33AEeEb1DCF560cCD569684",
+  "providerA": "0xE292b227b8faD473C3b4aA86EcA2841CA20F2543",
+  "providerB": "0x682990c2632a38D0E6dd338A154094B4817DaF6A",
+  "policyKey": "policy-r1-final-a3",
+  "policyVersion": 1,
+  "policyHash": "0x25b6854c2833eac099bb9ebbe82394e9e2e99dec4a99ecb17591cb456cf8c96f",
+  "registryHash": "0x9710aabf127a3d98367b5b943eb2f1f4472ecc8042315de1275b1828d761e285",
+  "remediationRootTx": "0x200d708db4e777d232cb52ed307d2b7f3aac2235cf8e305629bb9b125c165989",
+  "remediationJudgeKernelChild": "0x6a48a9694e569aee93631ee32b8b180f618eb1fe77c25a0440f58c4d268c00ff",
+  "remediationTargetChildren": [
+    "0x3f32bcfcf2dca71ee3ba9c65be7f9151b7ed81c9933324219da17dea1ad6e986",
+    "0x00b7fbbb0f703f4b693880cbfe2bd8472d491171fdcd2c37167d627010ad6308"
+  ],
+  "remediationResult": "REMEDIATION_VERIFIED_CONFIRMED",
+  "targetStateAfterRemediation": 5,
+  "effectiveProviderDuringRecovery": 2,
+  "providerBContinuityPurchaseTx": "0x459a1749e65feac2afb1f6680654f3738e82ef7506d8a150f03d0a4e91543993",
+  "providerBContinuityFulfilled": true,
+  "providerARecoveryProbeTx": "0x6afc61ec8564f3d833a2469fd0885307b24fe5025dbc3c180640a143c6f5a103",
+  "providerARecoveryProbeRef": "reclose-r1-run-a3-recovery-probe-001",
+  "providerARecoveryProbeFulfilled": true,
+  "providerARecoveryProbeValueWei": "1000000000000000",
+  "authorityRevoked": false,
+  "observedAt": "2026-09-16T20:45:00Z"
+}
