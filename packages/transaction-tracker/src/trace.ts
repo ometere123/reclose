@@ -62,6 +62,10 @@ export async function buildTransactionTrace(
     const lifecycle = mapRawTransaction(raw);
     const executionResult = raw.executionResult ?? null;
     if (executionResult && FAILURES.includes(executionResult)) hasExecutionFailure = true;
+    // A trace is not complete merely because the protocol status is terminal. Every node in the
+    // required graph must expose the successful GenVM execution result; absent execution evidence
+    // is deliberately treated as unverified rather than silently promoted to success.
+    if (executionResult !== "FINISHED_WITH_RETURN") complete = false;
     const role = client.classifyTransactionRole ? await client.classifyTransactionRole(txId) : "UNKNOWN";
     let children: TransactionTraceNode[] = [];
     const couldHaveChildren = lifecycle.derived?.isFinal || lifecycle.protocolDecisionOutcome !== null;
