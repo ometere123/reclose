@@ -118,6 +118,21 @@ async function main() {
     assert.strictEqual(record.children.length, 1);
   });
 
+  await test("poll() persists a recursive graph and reports emitted messages awaiting materialization", async () => {
+    const responses = new Map([
+      ["0xroot", { txId: "0xroot", status: "FINALIZED", result: "MAJORITY_AGREE", emittedMessages: [{}, {}], __children: ["0xchild"] }],
+      ["0xchild", { txId: "0xchild", status: "FINALIZED", result: "MAJORITY_AGREE", emittedMessages: [{}], __children: ["0xgrandchild"] }],
+      ["0xgrandchild", { txId: "0xgrandchild", status: "PENDING", result: null }],
+    ]);
+    const store = new InMemoryTransactionStore();
+    const tracker = new TransactionTracker(fakeClient(responses), store);
+    await tracker.track("0xroot");
+    const record = await tracker.poll("0xroot");
+    assert.strictEqual(record.childMaterialization, "AWAITING_MATERIALIZATION");
+    assert.strictEqual((await tracker.get("0xchild")).children[0].txId, "0xgrandchild");
+    assert.strictEqual((await tracker.get("0xgrandchild")).parentTxId, "0xchild");
+  });
+
   await test("isReadyForResubmitDecision is true only for CANCELED, never for a timeout status (Section 31 rule 3)", async () => {
     const responses = new Map([
       ["0xcanceled", { txId: "0xcanceled", status: "CANCELED", result: null }],

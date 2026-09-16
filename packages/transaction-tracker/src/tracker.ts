@@ -16,7 +16,13 @@ import { InMemoryTransactionStore } from "./store";
 
 /** Minimal client surface this module needs - a thin adapter over genlayer-js's real client. */
 export interface TrackerClient {
-  getTransaction(args: { hash: string }): Promise<RawGenLayerTransaction>;
+  getTransaction(args: { hash: string }): Promise<RawGenLayerTransaction & {
+    executionResult?: string | null;
+    /** GenLayer's emitted internal-message ledger, when exposed by the adapter. */
+    messages?: unknown[] | null;
+    emittedMessages?: unknown[] | null;
+    postStateVerification?: "MATCH" | "MISMATCH" | "PENDING" | null;
+  }>;
   /** Returns child transaction hashes this transaction's execution triggered (genlayer-js's own
    * getTriggeredTransactionIds) - the mechanism behind CLAUDE.md Section 31 rule 4 ("display
    * parent + child transactions where relevant"). */
@@ -25,9 +31,15 @@ export interface TrackerClient {
 
 export interface TrackedChild {
   txId: string;
+  parentTxId?: string;
   role: ChildTransactionRole | "UNKNOWN";
   lifecycle: GenLayerTransactionLifecycle;
+  executionResult?: string | null;
+  firstSeenAt?: string;
+  lastSeenAt?: string;
 }
+
+export type ChildMaterializationStatus = "NOT_OBSERVABLE" | "NO_MESSAGES_DUE" | "AWAITING_MATERIALIZATION" | "MATERIALIZED";
 
 export interface TrackedTransaction {
   txId: string;
@@ -36,6 +48,11 @@ export interface TrackedTransaction {
   label?: string;
   lifecycle: GenLayerTransactionLifecycle;
   children: TrackedChild[];
+  /** Persisted graph metadata. Existing stores may contain records without these fields. */
+  parentTxId?: string;
+  emittedMessageCount?: number | null;
+  childMaterialization: ChildMaterializationStatus;
+  postStateVerification?: "MATCH" | "MISMATCH" | "PENDING" | null;
   firstTrackedAt: string;
   lastPolledAt: string | null;
 }
@@ -66,6 +83,7 @@ export class TransactionTracker {
       label: options.label,
       lifecycle: mapRawTransaction({ txId, status: "UNINITIALIZED", result: null }),
       children: [],
+      childMaterialization: "NOT_OBSERVABLE",
       firstTrackedAt: new Date().toISOString(),
       lastPolledAt: null,
     };
@@ -93,29 +111,77 @@ export class TransactionTracker {
       throw new Error(`poll() called for an untracked transaction ${txId} - call track() first so the tx ID is persisted before polling can ever fail.`);
     }
 
+    return this.pollGraph(txId, new Set<string>());
+  }
+
+  /** Polls every discovered descendant and persists each node independently. Children are not
+   * flattened into a root snapshot: a late grandchild remains discoverable after its parent was
+   * already persisted, and an emitted-but-not-yet-materialized message is never reported complete. */
+  private async pollGraph(txId: string, visited: Set<string>): Promise<TrackedTransaction> {
+    if (visited.has(txId)) {
+      const cycle = await this.store.load(txId);
+      if (!cycle) throw new Error(`Transaction graph cycle references unknown node ${txId}`);
+      return cycle;
+    }
+    visited.add(txId);
+    const existing = await this.store.load(txId);
+    if (!existing) throw new Error(`poll() discovered an untracked node ${txId}`);
     const raw = await this.client.getTransaction({ hash: txId });
     const lifecycle = mapRawTransaction(raw);
-
-    let children: TrackedChild[] = existing.children;
+    let children: TrackedChild[] = existing.children ?? [];
     // Only worth asking for children once the parent has actually reached a decided/terminal
     // state - mid-flight statuses cannot yet have triggered anything.
     if (lifecycle.derived?.isFinal || lifecycle.protocolDecisionOutcome !== null) {
       const childIds = await this.client.getTriggeredTransactionIds({ hash: txId });
-      children = await Promise.all(
-        childIds.map(async (childId) => {
-          const childRaw = await this.client.getTransaction({ hash: childId });
-          return { txId: childId, role: "UNKNOWN" as const, lifecycle: mapRawTransaction(childRaw) };
-        })
-      );
+      const now = new Date().toISOString();
+      const prior = new Map(children.map((child) => [child.txId, child]));
+      children = [];
+      for (const childId of Array.from(new Set(childIds))) {
+        const childRaw = await this.client.getTransaction({ hash: childId });
+        const previous = prior.get(childId);
+        const child = {
+          txId: childId,
+          parentTxId: txId,
+          role: previous?.role ?? "UNKNOWN" as const,
+          lifecycle: mapRawTransaction(childRaw),
+          executionResult: childRaw.executionResult ?? null,
+          firstSeenAt: previous?.firstSeenAt ?? now,
+          lastSeenAt: now,
+        };
+        children.push(child);
+        const childRecord: TrackedTransaction = {
+          txId: childId,
+          label: previous?.role,
+          lifecycle: child.lifecycle,
+          children: (await this.store.load(childId))?.children ?? [],
+          parentTxId: txId,
+          childMaterialization: "NOT_OBSERVABLE",
+          firstTrackedAt: child.firstSeenAt,
+          lastPolledAt: now,
+          postStateVerification: childRaw.postStateVerification ?? null,
+        };
+        await this.store.save(childRecord);
+      }
     }
+
+    const emitted = raw.emittedMessages ?? raw.messages;
+    const emittedMessageCount = Array.isArray(emitted) ? emitted.length : existing.emittedMessageCount ?? null;
+    const childMaterialization: ChildMaterializationStatus =
+      emittedMessageCount === null ? (children.length ? "MATERIALIZED" : "NOT_OBSERVABLE") :
+      emittedMessageCount > children.length ? "AWAITING_MATERIALIZATION" :
+      emittedMessageCount === 0 ? "NO_MESSAGES_DUE" : "MATERIALIZED";
 
     const updated: TrackedTransaction = {
       ...existing,
       lifecycle,
       children,
+      emittedMessageCount,
+      childMaterialization,
+      postStateVerification: raw.postStateVerification ?? existing.postStateVerification ?? null,
       lastPolledAt: new Date().toISOString(),
     };
     await this.store.save(updated);
+    for (const child of children) await this.pollGraph(child.txId, visited);
     return updated;
   }
 

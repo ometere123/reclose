@@ -4,7 +4,12 @@ import type { ExecutionResult, GenLayerTransactionLifecycle } from "@reclose/pro
 export type TraceRole = "REPORT_SUBMISSION" | "JUDGE_DECISION" | "KERNEL_EFFECT" | "TARGET_ACTION" | "VAULT_PAYOUT" | "UNKNOWN";
 
 export interface TraceClient {
-  getTransaction(args: { hash: string }): Promise<RawGenLayerTransaction & { executionResult?: ExecutionResult }>;
+  getTransaction(args: { hash: string }): Promise<RawGenLayerTransaction & {
+    executionResult?: ExecutionResult;
+    messages?: unknown[] | null;
+    emittedMessages?: unknown[] | null;
+    postStateVerification?: "MATCH" | "MISMATCH" | "PENDING" | null;
+  }>;
   getTriggeredTransactionIds(args: { hash: string }): Promise<string[]>;
   /** Optional role classifier based on decoded calldata/message metadata from the real SDK. */
   classifyTransactionRole?(txId: string): Promise<TraceRole>;
@@ -15,6 +20,9 @@ export interface TransactionTraceNode {
   role: TraceRole;
   lifecycle: GenLayerTransactionLifecycle;
   executionResult: ExecutionResult | null;
+  emittedMessageCount: number | null;
+  childMaterialization: "NOT_OBSERVABLE" | "NO_MESSAGES_DUE" | "AWAITING_MATERIALIZATION" | "MATERIALIZED";
+  postStateVerification: "MATCH" | "MISMATCH" | "PENDING" | null;
   children: TransactionTraceNode[];
 }
 
@@ -63,7 +71,13 @@ export async function buildTransactionTrace(
         children = await Promise.all(childIds.map((childId) => walk(childId, depth + 1)));
       }
     }
-    return { txId, role, lifecycle, executionResult, children };
+    const emitted = raw.emittedMessages ?? raw.messages;
+    const emittedMessageCount = Array.isArray(emitted) ? emitted.length : null;
+    const childMaterialization = emittedMessageCount === null ? (children.length ? "MATERIALIZED" : "NOT_OBSERVABLE") :
+      emittedMessageCount > children.length ? "AWAITING_MATERIALIZATION" :
+      emittedMessageCount === 0 ? "NO_MESSAGES_DUE" : "MATERIALIZED";
+    if (childMaterialization === "AWAITING_MATERIALIZATION" || raw.postStateVerification === "MISMATCH") complete = false;
+    return { txId, role, lifecycle, executionResult, emittedMessageCount, childMaterialization, postStateVerification: raw.postStateVerification ?? null, children };
   };
 
   const root = await walk(rootTxId, 0);

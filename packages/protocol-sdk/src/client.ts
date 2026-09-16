@@ -85,19 +85,19 @@ function deriveBondId(input: {
 /** Mirrors contracts/assurance_kernel.py::_ck exactly - length-prefixed concatenation, used by the
  * Kernel for every composite storage/identity key including action_id. Client-side replication is
  * required because action_id is never returned by any Kernel view method; it must be derived from
- * already-known inputs (incident_id, policy_key, action_type ordinal, resource_id) to correctly
+ * already-known inputs (incident_id, policy_key, action_type ordinal, resource_id, bounded payload) to correctly
  * track the real dispatched action instead of substituting the incident_id itself. */
 function ck(...parts: string[]): string {
   return parts.map((p) => `${p.length}:${p}`).join("");
 }
 
 /** Mirrors contracts/assurance_kernel.py::_dispatch_action's action_id derivation:
- * `_ck(incident_id, policy_key, str(int(action_type)), resource_id)`. One action_id exists PER
+ * `_ck(incident_id, policy_key, str(int(action_type)), resource_id, str(int(param_u256)), param_str)`. One action_id exists PER
  * dispatched effect (an incident's final decision may dispatch up to MAX_EFFECTS_PER_DECISION
  * effects at once) - there is no single "the" action_id for an incident, so this must be computed
  * per effect, never approximated by the bare incident_id. */
-function computeActionId(incidentId: string, policyKey: string, actionTypeOrdinal: number, resourceId: string): string {
-  return ck(incidentId, policyKey, String(actionTypeOrdinal), resourceId);
+export function computeActionId(incidentId: string, policyKey: string, actionTypeOrdinal: number, resourceId: string, paramU256: string | number | bigint = "0", paramStr = ""): string {
+  return ck(incidentId, policyKey, String(actionTypeOrdinal), resourceId, String(paramU256), paramStr);
 }
 
 /**
@@ -643,7 +643,7 @@ export class DirectRecloseClient implements RecloseSDK {
     const policy = await this.getPolicyByKey(incident.policyKey, incident.targetId);
     const matching = policy.effects.filter((e) => e.ruleId === incident.ruleId && e.enabled).slice(0, MAX_EFFECTS_PER_DECISION);
     return matching.map((effect) => ({
-      actionId: computeActionId(incidentId, incident.policyKey, ACTION_TYPE_ORDINALS[effect.actionType] ?? 0, effect.resourceId),
+      actionId: computeActionId(incidentId, incident.policyKey, ACTION_TYPE_ORDINALS[effect.actionType] ?? 0, effect.resourceId, effect.paramU256 ?? "0", effect.paramStr ?? ""),
       actionType: effect.actionType,
       resourceId: effect.resourceId,
     }));

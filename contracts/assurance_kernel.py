@@ -983,7 +983,9 @@ class AssuranceKernel(gl.contract.Contract):
 
     def _dispatch_action(self, target_id: str, incident_id: str, policy_key: str, action_type: gl.u8, resource_id: str, param_u256: gl.u256, param_str: str, decision_stage: gl.u8) -> None:
         target = self.targets[target_id]
-        action_id = _ck(incident_id, policy_key, str(int(action_type)), resource_id)
+        # Exact-payload identity preserves retries while distinguishing RESTORE RECOVERY
+        # from the later RESTORE NORMAL action.
+        action_id = _ck(incident_id, policy_key, str(int(action_type)), resource_id, str(int(param_u256)), param_str)
         attempt_key = _ck(action_id, "attempts")
         attempts = int(self.processed_action_dispatch_count[attempt_key]) if attempt_key in self.processed_action_dispatch_count else 0
         self.processed_action_dispatch_count[attempt_key] = gl.u32(attempts + 1)

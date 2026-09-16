@@ -414,8 +414,8 @@ async function main() {
     const client = sdk.createRecloseClient({ transport, addresses: { kernel: "0xKernel", judge: "0xJudge" } });
     const actions = await client.listIncidentActionIds("reclose-target-001:0xreporter:4");
     assert.strictEqual(actions.length, 2, "both enabled effects of the matched rule must each produce their own action");
-    const expectedRestrict = ["reclose-target-001:0xreporter:4", "policy-1", "3", "provider_a"].map((p) => `${p.length}:${p}`).join("");
-    assert.strictEqual(actions[0].actionId, expectedRestrict, "action_id must match contracts/assurance_kernel.py::_ck(incident_id, policy_key, action_type, resource_id) exactly");
+    const expectedRestrict = ["reclose-target-001:0xreporter:4", "policy-1", "3", "provider_a", "0", ""].map((p) => `${p.length}:${p}`).join("");
+    assert.strictEqual(actions[0].actionId, expectedRestrict, "action_id must match contracts/assurance_kernel.py::_ck with the exact bounded payload");
     assert.notStrictEqual(actions[0].actionId, "reclose-target-001:0xreporter:4", "action_id must never equal the bare incidentId");
   });
 
