@@ -1,0 +1,18 @@
+{
+  "schema": "reclose-source-registry-v1",
+  "sources": [
+    {
+      "sourceId": "reclose-live-evidence-v2",
+      "canonicalOrigin": "https://raw.githubusercontent.com",
+      "canonicalPathPrefix": "/ometere123/reclose/b05863428cb8e92692131eeecab41ceadadac56f/release-evidence/r1/e1/live-evidence/",
+      "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+      "ruleIds": [
+        "PROVIDER_COMPROMISE_V1",
+        "SERVICE_FAILURE_V1",
+        "REMEDIATION_CONFIRMED_V1",
+        "RECOVERY_VALIDATED_V1"
+      ],
+      "enabled": true
+    }
+  ]
+}
