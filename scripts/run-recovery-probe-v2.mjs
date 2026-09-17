@@ -8,7 +8,7 @@ const key = fsSync.readFileSync(".env.local", "utf8").match(/^STUDIO_NEXT_PRIVAT
 if (!/^0x[0-9a-f]{64}$/i.test(key ?? "")) throw new Error("invalid signer");
 const account = createAccount(key), client = createClient({ chain: { ...chains.studioDevnet, id: 61997, rpcUrls: { default: { http: [rpc] } } }, account });
 if (Number(await client.getChainId()) !== 61997) throw new Error("wrong chain");
-const ref = `reclose-r1-run-${String(manifest.run ?? "A").toLowerCase()}-recovery-probe-001`, value = 1_000_000_000_000_000n;
+const ref = process.env.RECLOSE_RECOVERY_PROBE_REF ?? `reclose-r1-run-${String(manifest.run ?? "A").toLowerCase()}-recovery-probe-001`, value = BigInt(process.env.RECLOSE_RECOVERY_PROBE_VALUE ?? "1000000000000000");
 if (Number(await client.readContract({ address: manifest.contracts.ReferenceAgentProtocol.address, functionName: "get_state", args: [] })) !== 5) throw new Error("target is not RECOVERY");
 if (await client.readContract({ address: target, functionName: "is_fulfilled", args: [ref] })) throw new Error("probe reference already fulfilled");
 const estimate = await client.estimateTransactionFeesForWrite({ account, address: target, functionName: "fulfill", args: [ref], value });
