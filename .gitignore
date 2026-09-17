@@ -54,3 +54,13 @@ Thumbs.db
 **/simulation-failure.json
 **/simulation-results.json
 
+
+# Never track ad-hoc credential-bearing exports, regardless of directory.
+# Redacted, intentionally curated evidence must use a different filename.
+**/*private-key*.json
+**/*private_key*.json
+**/*credentials*.json
+**/*credential*.json
+**/*secret*.json
+**/*wallet*.json
+**/*keystore*.json
