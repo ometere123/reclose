@@ -1,0 +1,19 @@
+{
+  "schema": "reclose-r1-a4-recovery-snapshot-v1",
+  "reality": "SYNTHETIC controlled demonstration; live A4 recovery-readiness observation",
+  "target_id": "reclose-target-r1-final-a4",
+  "provider": "Provider A",
+  "root_incident_id": "reclose-target-r1-final-a4:0x24fAe7cD031Ed702Be63BDeA8912141805B996bd:0",
+  "recovery_probe_ref": "reclose-r1-run-a4-recovery-probe-001",
+  "recovery_probe_tx": "0xdd4300f5afd28a1b6dafba86f3c63ec3e53ea294472380ae1391e36751b897fb",
+  "observed_facts": {
+    "target_state_before_validation": "RECOVERY",
+    "effective_provider": "Provider B",
+    "provider_a_probe_fulfilled": true,
+    "provider_a_probe_total_received_wei": "1000000000000000",
+    "assurance_authority_active": true,
+    "owner_revocation": false,
+    "recovery_checks": "Provider A readiness was verified by the fulfilled probe while the confirmed incident remains in RECOVERY."
+  },
+  "condition_code": "RECOVERY_VERIFIED"
+}
