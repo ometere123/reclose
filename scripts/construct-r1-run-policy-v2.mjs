@@ -38,7 +38,10 @@ const calls = [
   ["seal_policy", [policyKey]],
 ];
 const previousPolicy = m.policy ?? {};
-m.policy = { ...previousPolicy, key: policyKey, version: 1, manifestHash: first.hash, compileTwiceIdentical: true, countsExpected: [3, 2, 4], calls: calls.map(([functionName, args]) => ({ functionName, args: safe(args) })), steps: previousPolicy.steps ?? [] };
+// A generation can retain a superseded sealed policy in its manifest.  Resumability is
+// keyed by policy identity, so never reuse transaction steps when switching to a new key.
+const previousSteps = previousPolicy.key === policyKey ? (previousPolicy.steps ?? []) : [];
+m.policy = { ...previousPolicy, key: policyKey, version: 1, manifestHash: first.hash, compileTwiceIdentical: true, countsExpected: [3, 2, 4], calls: calls.map(([functionName, args]) => ({ functionName, args: safe(args) })), steps: previousSteps };
 async function save() { await fs.writeFile(FILE, JSON.stringify(m, null, 2) + "\n"); }
 async function write(index, functionName, args) {
   const old = m.policy.steps[index]; if (old?.executionResult === "FINISHED_WITH_RETURN") return old;

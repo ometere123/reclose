@@ -35,12 +35,12 @@ const POLICY_HASH = MANIFEST.policy.manifestHash;
 const FRESH_RUN = /^reclose-target-r1-final-/.test(TARGET_ID);
 const RULE_ID = "PROVIDER_COMPROMISE_V1";
 const RESOURCE_ID = "provider_a";
-const SOURCE_ID = FRESH_RUN ? "reclose-live-evidence" : "reclose-reference-evidence";
+const SOURCE_ID = process.env.RECLOSE_SOURCE_ID ?? (FRESH_RUN ? "reclose-live-evidence" : "reclose-reference-evidence");
 const FIXTURE_RUN = process.env.RECLOSE_FIXTURE_RUN ?? (TARGET_ID.endsWith("-b") ? "b" : "a");
-const FIXTURE_PATH = FRESH_RUN ? `release-evidence/r1/e1/live-evidence/run-${FIXTURE_RUN}-compromise.md` : "release-evidence/r1/e1/e1a-final-fixtures/provider-a-compromise.md";
+const FIXTURE_PATH = process.env.RECLOSE_FIXTURE_PATH ?? (FRESH_RUN ? `release-evidence/r1/e1/live-evidence/run-${FIXTURE_RUN}-compromise.md` : "release-evidence/r1/e1/e1a-final-fixtures/provider-a-compromise.md");
 const FIXTURE_COMMIT = process.env.RECLOSE_FIXTURE_COMMIT ?? (FRESH_RUN ? "c15379270dc669947b4acfda85d2f70e4c92bcc7" : "633cc5876815f904acb2006279ab68b01f09e263");
 const FIXTURE_URL = `https://raw.githubusercontent.com/ometere123/reclose/${FIXTURE_COMMIT}/${FIXTURE_PATH}`;
-const REGISTRY_PATH = FRESH_RUN ? "config/source-registry-r1-live.json" : "config/source-registry-e1a.json";
+const REGISTRY_PATH = process.env.RECLOSE_REGISTRY_FILE ?? (FRESH_RUN ? "config/source-registry-r1-live.json" : "config/source-registry-e1a.json");
 const REQUIRED_TREASURY_WEI = 100000000000000000n;
 
 // All Studio-dev RPC calls in this process share one FIFO queue and bounded backoff.
@@ -133,7 +133,7 @@ async function main() {
   }
   if (!sameAddress(targetDetails?.[0], TARGET) || !sameAddress(targetDetails?.[1], OWNER) ||
       Number(targetDetails?.[2]) !== 0 || String(targetDetails?.[3]) !== POLICY_KEY ||
-      Number(targetDetails?.[5]) !== 1 || targetDetails?.[6] !== false) {
+      Number(targetDetails?.[5]) !== Number(policyIdentity?.[1]) || targetDetails?.[6] !== false) {
     fail(`Target registration/state mismatch: ${JSON.stringify(jsonSafe(targetDetails))}`);
   }
   if (!sameAddress(rule?.[0], JUDGE) || Number(rule?.[1]) !== (FRESH_RUN ? 2 : 1) || Number(rule?.[2]) !== 1 || rule?.[3] !== true || rule?.[4] !== true) {
@@ -154,10 +154,10 @@ async function main() {
   if (!sourceRecord || !authorityExpected || JSON.stringify(jsonSafe(sourceAuthority)) !== JSON.stringify(authorityExpected)) {
     fail(`Live Judge snapshot authority differs from the current registry: ${JSON.stringify(jsonSafe(sourceAuthority))}`);
   }
-  const expectedPathPrefix = FRESH_RUN ? "/ometere123/reclose/" : `/ometere123/reclose/${FIXTURE_COMMIT}/release-evidence/r1/e1/e1a-final-fixtures/`;
+  const expectedPathPrefix = process.env.RECLOSE_EXPECTED_PATH_PREFIX ?? (FRESH_RUN ? sourceRecord.canonicalPathPrefix : `/ometere123/reclose/${FIXTURE_COMMIT}/release-evidence/r1/e1/e1a-final-fixtures/`);
   if (sourceRecord.sourceClass !== "CONTENT_ADDRESSED_SNAPSHOT" ||
       sourceRecord.canonicalPathPrefix !== expectedPathPrefix ||
-      !sourceRecord.enabled || !sourceRecord.ruleIds.includes(RULE_ID)) {
+      !sourceRecord.enabled || !sourceRecord.ruleIds.includes(RULE_ID) || !FIXTURE_URL.includes(sourceRecord.canonicalPathPrefix)) {
     fail("The frozen fixture URL is not covered by the enabled immutable source authority.");
   }
 
