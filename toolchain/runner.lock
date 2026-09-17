@@ -11,7 +11,7 @@ protobuf_runner_hash: g626etbaad7a3zqdp7wqd7d5k0ywdphjkdxk9rg8abhx2ggmv8e0
 
 registry_source: genlayerlabs/genvm-manager GitHub releases v0.6.0-rc3 and v0.6.0-rc4 (Consensus v0.6 RC family
   matching Studio v0.123.0-rc.6), cross-verified against the runner header exposed by Studio-dev's own live
-  built-in contract templates (https://studio-next.genlayer.com "storage.py" example) and against the local
+  built-in contract templates (https://studio-dev.genlayer.com "storage.py" example) and against the local
   gltest-direct runner cache (C:\Users\USER\.cache\gltest-direct\trees-v2\v0.6.0-rc4).
 verified_at: 2026-09-10T00:00:00Z (funded follow-up session; superseded values from a prior 2026-09-10T00:00:00Z
   entry sourced from sdk.genlayer.com/main - see docs/execution/Studio-dev Toolchain & Network Compatibility
