@@ -486,7 +486,12 @@ class IncidentJudgeV1(gl.contract.Contract):
                 if source_class == "CONTENT_ADDRESSED_SNAPSHOT" and path_prefix.startswith("/ometere123/reclose/"):
                     parts = path_prefix.split("/")
                     self._require(
-                        len(parts) == 4 and parts[1] == "ometere123" and parts[2] == "reclose",
+                        len(parts) >= 9
+                        and parts[1] == "ometere123"
+                        and parts[2] == "reclose"
+                        and len(parts[3]) == 40
+                        and all(c in "0123456789abcdefABCDEF" for c in parts[3])
+                        and parts[4:8] == ["release-evidence", "r1", "e1", "live-evidence"],
                         "E_JDG_000: Reclose content authority must use the trusted repository root; URLs must pin the commit and live-evidence path",
                     )
             rec = SourceAuthorityRecord()

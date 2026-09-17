@@ -13,6 +13,7 @@ const mustContain = [
   "gl.vm.run_nondet_default",
   "validator_data = self._evaluate_once",
   "fall back to Reporter-claimed extractedText",
+  "parts[4:8] == [\"release-evidence\", \"r1\", \"e1\", \"live-evidence\"]",
 ];
 for (const fragment of mustContain) {
   if (!source.includes(fragment)) throw new Error(`missing recovery-consensus invariant: ${fragment}`);
