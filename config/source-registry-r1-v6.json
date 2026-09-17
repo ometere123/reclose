@@ -1,0 +1,13 @@
+{
+  "schema": "reclose-source-registry-v1",
+  "sources": [
+    {
+      "sourceId": "reclose-live-evidence-v6",
+      "canonicalOrigin": "https://raw.githubusercontent.com",
+      "canonicalPathPrefix": "/ometere123/reclose/",
+      "sourceClass": "CONTENT_ADDRESSED_SNAPSHOT",
+      "ruleIds": ["PROVIDER_COMPROMISE_V1", "SERVICE_FAILURE_V1", "REMEDIATION_CONFIRMED_V1", "RECOVERY_VALIDATED_V1"],
+      "enabled": true
+    }
+  ]
+}
