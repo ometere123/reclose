@@ -21,6 +21,20 @@ The external agent should use its own signer. Never share the Reclose deployment
 
 ## Runtime integration
 
+### Runnable Reporter
+
+After copying the final deployment config and placing the external agent's own key in a local env file:
+
+```powershell
+$env:RECLOSE_DEPLOYMENT_CONFIG = "deployment/61997/reclose-r1-final.json"
+$env:RECLOSE_SIGNER_ENV_FILE = ".env.external-agent"
+$env:RECLOSE_EVIDENCE_URL = "<exact-commit-pinned-evidence-url>"
+$env:RECLOSE_EVIDENCE_HASH = "<keccak-256-of-the-fetched-bytes>"
+node examples/external-agent/reporter.mjs
+```
+
+The command persists a prepared payload before signing, then persists the root transaction hash immediately and records its direct children. Continue polling each child recursively with the SDK tracker; a finalized parent is not proof that a target action succeeded.
+
 ```ts
 import { createClient, chains } from "genlayer-js";
 import { createRecloseClient } from "@reclose/protocol-sdk";
