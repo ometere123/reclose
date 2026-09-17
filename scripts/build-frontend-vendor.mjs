@@ -10,6 +10,7 @@ import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const deploymentManifest = process.env.RECLOSE_FRONTEND_MANIFEST ?? "deployment/61997/r1-run-a7-manifest.json";
 const vendorDir = path.join(root, "frontend", "vendor");
 await mkdir(vendorDir, { recursive: true });
 
@@ -21,7 +22,7 @@ await build({
   platform: "browser",
   target: "es2022",
   define: {
-    __RECLOSE_DEPLOYMENT__: JSON.stringify(JSON.parse(await readFile(path.join(root, "deployment", "61997", "r1-lifecycle-split-run-a-working-manifest.json"), "utf8"))),
+    __RECLOSE_DEPLOYMENT__: JSON.stringify(JSON.parse(await readFile(path.resolve(root, deploymentManifest), "utf8"))),
   },
   sourcemap: false,
   logLevel: "info",
