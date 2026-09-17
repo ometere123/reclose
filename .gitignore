@@ -46,3 +46,11 @@ Thumbs.db
 # transaction evidence belongs in deployment/*/r*-manifest.json, not these transient dumps.
 .a2-c01-retest-*.json
 .r1r-*.json
+
+# Credential-bearing explorer/simulation dumps are generated-only. Keep redacted
+# copies in release evidence; never add a raw dump containing private_key values.
+**/e1a-explorer-search-raw.json
+**/explorer-deployer-search.json
+**/simulation-failure.json
+**/simulation-results.json
+
