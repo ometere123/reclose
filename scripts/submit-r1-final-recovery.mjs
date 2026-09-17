@@ -10,7 +10,7 @@ const RPC = "https://studio-dev.genlayer.com/api", CHAIN_ID = 61997;
 const m = JSON.parse(await fs.readFile(process.env.RECLOSE_MANIFEST ?? "deployment/61997/r1-run-a-manifest.json", "utf8"));
 const JUDGE = m.contracts.IncidentJudgeV1.address, KERNEL = m.contracts.AssuranceKernel.address, TARGET = m.contracts.ReferenceAgentProtocol.address;
 const TARGET_ID = m.targetId, POLICY_KEY = m.policy.key, POLICY_HASH = m.policy.manifestHash, REPORTER = m.deployer;
-const PARENT = `${TARGET_ID}:${REPORTER}:0`, RUN = TARGET_ID.endsWith("-b") ? "b" : "a", FRESH_RUN = /^reclose-target-r1-final-[ab]$/.test(TARGET_ID);
+const PARENT = `${TARGET_ID}:${REPORTER}:0`, RUN = process.env.RECLOSE_FIXTURE_RUN ?? (TARGET_ID.endsWith("-b") ? "b" : TARGET_ID.endsWith("-a2") ? "a2" : TARGET_ID.endsWith("-a3") ? "a3" : "a"), FRESH_RUN = /^reclose-target-r1-final-/.test(TARGET_ID);
 const URL = process.env.RECLOSE_RECOVERY_URL ?? (FRESH_RUN ? `https://raw.githubusercontent.com/ometere123/reclose/ac7e4df7989166f52eebccfe0bee14709dee3bb0/release-evidence/r1/e1/live-evidence/run-${RUN}-recovery-snapshot.json` : "https://raw.githubusercontent.com/ometere123/reclose/633cc5876815f904acb2006279ab68b01f09e263/release-evidence/r1/e1/e1a-final-fixtures/provider-a-recovery.md");
 const EXPECTED_BYTES = Number(process.env.RECLOSE_RECOVERY_BYTES ?? (FRESH_RUN ? 1759 : 633)), EXPECTED_HASH = process.env.RECLOSE_RECOVERY_HASH ?? (FRESH_RUN ? "0xfde804fe99fbbf6f1a494236ceda91e14ceb61df321c366bbfc355280158a593" : "0x0ca0871f4fb12cbc9dff6c84dd1e6329c7559f36211ee00f5bd94bdab9bfc16b");
 const EVIDENCE_DIR = process.env.RECLOSE_EVIDENCE_DIR ?? "release-evidence/r1/e1/fresh-fixed-cycle";
@@ -23,7 +23,7 @@ const parentStatus = await c.readContract({ address: KERNEL, functionName: "get_
 if (Number(parentStatus) !== 3) throw new Error(`parent is not RECOVERY before validation: ${parentStatus}`);
 const remote = await fetchAuthoritativeSnapshot(URL);
 if (remote.bytes.length !== EXPECTED_BYTES || remote.hash.toLowerCase() !== EXPECTED_HASH) throw new Error(`recovery fixture mismatch: ${remote.bytes.length}/${remote.hash}`);
-const local = await fs.readFile(FRESH_RUN ? `release-evidence/r1/e1/live-evidence/run-${RUN}-recovery-snapshot.json` : "release-evidence/r1/e1/e1a-final-fixtures/provider-a-recovery.md", "utf8");
+const local = await fs.readFile(process.env.RECLOSE_RECOVERY_LOCAL ?? (FRESH_RUN ? `release-evidence/r1/e1/live-evidence/run-${RUN}-recovery-snapshot.json` : "release-evidence/r1/e1/e1a-final-fixtures/provider-a-recovery.md"), "utf8");
 if (!normalizedFixtureMatches(local, remote.text)) console.warn("local recovery fixture differs after newline normalization; remote remains authoritative");
 const nonce = Number(await c.readContract({ address: JUDGE, functionName: "get_reporter_nonce", args: [REPORTER] }));
 if (nonce !== 2) throw new Error(`expected recovery nonce 2, got ${nonce}`);
