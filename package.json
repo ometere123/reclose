@@ -27,6 +27,7 @@
     "policy-compiler:test": "node scripts/test-policy-compiler.js",
     "policy-estimator-identity:test": "node scripts/test-policy-estimator-identity.js",
     "evidence-builder:test": "node scripts/test-evidence-builder.js",
+    "recovery-consensus:test": "node scripts/test-recovery-consensus-design.mjs",
     "transaction-tracker:test": "node scripts/test-transaction-tracker.js",
     "cli:test": "node scripts/test-cli.js",
     "cli-report:test": "node scripts/test-cli-report-preparation.js",
