@@ -12,8 +12,8 @@ const env = fsSync.readFileSync(fileURLToPath(new URL("../.env.local", import.me
 if (!/^0x[0-9a-f]{64}$/i.test(key ?? "")) throw new Error("invalid signer");
 const account = createAccount(key), client = createClient({ chain: { ...chains.studioDevnet, id: CHAIN_ID, rpcUrls: { default: { http: [RPC] } } }, account });
 if (Number(await client.getChainId()) !== CHAIN_ID) throw new Error("wrong chain before activation");
-if (m.policy.activation?.lifecycle === "VERIFIED") { console.log("activation already verified"); process.exit(0); }
-let pending = m.policy.activation?.lifecycle === "SUBMITTED" ? m.policy.activation : null;
+if (m.policy.activation?.lifecycle === "VERIFIED" && m.policy.activation.policyKey === policyKey && String(m.policy.activation.readback?.identity?.[0] ?? "") === policyKey) { console.log("activation already verified"); process.exit(0); }
+let pending = m.policy.activation?.lifecycle === "SUBMITTED" && m.policy.activation.policyKey === policyKey ? m.policy.activation : null;
 const lifecycle = await client.readContract({ address: kernel, functionName: "get_policy_lifecycle", args: [policyKey] }), now = Math.floor(Date.now() / 1000);
 if (Number(lifecycle[5]) > now) throw new Error(`real policy timelock not elapsed: ${lifecycle[5]} > ${now}`);
 async function save() { await fs.writeFile(FILE, JSON.stringify(m, null, 2) + "\n"); }
@@ -31,7 +31,7 @@ if (!pending) {
     };
   }
   const hash = await client.writeContract({ account, address: kernel, functionName: "activate_policy", args: [policyKey], fees: { distribution: estimate.distribution, feeValue: estimate.feeValue, ...(estimate.messageAllocations?.length ? { messageAllocations: estimate.messageAllocations } : {}) } });
-  pending = { txHash: hash, estimate: safe(estimate), lifecycle: "SUBMITTED", submittedAt: new Date().toISOString() }; m.policy.activation = pending; await save();
+  pending = { policyKey, txHash: hash, estimate: safe(estimate), lifecycle: "SUBMITTED", submittedAt: new Date().toISOString() }; m.policy.activation = pending; await save();
 }
 const receipt = await client.waitForTransactionReceipt({ hash: pending.txHash, waitUntil: "finalized", interval: 4000, retries: 150 }), execution = receipt.txExecutionResultName ?? receipt.executionResultName ?? receipt.execution_result;
 if (!isSuccessful(receipt) || execution !== "FINISHED_WITH_RETURN") throw new Error(`activation failed: ${JSON.stringify(safe(receipt))}`);

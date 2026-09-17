@@ -16,9 +16,10 @@ const client = createClient({ chain: { ...chains.studioDevnet, id: CHAIN_ID, rpc
 if (Number(await client.getChainId()) !== CHAIN_ID) throw new Error("wrong chain");
 const target = manifest.contracts.ReferenceAgentProtocol.address;
 const amount = 50_000_000_000_000_000n;
+const requestRef = process.env.RECLOSE_REQUEST_REF ?? (mode === "purchase-a" ? "e1a-final-initial-provider-a-001" : mode === "purchase-b" ? "e1a-final-fallback-provider-b-001" : "e1a-final-recovery-provider-a-001");
 const call = mode === "fund"
   ? { functionName: "fund_treasury", args: [], value: 150_000_000_000_000_000n, requestRef: null }
-  : { functionName: "purchase_service", args: [mode === "purchase-a" ? "e1a-final-initial-provider-a-001" : mode === "purchase-b" ? "e1a-final-fallback-provider-b-001" : "e1a-final-recovery-provider-a-001", amount], value: 0n, requestRef: mode };
+  : { functionName: "purchase_service", args: [requestRef, amount], value: 0n, requestRef: mode };
 const estimate = await client.estimateTransactionFeesForWrite({ account, address: target, functionName: call.functionName, args: call.args, value: call.value });
 const fees = { distribution: estimate.distribution, ...(estimate.messageAllocations?.length ? { messageAllocations: estimate.messageAllocations } : {}) };
 const artifactPath = process.env.RECLOSE_VALUE_ARTIFACT ?? `release-evidence/r1/e1/fresh-fixed-cycle/value-${mode}.json`;
@@ -30,7 +31,7 @@ const receipt = await client.waitForTransactionReceipt({ hash: txHash, waitUntil
 const execution = receipt.txExecutionResultName ?? receipt.executionResultName ?? receipt.execution_result;
 pending.receipt = safe(receipt); pending.executionResult = execution; pending.lifecycle = isSuccessful(receipt) && execution === "FINISHED_WITH_RETURN" ? "VERIFIED" : "FAILED";
 const provider = mode === "purchase-b" ? manifest.contracts.ProviderStubB.address : manifest.contracts.ProviderStubA.address;
-pending.readback = { treasuryBalance: safe(await client.readContract({ address: target, functionName: "get_treasury_balance", args: [] })), effectiveProvider: safe(await client.readContract({ address: target, functionName: "get_effective_provider", args: [] })), selectedProvider: provider, providerTotalReceived: safe(await client.readContract({ address: provider, functionName: "get_total_received", args: [] })), providerFulfilled: mode === "fund" ? null : safe(await client.readContract({ address: provider, functionName: "is_fulfilled", args: [call.requestRef === mode ? (mode === "purchase-a" ? "e1a-final-initial-provider-a-001" : mode === "purchase-b" ? "e1a-final-fallback-provider-b-001" : "e1a-final-recovery-provider-a-001") : ""] })), targetState: safe(await client.readContract({ address: target, functionName: "get_state", args: [] })) };
+pending.readback = { treasuryBalance: safe(await client.readContract({ address: target, functionName: "get_treasury_balance", args: [] })), effectiveProvider: safe(await client.readContract({ address: target, functionName: "get_effective_provider", args: [] })), selectedProvider: provider, providerTotalReceived: safe(await client.readContract({ address: provider, functionName: "get_total_received", args: [] })), providerFulfilled: mode === "fund" ? null : safe(await client.readContract({ address: provider, functionName: "is_fulfilled", args: [requestRef] })), targetState: safe(await client.readContract({ address: target, functionName: "get_state", args: [] })) };
 await fs.writeFile(artifactPath, JSON.stringify(pending, null, 2) + "\n");
 if (pending.lifecycle !== "VERIFIED") throw new Error(`value step failed: ${JSON.stringify(pending)}`);
 console.log(JSON.stringify({ mode, txHash, execution, readback: pending.readback }, null, 2));

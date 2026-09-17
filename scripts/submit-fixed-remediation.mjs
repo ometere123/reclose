@@ -56,16 +56,22 @@ async function main() {
     targetId: TARGET_ID, policyHash: POLICY_HASH, ruleId: "REMEDIATION_CONFIRMED_V1",
     subject: `Confirmed remediation for ${PARENT_INCIDENT_ID}`,
     reporter: REPORTER, observedAt, retrievedAt: observedAt,
-    sources: [{ sourceId: FRESH_RUN ? "reclose-live-evidence" : "reclose-reference-evidence", url: REMEDIATION_URL, sourceClass: "CONTENT_ADDRESSED_SNAPSHOT", extractedText: remote.text, snapshotRef: REMEDIATION_URL, retrievedAt: observedAt }],
+    sources: [{ sourceId: process.env.RECLOSE_SOURCE_ID ?? (FRESH_RUN ? "reclose-live-evidence" : "reclose-reference-evidence"), url: REMEDIATION_URL, sourceClass: "CONTENT_ADDRESSED_SNAPSHOT", extractedText: remote.text, snapshotRef: REMEDIATION_URL, retrievedAt: observedAt }],
   }));
   if (eap.sources[0].contentHash.toLowerCase() !== EXPECTED_REMEDIATION_HASH || eap.contentHashes[0].toLowerCase() !== EXPECTED_REMEDIATION_HASH || eap.sources[0].contentHash.toLowerCase() !== remote.hash.toLowerCase()) throw new Error("Built EAP is not bound to the authoritative remediation bytes");
   const submitArgs = [PARENT_INCIDENT_ID, POLICY_KEY, eap.artifactHash, JSON.stringify(eap), reporterNonce, ""];
   const restoreActionId = computeActionId(incidentId, POLICY_KEY, 10, "", "5", "");
+  const cachedPreflightPath = process.env.RECLOSE_REMEDIATION_PREFLIGHT;
+  const cachedPreflight = cachedPreflightPath ? JSON.parse(await fs.readFile(cachedPreflightPath, "utf8")) : null;
   let tree;
   let explicitTreeError = null;
-  try { tree = await buildJudgeKernelTargetAllocationTree(client, {
+  if (cachedPreflight) {
+    if (cachedPreflight.reporter?.liveNonce !== reporterNonce || cachedPreflight.incidentId !== incidentId) throw new Error("cached remediation preflight is stale for the live nonce or incident");
+    tree = cachedPreflight.allocationTree;
+    tree.messageAllocations = (tree.messageAllocations ?? []).map(node => ({ ...node, parentIndex: BigInt(node.parentIndex), budget: BigInt(node.budget) }));
+  } else try { tree = await buildJudgeKernelTargetAllocationTree(client, {
     judge: { address: JUDGE, functionName: "submit_remediation", args: submitArgs, account },
-    kernel: { address: KERNEL, functionName: "receive_final_decision", account: { address: JUDGE, type: "json-rpc" }, args: [incidentId, PARENT_INCIDENT_ID, TARGET_ID, POLICY_KEY, 1, POLICY_HASH, "REMEDIATION_CONFIRMED_V1", "", REPORTER, eap.artifactHash, 1, "REMEDIATION_VERIFIED", FRESH_RUN ? 2 : 1] },
+    kernel: { address: KERNEL, functionName: "receive_final_decision", account: { address: JUDGE, type: "json-rpc" }, args: [incidentId, PARENT_INCIDENT_ID, TARGET_ID, POLICY_KEY, Number(manifest.policy.version), POLICY_HASH, "REMEDIATION_CONFIRMED_V1", "", REPORTER, eap.artifactHash, 1, "REMEDIATION_VERIFIED", FRESH_RUN ? 2 : 1] },
     target: { address: TARGET, functionName: "apply_assurance_action", account: { address: KERNEL, type: "json-rpc" }, args: [restoreActionId, incidentId, POLICY_KEY, 10, "", 5n, "", 2] },
   }, { rootParentIndex: MESSAGE_ALLOCATION_ROOT_PARENT_INDEX }); }
   catch (error) {
@@ -73,7 +79,11 @@ async function main() {
     console.error(`Explicit remediation tree rejected by Studio; retrying SDK-generated allocation: ${explicitTreeError}`);
     tree = { messageAllocations: [], fallback: "SDK_GENERATED_ROOT_ALLOCATION" };
   }
-  const estimate = await client.estimateTransactionFeesForWrite({ account, address: JUDGE, functionName: "submit_remediation", args: submitArgs, value: 0n, ...(tree.messageAllocations.length ? { messageAllocations: tree.messageAllocations } : {}) });
+  const estimate = cachedPreflight?.feeEstimate ?? await client.estimateTransactionFeesForWrite({ account, address: JUDGE, functionName: "submit_remediation", args: submitArgs, value: 0n, ...(tree.messageAllocations.length ? { messageAllocations: tree.messageAllocations } : {}) });
+  if (cachedPreflight) {
+    estimate.distribution = Object.fromEntries(Object.entries(estimate.distribution).map(([name, value]) => [name, Array.isArray(value) ? value.map(item => BigInt(item)) : BigInt(value)]));
+    estimate.messageAllocations = tree.messageAllocations;
+  }
   if (!estimate || !estimate.distribution) throw new Error("Remediation fee preflight did not return a usable estimate");
   await fs.mkdir(EVIDENCE_DIR, { recursive: true });
   await fs.writeFile(`${EVIDENCE_DIR}/remediation-preflight.json`, JSON.stringify({
